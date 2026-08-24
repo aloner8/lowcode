@@ -53,6 +53,8 @@ HTML Source แสดง identity ครบและ parse กลับโดย
 - เลือก Collection ที่ Component ใช้เป็น data source
 - เก็บ Collection ID ที่ `component.props.collectionId`
 - เก็บรายละเอียด query/source ที่ `component.props.dataSource`
+- Component Instance หนึ่งตัวอ้างได้สูงสุดหนึ่ง Collection; การเลือกใหม่เป็นการแทนที่ reference เดิม
+- ไม่ใช้ `collectionIds` หรือ Collection reference แบบ array ในระดับ Component
 
 สำหรับ `SlideMenuComponent` เลือก Data Source ได้ 2 แบบ:
 

@@ -63,6 +63,18 @@ Data Source เป็น capability ร่วม แต่ editor สามา�
 - fallback/sample data สำหรับ Design Preview
 - runtime data ส่งผ่าน property เช่น `collectionData`
 
+### กฎ Cardinality
+
+```text
+Component Instance 1 ตัว → Collection ได้ 0 หรือ 1 ตัวเท่านั้น
+```
+
+- ใช้ `component.props.collectionId` เป็น reference หลักเพียงค่าเดียว
+- การเลือก Collection ใหม่ต้อง replace Collection เดิม
+- ไม่รองรับ `collectionIds` หรือ Collection reference แบบ array ใน Component
+- Collection เดียวสามารถถูก Component หลาย instance อ้างอิงได้
+- กฎนี้ใช้กับ Component Instance เท่านั้น; Page Settings อาจประกาศ Collection Sources ของ Page ได้มากกว่าหนึ่งรายการ
+
 ตัวอย่าง `SlideMenuComponent` รองรับการ map `id`, `label`, `href`, `parentId`, `type`, `badge`, `permission` และสร้าง hierarchy จาก flat Collection records
 
 ## การเพิ่ม Component ชนิดใหม่
@@ -80,4 +92,3 @@ Data Source เป็น capability ร่วม แต่ editor สามา�
 - JSON editor parse ก่อนบันทึก
 - HTML ID ตรวจ unique ภายใน Page
 - Instance ID เป็น readonly และต้องคงเดิมเมื่อ serialize/parse HTML Source
-
