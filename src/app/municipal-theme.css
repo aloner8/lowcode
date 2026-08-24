@@ -1,0 +1,223 @@
+@import url('https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&display=swap');
+
+/*
+ * Municipal portal theme, adapted from the visual language in the legacy YII
+ * site. Everything is scoped to .municipal-page so Studio and other templates
+ * retain their own design tokens.
+ */
+.municipal-page {
+  --municipal-green-950: #1b3810;
+  --municipal-green-800: #2e5d1c;
+  --municipal-green-700: #397426;
+  --municipal-green-100: #f0fdf4;
+  --municipal-gold: #dcb504;
+  --municipal-amber: #f59e0b;
+  --municipal-cream: #fff9e8;
+  --municipal-muted: #64748b;
+  --municipal-radius: 1.1rem;
+  --municipal-shadow: 0 14px 35px rgba(27, 56, 16, 0.1);
+  color: #203018;
+  font-family: 'Anuphan', 'Noto Sans Thai', system-ui, sans-serif;
+  background:
+    radial-gradient(circle at 8% 4%, rgba(220, 181, 4, 0.1), transparent 22rem),
+    linear-gradient(180deg, #fbfff8 0%, #fff 28rem);
+}
+
+.municipal-page > .d-flex {
+  gap: 1.75rem !important;
+  max-width: 1440px;
+  margin-inline: auto;
+}
+
+.municipal-page .municipal-component {
+  scroll-margin-top: 5rem;
+}
+
+.municipal-page .municipal-component > .card,
+.municipal-page .municipal-component > section {
+  border: 1px solid rgba(46, 93, 28, 0.1) !important;
+  border-radius: var(--municipal-radius) !important;
+  box-shadow: var(--municipal-shadow) !important;
+}
+
+.municipal-page .municipal-component h2,
+.municipal-page .municipal-component h4,
+.municipal-page .municipal-component h5 {
+  color: var(--municipal-green-950);
+}
+
+.municipal-page .municipal-component > .card > h4,
+.municipal-page .municipal-component > .card > .d-flex:first-child h5 {
+  position: relative;
+  padding-bottom: 0.8rem;
+}
+
+.municipal-page .municipal-component > .card > h4::after,
+.municipal-page .municipal-component > .card > .d-flex:first-child h5::after {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 4rem;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--municipal-gold), var(--municipal-amber));
+  content: '';
+}
+
+.municipal-page .municipal-header .navbar {
+  border: 0 !important;
+  border-bottom: 4px solid var(--municipal-gold) !important;
+  border-radius: var(--municipal-radius) !important;
+  background: linear-gradient(120deg, var(--municipal-green-950), var(--municipal-green-800)) !important;
+  box-shadow: 0 16px 34px rgba(27, 56, 16, 0.22);
+}
+
+.municipal-page .municipal-header .navbar-brand,
+.municipal-page .municipal-header .nav-link {
+  color: #fff !important;
+}
+
+.municipal-page .municipal-header .nav-link {
+  border-radius: 999px;
+  padding-inline: 1rem !important;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.municipal-page .municipal-header .nav-link:hover,
+.municipal-page .municipal-header .nav-link.active {
+  color: var(--municipal-green-950) !important;
+  background: var(--municipal-gold);
+}
+
+.municipal-page .municipal-hero > .card {
+  overflow: hidden;
+  color: #fff;
+  background:
+    linear-gradient(110deg, rgba(27, 56, 16, 0.98), rgba(46, 93, 28, 0.9)),
+    var(--municipal-green-950) !important;
+}
+
+.municipal-page .municipal-hero > .card > h4,
+.municipal-page .municipal-hero .text-muted {
+  color: #fff !important;
+}
+
+.municipal-page .municipal-hero > .card > h4::after {
+  width: 6rem;
+}
+
+.municipal-page .municipal-hero .card .card,
+.municipal-page .municipal-news .card .card,
+.municipal-page .municipal-activities .card .card,
+.municipal-page .municipal-places .card .card,
+.municipal-page .municipal-otop .card .card,
+.municipal-page .municipal-ebooks .card .card {
+  border: 1px solid rgba(46, 93, 28, 0.12) !important;
+  border-radius: 0.9rem !important;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.municipal-page .municipal-hero .card .card:hover,
+.municipal-page .municipal-news .card .card:hover,
+.municipal-page .municipal-activities .card .card:hover,
+.municipal-page .municipal-places .card .card:hover,
+.municipal-page .municipal-otop .card .card:hover,
+.municipal-page .municipal-ebooks .card .card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 16px 28px rgba(27, 56, 16, 0.16) !important;
+}
+
+.municipal-page .municipal-eservice section {
+  border: 0 !important;
+  color: #fff;
+  background: linear-gradient(125deg, var(--municipal-green-800), var(--municipal-green-700)) !important;
+}
+
+.municipal-page .municipal-eservice section h2 {
+  color: #fff;
+}
+
+.municipal-page .municipal-transparency section,
+.municipal-page .municipal-links section,
+.municipal-page .municipal-location section {
+  border-left: 6px solid var(--municipal-gold) !important;
+  background: linear-gradient(110deg, var(--municipal-cream), #fff) !important;
+}
+
+.municipal-page .municipal-procurement > .card,
+.municipal-page .municipal-downloads > .card {
+  overflow: hidden;
+}
+
+.municipal-page .municipal-procurement thead th,
+.municipal-page .municipal-downloads thead th {
+  color: #fff;
+  background: var(--municipal-green-800) !important;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.municipal-page .municipal-procurement tbody tr:hover td,
+.municipal-page .municipal-downloads tbody tr:hover td {
+  background: var(--municipal-green-100);
+}
+
+.municipal-page .municipal-procurement .form-control:focus,
+.municipal-page .municipal-downloads .form-control:focus {
+  border-color: var(--municipal-gold);
+  box-shadow: 0 0 0 0.2rem rgba(220, 181, 4, 0.18);
+}
+
+.municipal-page .municipal-statistics > .card {
+  border: 0 !important;
+  border-top: 5px solid var(--municipal-gold) !important;
+  color: #fff;
+  background: linear-gradient(125deg, var(--municipal-green-950), var(--municipal-green-700)) !important;
+}
+
+.municipal-page .municipal-statistics .text-muted,
+.municipal-page .municipal-statistics h1,
+.municipal-page .municipal-statistics h2,
+.municipal-page .municipal-statistics h3,
+.municipal-page .municipal-statistics h4,
+.municipal-page .municipal-statistics h5 {
+  color: #fff !important;
+}
+
+.municipal-page .btn-primary {
+  border-color: var(--municipal-green-800) !important;
+  background: var(--municipal-green-800) !important;
+}
+
+.municipal-page .btn-primary:hover {
+  border-color: var(--municipal-green-950) !important;
+  background: var(--municipal-green-950) !important;
+}
+
+.municipal-page .badge {
+  border-radius: 999px;
+}
+
+@media (max-width: 767.98px) {
+  .municipal-page {
+    padding-inline: 0.5rem !important;
+  }
+
+  .municipal-page > .d-flex {
+    gap: 1rem !important;
+  }
+
+  .municipal-page .municipal-component > .card,
+  .municipal-page .municipal-component > section {
+    padding: 1rem !important;
+    border-radius: 0.8rem !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .municipal-page *,
+  .municipal-page *::before,
+  .municipal-page *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

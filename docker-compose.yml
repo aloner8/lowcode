@@ -1,0 +1,163 @@
+services:
+  # 1. Central PostgreSQL for the Mother Web control plane.
+  # Stores platform blueprints, design metadata, configuration and the
+  # publishable definitions that will later be copied into each child app's
+  # `sys` schema.
+  core-db:
+    image: postgres:17-alpine
+    container_name: lowcode_core_db
+    restart: unless-stopped
+    ports:
+      - "35432:5432"
+    environment:
+      POSTGRES_DB: ${CORE_POSTGRES_DB:-lowcode_core}
+      POSTGRES_USER: ${CORE_POSTGRES_USER:-lowcode_admin}
+      POSTGRES_PASSWORD: ${CORE_POSTGRES_PASSWORD:-lowcode_dev_password}
+      TZ: Asia/Bangkok
+    volumes:
+      - lowcode_core_postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/migrations/001_create_platform_categories.sql:/docker-entrypoint-initdb.d/001_create_platform_categories.sql:ro
+      - ./docker/postgres/migrations/002_create_platforms.sql:/docker-entrypoint-initdb.d/002_create_platforms.sql:ro
+      - ./docker/postgres/migrations/003_create_platform_page_flows.sql:/docker-entrypoint-initdb.d/003_create_platform_page_flows.sql:ro
+      - ./docker/postgres/migrations/004_create_platform_runtime.sql:/docker-entrypoint-initdb.d/004_create_platform_runtime.sql:ro
+      - ./docker/postgres/migrations/005_create_tenant_database.sql:/docker-entrypoint-initdb.d/005_create_tenant_database.sql:ro
+      - ./docker/postgres/migrations/006_create_platform_design_configs.sql:/docker-entrypoint-initdb.d/006_create_platform_design_configs.sql:ro
+      - ./docker/postgres/migrations/007_create_studio_forms.sql:/docker-entrypoint-initdb.d/007_create_studio_forms.sql:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - lowcode-network
+
+  # 2. pgAdmin for managing the central PostgreSQL database.
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: lowcode_pgadmin
+    restart: unless-stopped
+    ports:
+      - "35433:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@lowcode.dev}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-pgadmin_dev_password}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    volumes:
+      - lowcode_pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      core-db:
+        condition: service_healthy
+    networks:
+      - lowcode-network
+
+  # 3. Mother App (DesignMode Studio & Control Plane)
+  studio-mother:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: lowcode-app:latest
+    container_name: lowcode_studio_mother
+    # The control plane needs Docker socket access to generate/start Platform runtimes.
+    # Child runtime containers continue to use the non-root `nextjs` user from Dockerfile.
+    user: root
+    restart: always
+    ports:
+      - "33000:33000"
+    environment:
+      PORT: 33000
+      # Use the Docker service name and the container port internally.
+      # From the host machine the same database is localhost:35432.
+      CORE_DATABASE_URL: postgresql://${CORE_POSTGRES_USER:-lowcode_admin}:${CORE_POSTGRES_PASSWORD:-lowcode_dev_password}@core-db:5432/${CORE_POSTGRES_DB:-lowcode_core}
+      CORE_DB_SCHEMA: public
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-https://your-supabase-project.supabase.co}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-your-anon-key}
+      DOCKER_SOCKET_PATH: /var/run/docker.sock
+      PLATFORM_RUNTIME_NETWORK: lowcode_network
+      PLATFORM_RUNTIME_BASE_IMAGE: lowcode-app:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      core-db:
+        condition: service_healthy
+    networks:
+      - lowcode-network
+
+  # 4. Child App A Container (Client A)
+  child-app-a:
+    image: lowcode-app:latest
+    container_name: lowcode_child_app_a
+    restart: always
+    ports:
+      - "33001:33001"
+    environment:
+      PORT: 33001
+      APP_SLUG: demo-client-a
+      TENANT_DB_NAME: app_db_client_a
+      TENANT_SYSTEM_SCHEMA: sys
+      CORE_DATABASE_URL: postgresql://${CORE_POSTGRES_USER:-lowcode_admin}:${CORE_POSTGRES_PASSWORD:-lowcode_dev_password}@core-db:5432/${CORE_POSTGRES_DB:-lowcode_core}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-https://your-supabase-project.supabase.co}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-your-anon-key}
+    depends_on:
+      core-db:
+        condition: service_healthy
+      studio-mother:
+        condition: service_started
+    networks:
+      - lowcode-network
+
+  # 5. Child App B Container (Client B)
+  child-app-b:
+    image: lowcode-app:latest
+    container_name: lowcode_child_app_b
+    restart: always
+    ports:
+      - "33002:33002"
+    environment:
+      PORT: 33002
+      APP_SLUG: demo-client-b
+      TENANT_DB_NAME: app_db_client_b
+      TENANT_SYSTEM_SCHEMA: sys
+      CORE_DATABASE_URL: postgresql://${CORE_POSTGRES_USER:-lowcode_admin}:${CORE_POSTGRES_PASSWORD:-lowcode_dev_password}@core-db:5432/${CORE_POSTGRES_DB:-lowcode_core}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-https://your-supabase-project.supabase.co}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-your-anon-key}
+    depends_on:
+      core-db:
+        condition: service_healthy
+      studio-mother:
+        condition: service_started
+    networks:
+      - lowcode-network
+
+  # 6. Nginx Subdomain Reverse Proxy
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: lowcode_nginx_proxy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - studio-mother
+      - child-app-a
+      - child-app-b
+    networks:
+      - lowcode-network
+
+volumes:
+  lowcode_core_postgres_data:
+    name: lowcode_core_postgres_data
+  lowcode_pgadmin_data:
+    name: lowcode_pgadmin_data
+
+networks:
+  lowcode-network:
+    name: lowcode_network
+    driver: bridge

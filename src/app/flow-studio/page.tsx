@@ -1,0 +1,451 @@
+'use client';
+
+import React, { useState, useCallback, useMemo } from 'react';
+import {
+  ReactFlow,
+  Controls,
+  Background,
+  useNodesState,
+  useEdgesState,
+  addEdge,
+  Connection,
+  Edge,
+  Node,
+  BackgroundVariant,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import { LifelineHeaderNode, SequenceStepNode } from '@/components/flow/SequenceCustomNodes';
+import { LifelineParticipant, SequenceMessageType } from '@/types';
+import {
+  Workflow,
+  Plus,
+  Play,
+  Save,
+  Code2,
+  User,
+  Globe,
+  Zap,
+  Server,
+  Database,
+  FileCode,
+  Sliders,
+  X,
+  ArrowRight,
+  Layers,
+  Sparkles,
+} from 'lucide-react';
+
+export default function FlowStudioPage() {
+  // Register custom node components
+  const nodeTypes = useMemo(
+    () => ({
+      lifelineHeaderNode: LifelineHeaderNode,
+      sequenceStepNode: SequenceStepNode,
+    }),
+    []
+  );
+
+  // 6 Lifeline Column X Positions
+  const lifelineXPositions: Record<LifelineParticipant, number> = {
+    user: 80,
+    browser: 320,
+    api: 560,
+    server: 800,
+    db: 1040,
+    file: 1280,
+  };
+
+  // Top Swimlane Lifeline Column Header Nodes
+  const headerNodes: Node[] = [
+    { id: 'hdr_user', type: 'lifelineHeaderNode', position: { x: 80, y: 30 }, data: { participant: 'user' }, draggable: false },
+    { id: 'hdr_browser', type: 'lifelineHeaderNode', position: { x: 320, y: 30 }, data: { participant: 'browser' }, draggable: false },
+    { id: 'hdr_api', type: 'lifelineHeaderNode', position: { x: 560, y: 30 }, data: { participant: 'api' }, draggable: false },
+    { id: 'hdr_server', type: 'lifelineHeaderNode', position: { x: 800, y: 30 }, data: { participant: 'server' }, draggable: false },
+    { id: 'hdr_db', type: 'lifelineHeaderNode', position: { x: 1040, y: 30 }, data: { participant: 'db' }, draggable: false },
+    { id: 'hdr_file', type: 'lifelineHeaderNode', position: { x: 1280, y: 30 }, data: { participant: 'file' }, draggable: false },
+  ];
+
+  // Default Sequence Flow Nodes (Default Flow)
+  const initialStepNodes: Node[] = [
+    {
+      id: 'seq_step_1',
+      type: 'sequenceStepNode',
+      position: { x: 80, y: 120 },
+      data: {
+        stepNumber: 1,
+        label: '🚀 Start Entry: Request App URL',
+        sourceLifeline: 'user',
+        targetLifeline: 'browser',
+        messageType: 'request',
+      },
+    },
+    {
+      id: 'seq_step_2',
+      type: 'sequenceStepNode',
+      position: { x: 320, y: 210 },
+      data: {
+        stepNumber: 2,
+        label: '🛡️ Auth Check?: Validate Session Cookie',
+        sourceLifeline: 'browser',
+        targetLifeline: 'api',
+        messageType: 'request',
+      },
+    },
+    {
+      id: 'seq_step_3',
+      type: 'sequenceStepNode',
+      position: { x: 560, y: 300 },
+      data: {
+        stepNumber: 3,
+        label: 'Query Core DB & Profile Data',
+        sourceLifeline: 'api',
+        targetLifeline: 'db',
+        messageType: 'request',
+      },
+    },
+    {
+      id: 'seq_step_4',
+      type: 'sequenceStepNode',
+      position: { x: 320, y: 390 },
+      data: {
+        stepNumber: 4,
+        label: '🔐 Private / Public Router: Load Page AST',
+        sourceLifeline: 'api',
+        targetLifeline: 'browser',
+        messageType: 'response',
+      },
+    },
+    {
+      id: 'seq_step_5',
+      type: 'sequenceStepNode',
+      position: { x: 320, y: 480 },
+      data: {
+        stepNumber: 5,
+        label: '🎧 Event Listener Loop: Active (Menu+Route+Timer)',
+        sourceLifeline: 'browser',
+        targetLifeline: 'browser',
+        messageType: 'async',
+      },
+    },
+    {
+      id: 'seq_step_6',
+      type: 'sequenceStepNode',
+      position: { x: 80, y: 570 },
+      data: {
+        stepNumber: 6,
+        label: '🛑 Close Terminate: Logout Session',
+        sourceLifeline: 'user',
+        targetLifeline: 'server',
+        messageType: 'request',
+      },
+    },
+  ];
+
+  const initialEdges: Edge[] = [
+    { id: 'e1', source: 'seq_step_1', target: 'seq_step_2', animated: true, label: 'URL Load' },
+    { id: 'e2', source: 'seq_step_2', target: 'seq_step_3', animated: true, label: 'Verify JWT' },
+    { id: 'e3', source: 'seq_step_3', target: 'seq_step_4', animated: true, label: 'Return Profile' },
+    { id: 'e4', source: 'seq_step_4', target: 'seq_step_5', animated: true, label: 'Render UI' },
+    { id: 'e5', source: 'seq_step_5', target: 'seq_step_6', label: 'User Logout' },
+  ];
+
+  const [nodes, setNodes, onNodesChange] = useNodesState([...headerNodes, ...initialStepNodes]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
+  const [testRunStatus, setTestRunStatus] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
+
+  const onConnect = useCallback(
+    (params: Connection) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
+    [setEdges]
+  );
+
+  // Add Sequence Step Node to specific Lifeline Column
+  const handleAddSequenceStep = (participant: LifelineParticipant) => {
+    const stepCount = nodes.filter((n) => n.type === 'sequenceStepNode').length + 1;
+    const xPos = lifelineXPositions[participant];
+    const yPos = 120 + stepCount * 80;
+
+    const newStepNode: Node = {
+      id: `seq_step_${Date.now()}`,
+      type: 'sequenceStepNode',
+      position: { x: xPos, y: yPos },
+      data: {
+        stepNumber: stepCount,
+        label: `New Step on ${participant.toUpperCase()}`,
+        sourceLifeline: participant,
+        targetLifeline: participant === 'user' ? 'browser' : participant === 'browser' ? 'api' : 'db',
+        messageType: 'request',
+      },
+    };
+
+    setNodes((prev) => [...prev, newStepNode]);
+    setSelectedNode(newStepNode);
+  };
+
+  // Node Selection Handler
+  const onNodeClick = (_: any, node: Node) => {
+    if (node.type === 'lifelineHeaderNode') return;
+    setSelectedNode(node);
+  };
+
+  // Update Node Data
+  const handleUpdateNodeData = (key: string, value: any) => {
+    if (!selectedNode) return;
+    setNodes((nds) =>
+      nds.map((n) => {
+        if (n.id === selectedNode.id) {
+          const updatedData = { ...n.data, [key]: value };
+          if (key === 'sourceLifeline' && lifelineXPositions[value as LifelineParticipant]) {
+            n.position.x = lifelineXPositions[value as LifelineParticipant];
+          }
+          setSelectedNode({ ...n, data: updatedData });
+          return { ...n, data: updatedData };
+        }
+        return n;
+      })
+    );
+  };
+
+  // Delete Node
+  const handleDeleteNode = (nodeId: string) => {
+    setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+    setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
+    setSelectedNode(null);
+  };
+
+  // Test Run Sequence Evaluator
+  const handleTestRunSequence = () => {
+    setTestRunStatus('Simulating Sequence Lifelines Execution...');
+    setTimeout(() => setTestRunStatus('1. 👤 User -> 🌐 Browser: Start Entry URL Request -> OK'), 600);
+    setTimeout(() => setTestRunStatus('2. 🌐 Browser -> 🔌 API: Auth Check Session -> OK'), 1200);
+    setTimeout(() => setTestRunStatus('3. 🔌 API -> 💾 DB: Fetch Core DB User Profile -> OK'), 1800);
+    setTimeout(() => setTestRunStatus('4. 🔌 API -> 🌐 Browser: Private Router AST Injected -> OK'), 2400);
+    setTimeout(() => setTestRunStatus('5. 🌐 Browser: Event Loop Active (Menu + Route + Timer) -> READY'), 3000);
+    setTimeout(() => setTestRunStatus(null), 6000);
+  };
+
+  // Save Flow AST
+  const handleSaveSequenceAst = () => {
+    setSaveStatus('Sequence Flow AST Saved!');
+    setTimeout(() => setSaveStatus(null), 3000);
+  };
+
+  return (
+    <div className="container-fluid p-0 d-flex flex-column min-vh-100 select-none">
+      {/* Header Bar */}
+      <div
+        className="card border-0 text-white rounded-3 shadow-sm mb-3 p-3"
+        style={{
+          background: 'linear-gradient(135deg, #1e1b4b 0%, #31104b 50%, #4c1d95 100%)',
+        }}
+      >
+        <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+          <div className="d-flex align-items-center gap-3">
+            <div className="rounded-3 bg-white bg-opacity-15 p-2 d-flex align-items-center justify-content-center text-white">
+              <Workflow size={24} />
+            </div>
+            <div>
+              <div className="d-flex align-items-center gap-2 mb-1">
+                <span className="badge bg-white bg-opacity-20 text-white extra-small">
+                  Visual Sequence Diagram Studio (DefaultFlow.MD)
+                </span>
+                <span className="badge bg-success bg-opacity-25 text-success-light border border-success border-opacity-30 extra-small">
+                  6 Lifelines Active
+                </span>
+              </div>
+              <h5 className="fw-bold mb-0 text-white">Master Sequence Lifecycle Flow Engine</h5>
+            </div>
+          </div>
+
+          <div className="d-flex align-items-center gap-2">
+            {saveStatus && <span className="badge bg-success text-white px-2.5 py-1.5 extra-small">{saveStatus}</span>}
+
+            <button className="btn btn-outline-light btn-sm fw-semibold extra-small px-3" onClick={() => setShowJsonModal(true)}>
+              <Code2 size={15} className="me-1" /> View Flow AST JSON
+            </button>
+            <button className="btn btn-success btn-sm fw-semibold extra-small px-3 shadow-sm" onClick={handleTestRunSequence}>
+              <Play size={15} className="me-1 fill-current" /> Test Run Flow
+            </button>
+            <button className="btn btn-primary btn-sm fw-semibold extra-small px-3 shadow-sm" onClick={handleSaveSequenceAst}>
+              <Save size={15} className="me-1" /> Save Workflow AST
+            </button>
+          </div>
+        </div>
+
+        {testRunStatus && (
+          <div className="mt-2.5 p-2 bg-black bg-opacity-30 rounded-2 text-info font-monospace extra-small border border-info border-opacity-30">
+            {testRunStatus}
+          </div>
+        )}
+      </div>
+
+      {/* Lifeline Addition Toolbar Palette */}
+      <div className="bg-white rounded-3 shadow-sm p-2 mb-3 border d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div className="d-flex align-items-center gap-1.5 flex-wrap">
+          <span className="fw-bold extra-small text-muted text-uppercase me-2" style={{ letterSpacing: '0.04em' }}>
+            Add Sequence Step:
+          </span>
+          <button className="btn btn-sm btn-outline-primary extra-small py-1 px-2.5 rounded-2 d-flex align-items-center gap-1" onClick={() => handleAddSequenceStep('user')}>
+            <User size={13} /> + Step to User
+          </button>
+          <button className="btn btn-sm btn-outline-info extra-small py-1 px-2.5 rounded-2 d-flex align-items-center gap-1" onClick={() => handleAddSequenceStep('browser')}>
+            <Globe size={13} /> + Step to Browser
+          </button>
+          <button className="btn btn-sm btn-outline-warning extra-small py-1 px-2.5 rounded-2 d-flex align-items-center gap-1 text-dark" onClick={() => handleAddSequenceStep('api')}>
+            <Zap size={13} /> + Step to API
+          </button>
+          <button className="btn btn-sm btn-outline-success extra-small py-1 px-2.5 rounded-2 d-flex align-items-center gap-1" onClick={() => handleAddSequenceStep('server')}>
+            <Server size={13} /> + Step to Server
+          </button>
+          <button className="btn btn-sm btn-outline-purple extra-small py-1 px-2.5 rounded-2 d-flex align-items-center gap-1" onClick={() => handleAddSequenceStep('db')}>
+            <Database size={13} /> + Step to DB
+          </button>
+          <button className="btn btn-sm btn-outline-secondary extra-small py-1 px-2.5 rounded-2 d-flex align-items-center gap-1" onClick={() => handleAddSequenceStep('file')}>
+            <FileCode size={13} /> + Step to File
+          </button>
+        </div>
+
+        <small className="text-muted extra-small">
+          Click any step node to edit step title, source/target lifeline, and message type.
+        </small>
+      </div>
+
+      {/* React Flow Canvas Workspace */}
+      <div className="flex-grow-1 position-relative bg-white rounded-3 shadow-sm border overflow-hidden" style={{ width: '100%', height: '680px', minHeight: '680px' }}>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeClick={onNodeClick}
+          nodeTypes={nodeTypes}
+          fitView
+        >
+          <Controls />
+          <Background variant={BackgroundVariant.Lines} gap={40} size={1} />
+        </ReactFlow>
+
+        {/* Selected Node Property Drawer (Offcanvas Inspector) */}
+        {selectedNode && selectedNode.type === 'sequenceStepNode' && (
+          <div
+            className="position-absolute top-0 end-0 h-100 bg-white border-start shadow-lg p-3 z-3 animate-slideLeft overflow-auto select-none"
+            style={{ width: '320px' }}
+          >
+            <div className="d-flex align-items-center justify-content-between border-bottom pb-2 mb-3">
+              <div className="d-flex align-items-center gap-1.5">
+                <Sliders size={16} className="text-primary" />
+                <h6 className="fw-bold mb-0 text-dark small">Sequence Step Configurator</h6>
+              </div>
+              <button className="btn btn-sm btn-outline-secondary border-0 p-1 rounded-circle" onClick={() => setSelectedNode(null)}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="d-flex flex-column gap-3 extra-small">
+              <div>
+                <label className="form-label extra-small fw-semibold text-secondary mb-1">Step Number</label>
+                <input
+                  type="number"
+                  className="form-control form-control-sm bg-light"
+                  value={Number(selectedNode.data.stepNumber || 1)}
+                  onChange={(e) => handleUpdateNodeData('stepNumber', Number(e.target.value))}
+                />
+              </div>
+
+              <div>
+                <label className="form-label extra-small fw-semibold text-secondary mb-1">Step Title / Description</label>
+                <textarea
+                  className="form-control form-control-sm bg-light"
+                  rows={2}
+                  value={String(selectedNode.data.label || '')}
+                  onChange={(e) => handleUpdateNodeData('label', e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="form-label extra-small fw-semibold text-secondary mb-1">Source Lifeline Participant</label>
+                <select
+                  className="form-select form-select-sm bg-light"
+                  value={String(selectedNode.data.sourceLifeline || 'user')}
+                  onChange={(e) => handleUpdateNodeData('sourceLifeline', e.target.value as LifelineParticipant)}
+                >
+                  <option value="user">👤 1. User</option>
+                  <option value="browser">🌐 2. Browser</option>
+                  <option value="api">🔌 3. API</option>
+                  <option value="server">🖥️ 4. Server</option>
+                  <option value="db">💾 5. DB</option>
+                  <option value="file">📁 6. File</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="form-label extra-small fw-semibold text-secondary mb-1">Target Lifeline Participant</label>
+                <select
+                  className="form-select form-select-sm bg-light"
+                  value={String(selectedNode.data.targetLifeline || 'browser')}
+                  onChange={(e) => handleUpdateNodeData('targetLifeline', e.target.value as LifelineParticipant)}
+                >
+                  <option value="user">👤 1. User</option>
+                  <option value="browser">🌐 2. Browser</option>
+                  <option value="api">🔌 3. API</option>
+                  <option value="server">🖥️ 4. Server</option>
+                  <option value="db">💾 5. DB</option>
+                  <option value="file">📁 6. File</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="form-label extra-small fw-semibold text-secondary mb-1">Message Arrow Type</label>
+                <select
+                  className="form-select form-select-sm bg-light"
+                  value={String(selectedNode.data.messageType || 'request')}
+                  onChange={(e) => handleUpdateNodeData('messageType', e.target.value as SequenceMessageType)}
+                >
+                  <option value="request">➡️ Request Arrow (Blue)</option>
+                  <option value="response">⬅️ Response Arrow (Green)</option>
+                  <option value="async">↺ Async Event (Orange)</option>
+                  <option value="decision">❓ Decision Branch (Red)</option>
+                </select>
+              </div>
+
+              <div className="pt-2 border-top">
+                <button className="btn btn-sm btn-outline-danger w-100 extra-small" onClick={() => handleDeleteNode(selectedNode.id)}>
+                  Delete Sequence Step
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* JSON AST Modal */}
+      {showJsonModal && (
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center z-3" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
+          <div className="card shadow-lg border-0 rounded-3 bg-white overflow-hidden w-100" style={{ maxWidth: '650px' }}>
+            <div className="card-header bg-dark text-white p-3 d-flex align-items-center justify-content-between">
+              <h6 className="fw-bold mb-0 text-white small d-flex align-items-center gap-2">
+                <Code2 size={16} /> Sequence Workflow AST JSON
+              </h6>
+              <button className="btn btn-sm btn-outline-light border-0 p-1" onClick={() => setShowJsonModal(false)}>
+                <X size={16} />
+              </button>
+            </div>
+            <div className="card-body p-3">
+              <textarea
+                className="form-control font-monospace extra-small bg-dark text-light p-3 rounded-3"
+                rows={15}
+                value={JSON.stringify({ nodes, edges }, null, 2)}
+                readOnly
+                style={{ fontSize: '0.78rem' }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
