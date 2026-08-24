@@ -54,6 +54,13 @@ HTML Source แสดง identity ครบและ parse กลับโดย
 - เก็บ Collection ID ที่ `component.props.collectionId`
 - เก็บรายละเอียด query/source ที่ `component.props.dataSource`
 
+สำหรับ `SlideMenuComponent` เลือก Data Source ได้ 2 แบบ:
+
+1. `fixed-json` — อ่านรายการจาก `component.props.items`
+2. `collection` — อ้าง `component.props.collectionId`, รับ records ผ่าน `collectionData` และแปลงฟิลด์ด้วย `component.props.collectionMapping`
+
+Field mapping รองรับ `id`, `label`, `href`, `parentId`, `type`, `badge` และ `permission` โดย `parentId` ใช้สร้างเมนูหลายระดับจาก records แบบ flat
+
 ### Set Style
 
 - กำหนด style เฉพาะ Component ในรูปแบบ JSON

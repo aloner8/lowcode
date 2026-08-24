@@ -70,6 +70,7 @@ export const COMPONENT_PALETTE: ComponentPaletteItem[] = [
     description: 'Collapsible side navigation menu.',
     defaultProps: {
       title: 'App Navigation',
+      dataSourceMode: 'fixed-json',
       items: [
         { id: 'm1', label: 'Dashboard', active: true },
         { id: 'm2', label: 'Reports', badge: '5' },

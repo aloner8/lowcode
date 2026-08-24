@@ -1,0 +1,40 @@
+import type { ComponentType } from '@/types';
+
+export type PropertyEditorKind = 'text' | 'textarea' | 'number' | 'boolean' | 'select' | 'json';
+export interface SharedComponentPropertyField {
+  key: string; label: string; editor: PropertyEditorKind; description?: string;
+  options?: Array<{ label: string; value: string }>;
+  placeholder?: string; defaultValue?: unknown;
+}
+export interface SharedComponentPropertyGroup { id: string; label: string; fields: SharedComponentPropertyField[] }
+export interface SharedComponentPropertyDefinition { type: ComponentType; title: string; description: string; groups: SharedComponentPropertyGroup[] }
+
+const field = (key: string, label: string, editor: PropertyEditorKind = 'text', extra: Partial<SharedComponentPropertyField> = {}): SharedComponentPropertyField => ({ key, label, editor, ...extra });
+const content = (...fields: SharedComponentPropertyField[]): SharedComponentPropertyGroup => ({ id: 'content', label: 'Content & Display', fields });
+const behavior = (...fields: SharedComponentPropertyField[]): SharedComponentPropertyGroup => ({ id: 'behavior', label: 'Behavior', fields });
+const data = (...fields: SharedComponentPropertyField[]): SharedComponentPropertyGroup => ({ id: 'data', label: 'Data Configuration', fields });
+const definition = (type: ComponentType, title: string, description: string, groups: SharedComponentPropertyGroup[]): SharedComponentPropertyDefinition => ({ type, title, description, groups });
+
+export const SHARED_COMPONENT_PROPERTY_REGISTRY: Record<ComponentType, SharedComponentPropertyDefinition> = {
+  SlideMenuComponent: definition('SlideMenuComponent', 'Slide Menu Properties', 'เมนูด้านข้างและโครงสร้างเมนูหลายระดับ', [content(field('title','Menu Title'), field('className','CSS Class')), behavior(field('defaultOpen','Open by default','boolean'))]),
+  NavMenuComponent: definition('NavMenuComponent', 'Navigation Properties', 'เมนูนำทางแนวนอนและ branding', [content(field('brandName','Brand Name'), field('brandHref','Brand Link'), field('items','Navigation Items','json'))]),
+  EditMenuComponent: definition('EditMenuComponent', 'Menu Editor Properties', 'ตัวแก้ไขลำดับและ hierarchy ของเมนู', [content(field('title','Title')), behavior(field('maxDepth','Maximum Depth','number'), field('allowDelete','Allow Delete','boolean'))]),
+  FormComponent: definition('FormComponent', 'Form Properties', 'ฟอร์มรับข้อมูลและการ submit', [content(field('title','Title'), field('description','Description','textarea'), field('submitText','Submit Button Text')), data(field('formId','Form ID'), field('collectionId','Collection ID'), field('fields','Fields','json')), behavior(field('mode','Mode','select',{options:[{label:'Insert',value:'insert'},{label:'Update',value:'update'},{label:'Read only',value:'readOnly'}]}))]),
+  FieldInputComponent: definition('FieldInputComponent', 'Field Properties', 'ช่องรับข้อมูลหนึ่งฟิลด์', [content(field('name','Field Name'), field('label','Label'), field('placeholder','Placeholder'), field('type','Input Type')), behavior(field('required','Required','boolean'), field('disabled','Disabled','boolean'), field('readOnly','Read only','boolean'))]),
+  TableDataComponent: definition('TableDataComponent', 'Table Properties', 'ตารางข้อมูลและ row actions', [content(field('title','Title'), field('titleIcon','Title Icon'), field('createLabel','Create Label')), data(field('columns','Columns','json'), field('pageSize','Page Size','number')), behavior(field('searchable','Searchable','boolean'), field('columnFilters','Column Filters','boolean'), field('rowActions','Row Actions','json'))]),
+  DataTableComponent: definition('DataTableComponent', 'Data Table Properties', 'ตารางข้อมูลขั้นสูง', [content(field('title','Title'), field('createLabel','Create Label')), data(field('columns','Columns','json'), field('pageSize','Page Size','number')), behavior(field('searchable','Searchable','boolean'), field('columnFilters','Column Filters','boolean'))]),
+  ListComponent: definition('ListComponent', 'List Properties', 'รายการข้อมูลแบบ primary/secondary field', [content(field('title','Title')), data(field('primaryField','Primary Field'), field('secondaryField','Secondary Field'), field('items','Fallback Items','json'))]),
+  GalleryComponent: definition('GalleryComponent', 'Gallery Properties', 'แกลเลอรีรูปภาพหรือการ์ด', [content(field('title','Title')), data(field('imageField','Image Field'), field('titleField','Title Field'), field('items','Fallback Items','json')), behavior(field('columns','Columns','number'), field('showFilters','Show Filters','boolean'))]),
+  FileManagerComponent: definition('FileManagerComponent', 'File Manager Properties', 'รายการและการจัดการไฟล์', [content(field('title','Title')), behavior(field('allowUpload','Allow Upload','boolean'), field('allowDelete','Allow Delete','boolean'), field('accept','Accepted File Types'))]),
+  DynamicHtmlComponent: definition('DynamicHtmlComponent', 'Dynamic HTML Properties', 'HTML content และ template binding', [content(field('title','Title'), field('content','HTML Content','textarea')), data(field('dataBinding','Data Binding','json'))]),
+  HtmlEditorComponent: definition('HtmlEditorComponent', 'HTML Editor Properties', 'Rich-text/HTML editor', [content(field('label','Label'), field('value','Initial HTML','textarea')), behavior(field('placeholder','Placeholder'), field('readOnly','Read only','boolean'))]),
+  HtmlTemplateComponent: definition('HtmlTemplateComponent', 'HTML Template Properties', 'HTML Studio document wrapper', [content(field('title','Title')), behavior(field('className','CSS Class'))]),
+  CardComponent: definition('CardComponent', 'Card Properties', 'การ์ดสรุปข้อมูล', [content(field('title','Title'), field('subtitle','Subtitle'), field('value','Value'), field('badge','Badge'), field('footerText','Footer Text')), behavior(field('variant','Variant','select',{options:['primary','success','warning','danger','info'].map(value=>({label:value,value}))}))]),
+  ChartComponent: definition('ChartComponent', 'Chart Properties', 'กราฟและชุดข้อมูล', [content(field('title','Title')), data(field('chartType','Chart Type','select',{options:['bar','line','pie','doughnut'].map(value=>({label:value,value}))}), field('labels','Labels','json'), field('datasets','Datasets','json'))]),
+  TabsContainerComponent: definition('TabsContainerComponent', 'Tabs Properties', 'Container แบบแท็บ', [content(field('tabs','Tabs','json')), behavior(field('activeTab','Active Tab'))]),
+  AccordionComponent: definition('AccordionComponent', 'Accordion Properties', 'Container แบบ accordion', [content(field('items','Accordion Items','json')), behavior(field('allowMultiple','Allow Multiple','boolean'))]),
+  ModalDialogComponent: definition('ModalDialogComponent', 'Modal Properties', 'หน้าต่าง dialog', [content(field('title','Title'), field('body','Body','textarea')), behavior(field('size','Size','select',{options:['sm','md','lg','xl'].map(value=>({label:value,value}))}), field('closeOnBackdrop','Close on Backdrop','boolean'))]),
+};
+
+export const getSharedComponentPropertyDefinition = (type: ComponentType) => SHARED_COMPONENT_PROPERTY_REGISTRY[type];
+

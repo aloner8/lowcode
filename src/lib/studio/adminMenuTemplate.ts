@@ -121,7 +121,7 @@ export const ADMIN_SIDEBAR_ITEMS: SlideMenuItem[] = [
 export const createAdminPageTemplate = (appName: string): ComponentNode[] => {
   const now = Date.now();
   return [
-    { id: `admin_sidebar_${now}`, type: 'SlideMenuComponent', props: { __sectionId: 'admin-sidebar', __sectionName: '01. Admin Sidebar Navigation', title: `${appName} · Backend`, items: ADMIN_SIDEBAR_ITEMS, dataSource: { source: 'cms_menu', root: 'backend', fallback: 'design.items' }, authorization: { strategy: 'rbac', permissionField: 'permission' } } },
+    { id: `admin_sidebar_${now}`, type: 'SlideMenuComponent', props: { __sectionId: 'admin-sidebar', __sectionName: '01. Admin Sidebar Navigation', title: `${appName} · Backend`, dataSourceMode: 'fixed-json', items: ADMIN_SIDEBAR_ITEMS, collectionMapping: { idField: 'id', labelField: 'menu_name', hrefField: 'url', parentIdField: 'parent_id', permissionField: 'permission' }, authorization: { strategy: 'rbac', permissionField: 'permission' } } },
     { id: `admin_workspace_${now}`, type: 'DynamicHtmlComponent', props: { __sectionId: 'admin-workspace', __sectionName: '02. Admin Content Workspace', componentRole: 'BackendRouteOutlet', content: '<section class="p-4"><h1>แผงควบคุม</h1><p>เลือกเมนูด้านซ้ายเพื่อเปิด Form, DataTable หรือ Collection ตามสิทธิ์ของผู้ใช้งาน</p></section>' } },
   ];
 };

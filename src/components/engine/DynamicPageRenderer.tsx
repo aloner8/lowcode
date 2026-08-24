@@ -74,7 +74,8 @@ export const DynamicNodeItem: React.FC<{
 
   return (
     <div
-      id={node.id}
+      id={node.htmlId || node.id}
+      data-component-instance-id={node.id}
       className={`dynamic-node-wrapper position-relative ${stylePreset ? `municipal-component ${stylePreset}` : ''} ${
         isDesignMode ? 'cursor-pointer hover-outline transition' : ''
       } ${isSelected ? 'border border-2 border-primary rounded p-1 shadow-sm' : ''}`}
