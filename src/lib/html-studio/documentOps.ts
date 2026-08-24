@@ -35,7 +35,7 @@ export function serializeStudioNodes(nodes: StudioNode[], depth = 0): string {
   const indent = '  '.repeat(depth);
   return nodes.map((node) => {
     if (node.kind === 'text') return `${indent}${node.text || ''}`;
-    if (node.kind === 'component') return `${indent}<Shared:Component ref="component://${node.componentRef?.id || ''}" />`;
+    if (node.kind === 'component') return `${indent}<Shared:Component ref="component://${node.componentRef?.id || ''}" instance-id="${node.id}"${serializeAttributes(node)} />`;
     const tag = node.tag || 'div';
     const children = node.children || [];
     if (!children.length) return `${indent}<${tag}${serializeAttributes(node)}></${tag}>`;
@@ -59,8 +59,8 @@ export function parseHtmlSource(source: string): { nodes: StudioNode[]; errors: 
       const ref = domNode.getAttribute('ref') || '';
       const id = ref.startsWith('component://') ? ref.slice('component://'.length) : ref;
       const attributes: Record<string, string> = {};
-      Array.from(domNode.attributes).forEach((attribute) => { if (attribute.name !== 'ref') attributes[attribute.name] = attribute.value; });
-      return { id: createNodeId('shared'), kind: 'component', componentRef: { id, scope: 'platform', displayName: id }, attributes, children: Array.from(domNode.childNodes).map(convert).filter((item): item is StudioNode => Boolean(item)) };
+      Array.from(domNode.attributes).forEach((attribute) => { if (attribute.name !== 'ref' && attribute.name !== 'instance-id') attributes[attribute.name] = attribute.value; });
+      return { id: domNode.getAttribute('instance-id') || createNodeId('shared'), kind: 'component', componentRef: { id, scope: 'platform', displayName: id }, attributes, children: Array.from(domNode.childNodes).map(convert).filter((item): item is StudioNode => Boolean(item)) };
     }
     if (!isAllowedTag(tag)) { errors.push(`Tag <${tag}> is not supported.`); return null; }
     const attributes: Record<string, string> = {};

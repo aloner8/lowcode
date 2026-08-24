@@ -68,6 +68,7 @@ interface StudioTreeviewOutlineProps {
   onSelectCollectionView: (collectionId: string, viewId: string, variant?: string) => void;
   onAddCollectionComponent: (collectionId: string, sourceComponentId: string) => void;
   onSelectPageComponent: (pageId: string, nodeId: string) => void;
+  onOpenPageSettings: (pageId: string) => void;
   onSelectPageFlow: (route: { path: string; label: string; type: 'public_page' | 'form_crud' }) => void;
   onSelectRawTable: (tableName: string) => void;
   onOpenPageManager: () => void;
@@ -136,6 +137,7 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
   onSelectCollectionView,
   onAddCollectionComponent,
   onSelectPageComponent,
+  onOpenPageSettings,
   onSelectPageFlow,
   onSelectRawTable,
   onOpenPageManager,
@@ -416,7 +418,35 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
                 {openRouteGroups[group('events')] !== false && <div className="ms-3 ps-2 border-start"><button type="button" className="btn btn-sm border-0 w-100 text-start text-secondary py-1 px-1" style={{ fontSize: '.62rem' }} onClick={() => onSelectPageFlow({ path: flowRoutePath, label: `${containerName} / ${route.label}`, type: route.type })}><Workflow size={9} className="me-1 text-warning"/>OnLoad → OpenPage({route.page.id})</button></div>}
               </div>
               <div><div className="d-flex align-items-center justify-content-between py-1"><button className="btn btn-sm border-0 p-0 d-flex align-items-center gap-1 text-primary fw-semibold" style={{ fontSize: '.65rem' }} onClick={() => setOpenRouteGroups((current) => ({ ...current, [group('pages')]: current[group('pages')] === false }))}>{openRouteGroups[group('pages')] !== false ? <ChevronDown size={9}/> : <ChevronRight size={9}/>}<FileText size={10}/> Pages</button><MenuAddButton label="page" onClick={onOpenPageManager}/></div>
-                {openRouteGroups[group('pages')] !== false && <div className="ms-3 ps-2 border-start"><button type="button" className={`btn btn-sm border-0 w-100 text-start py-1 px-1 ${activePage === route.page.id ? 'bg-primary text-white fw-semibold' : 'text-secondary'}`} style={{ fontSize: '.62rem' }} onClick={() => setActivePage(route.page.id)}><FileText size={9} className="me-1"/>{route.page.name}</button></div>}
+                {openRouteGroups[group('pages')] !== false && <div className="ms-3 ps-2 border-start">{(() => {
+                  const page = route.page;
+                  const pageKey = `${routeKey}:page:${page.id}`;
+                  const pageOpen = openPageSections[pageKey] !== false;
+                  const grouped = (page.componentTree || []).reduce<Record<string, { name: string; nodes: ComponentNode[] }>>((result, node) => {
+                    const id = String(node.props?.__sectionId || 'main');
+                    if (!result[id]) result[id] = { name: String(node.props?.__sectionName || 'Main Section'), nodes: [] };
+                    result[id].nodes.push(node);
+                    return result;
+                  }, {});
+                  return <div>
+                    <div className={`d-flex align-items-center rounded-1 ${activePage === page.id ? 'bg-primary text-white fw-semibold' : 'text-secondary'}`}>
+                      <button type="button" className={`btn btn-sm border-0 flex-grow-1 text-start py-1 px-1 ${activePage === page.id ? 'text-white' : 'text-secondary'}`} style={{ fontSize: '.62rem' }} onClick={() => { setActivePage(page.id); setOpenPageSections((current) => ({ ...current, [pageKey]: !pageOpen })); }}>
+                        {pageOpen ? <ChevronDown size={9} className="me-1"/> : <ChevronRight size={9} className="me-1"/>}<FileText size={9} className="me-1"/>{page.name}
+                      </button>
+                      <button type="button" className={`btn btn-sm border-0 p-1 ${activePage === page.id ? 'text-white' : 'text-secondary'}`} title={`Page settings: ${page.name}`} onClick={(event) => { event.stopPropagation(); onOpenPageSettings(page.id); }}><Settings size={11}/></button>
+                    </div>
+                    {pageOpen && <div className="ms-2 ps-2 border-start">{Object.entries(grouped).map(([sectionId, section]) => {
+                      const sectionKey = `${pageKey}:section:${sectionId}`;
+                      const sectionOpen = openPageSections[sectionKey] !== false;
+                      return <div key={sectionKey}>
+                        <button type="button" className="btn btn-sm border-0 w-100 d-flex align-items-center gap-1 text-dark py-1 px-0 fw-semibold" style={{ fontSize: '.61rem' }} onClick={() => setOpenPageSections((current) => ({ ...current, [sectionKey]: !sectionOpen }))}>
+                          {sectionOpen ? <ChevronDown size={9}/> : <ChevronRight size={9}/>}<Layers size={10} className="text-warning"/><span className="text-truncate">{section.name}</span><span className="badge bg-light text-secondary ms-auto">{section.nodes.length}</span>
+                        </button>
+                        {sectionOpen && <div className="ms-3">{section.nodes.map((node) => <button key={node.id} type="button" className="btn btn-sm border-0 w-100 d-flex align-items-center gap-1 text-secondary text-start py-1 px-0" style={{ fontSize: '.6rem' }} onClick={() => onSelectPageComponent(page.id, node.id)} title={`Open ${node.type} in Component Workshop`}><Box size={9} className="text-success"/><span className="text-truncate">{String(node.props?.title || node.props?.brandName || node.label || node.type)}</span></button>)}</div>}
+                      </div>;
+                    })}{Object.keys(grouped).length === 0 && <div className="text-muted py-1" style={{ fontSize: '.58rem' }}>No sections yet</div>}</div>}
+                  </div>;
+                })()}</div>}
               </div>
               {(['services','apis'] as const).map((kind) => { const flowNodes = (routeFlows.find((flow) => flow.routePath === flowRoutePath)?.nodes || []).filter((node) => kind === 'services' ? String(node.data?.actionType || '').toLowerCase().includes('service') : String(node.data?.actionType || '').toLowerCase().includes('api')); return <div key={kind}><div className="d-flex align-items-center justify-content-between py-1"><button className="btn btn-sm border-0 p-0 d-flex align-items-center gap-1 text-info fw-semibold text-capitalize" style={{ fontSize: '.65rem' }} onClick={() => setOpenRouteGroups((current) => ({ ...current, [group(kind)]: current[group(kind)] === false }))}>{openRouteGroups[group(kind)] !== false ? <ChevronDown size={9}/> : <ChevronRight size={9}/>} {kind === 'services' ? <Server size={10}/> : <PlugZap size={10}/>} {kind} <span className="badge bg-light text-info">{flowNodes.length}</span></button><MenuAddButton label={kind === 'services' ? 'service binding' : 'API call'} onClick={() => onSelectPageFlow({ path: flowRoutePath, label: `${containerName} / ${route.label}`, type: route.type })}/></div>{openRouteGroups[group(kind)] !== false && <div className="ms-3 ps-2 border-start text-muted py-1" style={{ fontSize: '.6rem' }}>{flowNodes.length ? flowNodes.map((node) => <div key={node.id} className="py-1"><Zap size={8} className="me-1"/>{String(node.data?.label || node.id)}</div>) : `No ${kind} assigned`}</div>}</div>; })}
             </div>}

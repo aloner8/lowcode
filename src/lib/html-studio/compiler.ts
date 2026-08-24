@@ -4,7 +4,10 @@ import { validateDocument } from './validator';
 
 const compileNode = (node: StudioNode): string => {
   if (node.kind === 'text') return escapeHtml(node.text || '');
-  if (node.kind === 'component') return `<div class="alert alert-warning" data-component-ref="${escapeHtml(node.componentRef?.id || '')}">Shared component '${escapeHtml(node.componentRef?.displayName || node.componentRef?.id || '')}' requires the component runtime.</div>`;
+  if (node.kind === 'component') {
+    const htmlId = typeof node.attributes?.id === 'string' ? ` id="${escapeHtml(node.attributes.id)}"` : '';
+    return `<div${htmlId} class="alert alert-warning" data-component-ref="${escapeHtml(node.componentRef?.id || '')}" data-component-instance-id="${escapeHtml(node.id)}">Shared component '${escapeHtml(node.componentRef?.displayName || node.componentRef?.id || '')}' requires the component runtime.</div>`;
+  }
   if (node.kind === 'slot') return (node.children || []).map(compileNode).join('');
   if (node.kind !== 'element' && node.kind !== 'svg') return '';
   const tag = node.kind === 'svg' ? 'div' : (node.tag || 'div').toLowerCase();
@@ -57,4 +60,3 @@ export function compileDocument(document: HtmlStudioDocument): HtmlTemplateArtif
     compiledAt: new Date().toISOString(),
   };
 }
-

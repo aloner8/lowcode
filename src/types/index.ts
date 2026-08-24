@@ -73,8 +73,10 @@ export interface AppConfig {
 }
 
 export interface ComponentNode {
-  id: string;
+  id: string; // Immutable component instance ID within a page
   type: ComponentType;
+  templateRef?: string; // Reusable component definition, e.g. component://CardComponent
+  htmlId?: string; // Optional/stable DOM id for CSS, anchors, events and automation
   label?: string;
   props: Record<string, any>;
   style?: Record<string, any>;

@@ -12,6 +12,9 @@ import { DbSchemaExplorer } from '@/components/studio/DbSchemaExplorer';
 import { PageManagerModal } from '@/components/studio/PageManagerModal';
 import { BottomDock } from '@/components/studio/BottomDock';
 import { ThemeCustomizerPanel } from '@/components/studio/ThemeCustomizerPanel';
+import { ComponentWorkshop } from '@/components/studio/ComponentWorkshop';
+import { PageSettingsWorkspace } from '@/components/studio/PageSettingsWorkspace';
+import type { PageSettingsValue } from '@/components/studio/PageSettingsWorkspace';
 import { DynamicPageRenderer } from '@/components/engine/DynamicPageRenderer';
 import { ComponentNode, AppConfig, AppWorkFlowManifest } from '@/types';
 import { ComponentPaletteItem } from '@/lib/engine/ComponentRegistry';
@@ -29,14 +32,15 @@ interface StudioPageDefinition {
   templateType?: string;
   isDefaultPage?: boolean;
   componentTree?: ComponentNode[];
+  settings?: PageSettingsValue;
   layoutHistory?: Array<{ templateType: string; componentTree: ComponentNode[]; savedAt: string }>;
 }
 
 const componentNodesToStudioNodes = (componentNodes: ComponentNode[]): StudioNode[] => componentNodes.map((node) => ({
-  id: `studio_${node.id}`,
+  id: node.id,
   kind: 'component',
-  componentRef: { id: node.type, scope: 'platform', displayName: node.label || node.type },
-  attributes: JSON.parse(JSON.stringify(node.props || {})),
+  componentRef: { id: (node.templateRef || `component://${node.type}`).replace(/^component:\/\//, ''), scope: 'platform', displayName: node.label || node.type },
+  attributes: { ...JSON.parse(JSON.stringify(node.props || {})), ...(node.htmlId ? { id: node.htmlId } : {}), 'data-component-instance-id': node.id },
   children: node.children ? componentNodesToStudioNodes(node.children) : [],
 }));
 
@@ -189,6 +193,8 @@ export default function StudioPage() {
   const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false);
   const [isPageDirty, setIsPageDirty] = useState(false);
   const [isLoadingPage, setIsLoadingPage] = useState(false);
+  const [workshopNodeId, setWorkshopNodeId] = useState<string | null>(null);
+  const [pageSettingsId, setPageSettingsId] = useState<string | null>(null);
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) || null;
   const activeStudioPage = !activeFormId && !activeCollectionView ? studioPages.find((page) => page.id === activePage) : undefined;
@@ -326,6 +332,45 @@ export default function StudioPage() {
       if (!page.templateType || !Array.isArray(page.componentTree)) setPageTemplateTarget(page);
     } catch (error) { setStudioError(error instanceof Error ? error.message : 'Unable to load Page from database'); }
     finally { setIsLoadingPage(false); }
+  };
+
+  const openComponentWorkshop = async (pageId: string, nodeId: string) => {
+    if (pageId !== activePage || activeFormId || activeCollectionView) await handleSelectDesignPage(pageId);
+    setSelectedPageFlow(null); setSelectedRawTable(null); setPageSettingsId(null); setSelectedNodeId(nodeId); setWorkshopNodeId(nodeId);
+  };
+
+  const openPageSettings = async (pageId: string) => {
+    if (pageId !== activePage || activeFormId || activeCollectionView) await handleSelectDesignPage(pageId);
+    setSelectedPageFlow(null); setSelectedRawTable(null); setWorkshopNodeId(null); setSelectedNodeId(null); setPageSettingsId(pageId);
+  };
+
+  const handleSaveWorkshopComponent = (component: ComponentNode) => {
+    if (component.htmlId && nodes.some((node) => node.id !== component.id && node.htmlId === component.htmlId)) {
+      window.alert(`HTML ID '${component.htmlId}' ถูกใช้โดย Component อื่นใน Page นี้แล้ว`);
+      return;
+    }
+    const updated = nodes.map((node) => node.id === component.id ? component : node);
+    updateNodesWithHistory(updated, `Update Component Workshop (${component.id})`);
+    setSelectedNodeId(component.id); setIsPageDirty(true);
+  };
+
+  const handleAddPageSection = (name: string) => {
+    const sectionId = name.toLowerCase().trim().replace(/[^a-z0-9ก-๙]+/g, '-').replace(/^-|-$/g, '') || `section-${Date.now()}`;
+    const instanceId = `section_${Date.now()}`;
+    const node: ComponentNode = { id: instanceId, type: 'DynamicHtmlComponent', templateRef: 'component://DynamicHtmlComponent', htmlId: `cmp-${instanceId}`, label: name, props: { __sectionId: sectionId, __sectionName: name, content: `<section class="p-4"><h2>${name}</h2></section>` } };
+    updateNodesWithHistory([...nodes, node], `Add Section (${name})`); setIsPageDirty(true);
+  };
+
+  const handleSavePageSettings = async (settings: PageSettingsValue) => {
+    if (!platformId || !pageSettingsId) return;
+    const nextPages = studioPages.map((page) => page.id === pageSettingsId ? { ...page, settings, templateType: settings.layoutType || page.templateType, componentTree: page.id === activePage ? nodes : page.componentTree } : page);
+    setSaveStatus('Saving Page settings...');
+    try {
+      const response = await fetch(`/api/platforms/${platformId}/studio`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studioLayout: nodes, studioPages: nextPages, studioForms, studioCollections }) });
+      if (!response.ok) throw new Error('Unable to save Page settings');
+      setStudioPages(nextPages); setIsPageDirty(false); setSaveStatus('Page settings saved');
+    } catch (error) { setStudioError(error instanceof Error ? error.message : 'Unable to save Page settings'); setSaveStatus('Save settings failed'); }
+    setTimeout(() => setSaveStatus(null), 3000);
   };
 
   const handleSelectDesignForm = (formId: string, mode: 'insert' | 'update' | 'readOnly') => {
@@ -523,9 +568,12 @@ export default function StudioPage() {
       window.dispatchEvent(new CustomEvent('lowcode:add-html-studio-component', { detail: { componentType: paletteItem.type, label: paletteItem.label, defaultProps: paletteItem.defaultProps } }));
       return;
     }
+    const instanceId = `node_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
     const newNode: ComponentNode = {
-      id: `node_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      id: instanceId,
       type: paletteItem.type,
+      templateRef: `component://${paletteItem.type}`,
+      htmlId: `cmp-${instanceId}`,
       props: { __sectionId: 'main', __sectionName: 'Main Section', ...JSON.parse(JSON.stringify(paletteItem.defaultProps)) },
     };
     const updated = [...nodes, newNode];
@@ -550,9 +598,11 @@ export default function StudioPage() {
   const handleDuplicateNode = (nodeId: string) => {
     const target = nodes.find((n) => n.id === nodeId);
     if (!target) return;
+    const duplicatedId = `node_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
     const duplicated: ComponentNode = {
       ...JSON.parse(JSON.stringify(target)),
-      id: `node_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      id: duplicatedId,
+      htmlId: target.htmlId ? `${target.htmlId}-copy-${duplicatedId.slice(-4)}` : `cmp-${duplicatedId}`,
     };
     const updated = [...nodes, duplicated];
     updateNodesWithHistory(updated, `Duplicate (${nodeId})`);
@@ -690,7 +740,8 @@ export default function StudioPage() {
                 activeCollectionViewId={activeCollectionView?.viewId || null}
                 onSelectCollectionView={handleSelectCollectionView}
                 onAddCollectionComponent={(collectionId, componentType) => void handleAddCollectionComponent(collectionId, componentType)}
-                onSelectPageComponent={(pageId, nodeId) => { handleSelectDesignPage(pageId); setSelectedNodeId(nodeId); }}
+                onSelectPageComponent={(pageId, nodeId) => void openComponentWorkshop(pageId, nodeId)}
+                onOpenPageSettings={(pageId) => void openPageSettings(pageId)}
                 onSelectPageFlow={(route) => setSelectedPageFlow(route)}
                 onSelectRawTable={(tableName) => { setSelectedPageFlow(null); setSelectedRawTable(tableName); }}
                 onOpenPageManager={() => setIsPageManagerOpen(true)}
@@ -702,7 +753,25 @@ export default function StudioPage() {
 
           {/* Center Stage: App WorkFlow Designer OR Form Designer Canvas */}
           <div className="flex-grow-1 min-w-0" style={{ minWidth: 0 }}>
-            {selectedRawTable && platformId ? (
+            {pageSettingsId && studioPages.find((page) => page.id === pageSettingsId) ? (
+              <PageSettingsWorkspace
+                key={pageSettingsId}
+                page={studioPages.find((page) => page.id === pageSettingsId)!}
+                collections={studioCollections}
+                onBack={() => setPageSettingsId(null)}
+                onAddSection={handleAddPageSection}
+                onSave={(settings) => void handleSavePageSettings(settings)}
+              />
+            ) : workshopNodeId && nodes.find((node) => node.id === workshopNodeId) ? (
+              <ComponentWorkshop
+                key={workshopNodeId}
+                pageName={activeStudioPage?.name || activePage}
+                component={nodes.find((node) => node.id === workshopNodeId)!}
+                collections={studioCollections}
+                onBack={() => { setWorkshopNodeId(null); setSelectedNodeId(null); }}
+                onSave={handleSaveWorkshopComponent}
+              />
+            ) : selectedRawTable && platformId ? (
               <RawTableWorkspace platformId={platformId} databaseName={appInfo.tenantDbName} tableName={selectedRawTable} onClose={() => setSelectedRawTable(null)} />
             ) : selectedPageFlow && platformId ? (
               <PageFlowDesigner
@@ -796,7 +865,7 @@ export default function StudioPage() {
       </div>
 
       {/* 4. Component Property Modal Popup (Appears when a component on canvas is selected) */}
-      {!isPreviewMode && selectedNode && activePage !== 'app_workflow' && (
+      {!isPreviewMode && selectedNode && !workshopNodeId && activePage !== 'app_workflow' && (
         <ComponentPropertyModal
           selectedNode={selectedNode}
           onClose={() => setSelectedNodeId(null)}
