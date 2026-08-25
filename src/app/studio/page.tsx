@@ -16,6 +16,7 @@ import { ComponentWorkshop } from '@/components/studio/ComponentWorkshop';
 import { PageSettingsWorkspace } from '@/components/studio/PageSettingsWorkspace';
 import type { PageSettingsValue } from '@/components/studio/PageSettingsWorkspace';
 import type { GenPageFromImageRequest } from '@/components/studio/GenPageFromImageWizard';
+import { GenAppComponentFromImageWizard, type GenAppComponentFromImageRequest } from '@/components/studio/GenAppComponentFromImageWizard';
 import { DynamicPageRenderer } from '@/components/engine/DynamicPageRenderer';
 import { ComponentNode, AppConfig, AppWorkFlowManifest } from '@/types';
 import { ComponentPaletteItem } from '@/lib/engine/ComponentRegistry';
@@ -100,7 +101,7 @@ const createPageTemplate = (type: string, appName: string, title: string): Compo
   return [content];
 };
 
-const createImageDashboardDraft = (request: GenPageFromImageRequest): ComponentNode[] => {
+const createImageDashboardDraft = (request: Pick<GenPageFromImageRequest, 'image' | 'viewport' | 'analysis'>): ComponentNode[] => {
   const uid = Date.now();
   const metrics = [['ข่าวสาร / เนื้อหา','728','เผยแพร่แล้ว 716 รายการ'],['หน้าเว็บไซต์','38',''],['ไฟล์ดาวน์โหลด','5',''],['E-Book','0',''],['บุคลากร','49',''],['ภาพสไลด์','10',''],['ร้องเรียน / ร้องทุกข์','0','ดำเนินการครบแล้ว'],['ผู้ใช้งานระบบ','11','']];
   const news = [['ประกาศรายชื่อผู้มีสิทธิเข้ารับการสรรหาและเลือกสรรเป็นพนักงานจ้าง','21/08/2026 11:09 · ข่าวสารประชาสัมพันธ์'],['สรุปผลการจัดซื้อจัดจ้าง ประจำเดือนกรกฎาคม พ.ศ. 2569','14/08/2026 10:59 · สรุปผลการดำเนินการจัดซื้อจัดจ้าง'],['ประกาศรับสมัครบุคคลเพื่อการสรรหาและการเลือกสรรเป็นพนักงานจ้าง','27/07/2026 10:16 · ข่าวสารประชาสัมพันธ์'],['สรุปผลการจัดซื้อจัดจ้าง ประจำเดือนมิถุนายน 2569','14/07/2026 15:31 · สรุปผลการดำเนินการจัดซื้อจัดจ้าง'],['สรุปผลการจัดซื้อจัดจ้าง ประจำเดือนพฤษภาคม 2569','14/07/2026 15:31 · สรุปผลการดำเนินการจัดซื้อจัดจ้าง'],['ประกาศจัดตั้งศูนย์ปฏิบัติการฉุกเฉินองค์การบริหารส่วนตำบลยาง','13/07/2026 21:03 · ข่าวสารประชาสัมพันธ์'],['กิจกรรมพัฒนาวัดบ้านโคก ตามโครงการ วัด ประชารัฐ สร้างสุข','01/07/2026 09:58 · กิจกรรม']];
@@ -192,6 +193,7 @@ export default function StudioPage() {
   const [studioPages, setStudioPages] = useState(DEFAULT_STUDIO_PAGES);
   const [studioForms, setStudioForms] = useState<StudioFormDefinition[]>([]);
   const [studioCollections, setStudioCollections] = useState<StudioCollectionDefinition[]>([]);
+  const [showAppComponentImageWizard, setShowAppComponentImageWizard] = useState(false);
   const [activeFormId, setActiveFormId] = useState<string | null>(null);
   const [activeFormMode, setActiveFormMode] = useState<'insert' | 'update' | 'readOnly'>('insert');
   const [activeCollectionView, setActiveCollectionView] = useState<{ collectionId: string; viewId: string; variant: string } | null>(null);
@@ -456,6 +458,35 @@ export default function StudioPage() {
     const response = await fetch(`/api/platforms/${platformId}/studio`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studioLayout: nodes, studioPages, studioForms, studioCollections: nextCollections }) });
     if (!response.ok) { setStudioError('Unable to add Collection Component'); return; }
     setStudioCollections(nextCollections); handleSelectCollectionView(collectionId, copy.id, 'default');
+  };
+
+  const handleGenerateAppComponentFromImage = async (request: GenAppComponentFromImageRequest) => {
+    if (!platformId) return;
+    const slugBase = request.name.toLowerCase().trim().replace(/[^a-z0-9ก-๙]+/g, '-').replace(/^-|-$/g, '') || `image-component-${Date.now()}`;
+    let slug = slugBase;
+    let suffix = 2;
+    while (studioCollections.some((collection) => collection.id === `generated.${slug}.collection`)) slug = `${slugBase}-${suffix++}`;
+    const collectionId = `generated.${slug}.collection`;
+    const componentId = `${collectionId}.app-component`;
+    const componentTree = createImageDashboardDraft(request).map((node) => ({ ...node, label: request.name, props: { ...node.props, collectionId, generatedAppComponent: true } }));
+    const generatedCollection: StudioCollectionDefinition = {
+      id: collectionId, moduleId: 'generated', name: request.name, table: `fixed_${slug.replace(/[^a-z0-9]+/g, '_')}`, primaryKey: ['id'], operations: ['list', 'get'], scope: 'project', tenantTarget: true,
+      standardFlows: {
+        create: { trigger: 'create', target: 'FormComponent', formId: `${collectionId}.form`, params: { mode: 'insert' } },
+        edit: { trigger: 'edit', source: 'DataTableComponent', target: 'FormComponent', formId: `${collectionId}.form`, rowIdField: 'id', params: { mode: 'update' } },
+        view: { trigger: 'view', source: 'DataTableComponent', target: 'DynamicHtmlComponent', componentId, rowIdField: 'id', params: { mode: 'preview' } },
+      },
+      components: [{ id: componentId, type: 'DynamicHtmlComponent', label: request.name, recommended: true, componentTree, variantComponentTrees: { default: componentTree, preview: componentTree, full: componentTree } }],
+    };
+    const nextCollections = [...studioCollections, generatedCollection];
+    setSaveStatus('Generating reusable AppComponent...'); setStudioError(null);
+    try {
+      const response = await fetch(`/api/platforms/${platformId}/studio`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studioLayout: nodes, studioPages, studioForms, studioCollections: nextCollections }) });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(data.error || 'Unable to save generated AppComponent');
+      setStudioCollections(nextCollections); setActiveFormId(null); setActiveCollectionView({ collectionId, viewId: componentId, variant: 'default' }); setNodes(componentTree); historyRef.current = new HistoryStackManager(componentTree); setSaveStatus('Reusable AppComponent created');
+    } catch (error) { setStudioError(error instanceof Error ? error.message : 'Unable to generate AppComponent'); setSaveStatus('Generation failed'); throw error; }
+    finally { setTimeout(() => setSaveStatus(null), 3000); }
   };
 
   const handleCreatePageLayout = async (templateType: string) => {
@@ -780,6 +811,7 @@ export default function StudioPage() {
                 activeCollectionViewId={activeCollectionView?.viewId || null}
                 onSelectCollectionView={handleSelectCollectionView}
                 onAddCollectionComponent={(collectionId, componentType) => void handleAddCollectionComponent(collectionId, componentType)}
+                onGenerateAppComponentFromImage={() => setShowAppComponentImageWizard(true)}
                 onSelectPageComponent={(pageId, nodeId) => void openComponentWorkshop(pageId, nodeId)}
                 onOpenPageSettings={(pageId) => void openPageSettings(pageId)}
                 onSelectPageFlow={(route) => setSelectedPageFlow(route)}
@@ -904,6 +936,7 @@ export default function StudioPage() {
           </div>
         </div>
       </div>
+      {showAppComponentImageWizard && <GenAppComponentFromImageWizard onClose={() => setShowAppComponentImageWizard(false)} onGenerate={handleGenerateAppComponentFromImage}/>}
 
       {/* 4. Component Property Modal Popup (Appears when a component on canvas is selected) */}
       {!isPreviewMode && selectedNode && !workshopNodeId && activePage !== 'app_workflow' && (

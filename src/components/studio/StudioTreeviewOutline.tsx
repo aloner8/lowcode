@@ -67,6 +67,7 @@ interface StudioTreeviewOutlineProps {
   activeCollectionViewId: string | null;
   onSelectCollectionView: (collectionId: string, viewId: string, variant?: string) => void;
   onAddCollectionComponent: (collectionId: string, sourceComponentId: string) => void;
+  onGenerateAppComponentFromImage: () => void;
   onSelectPageComponent: (pageId: string, nodeId: string) => void;
   onOpenPageSettings: (pageId: string) => void;
   onSelectPageFlow: (route: { path: string; label: string; type: 'public_page' | 'form_crud' }) => void;
@@ -136,6 +137,7 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
   activeCollectionViewId,
   onSelectCollectionView,
   onAddCollectionComponent,
+  onGenerateAppComponentFromImage,
   onSelectPageComponent,
   onOpenPageSettings,
   onSelectPageFlow,
@@ -546,7 +548,7 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
                 <div className="d-flex align-items-center gap-1 text-muted extra-small fw-semibold cursor-pointer" onClick={() => setRootCollectionsOpen((value) => !value)}>
                   {rootCollectionsOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />}<Braces size={12} className="text-warning" /><span>COLLECTIONS</span>
                 </div>
-                <span className="badge bg-warning bg-opacity-20 text-dark" style={{ fontSize: '0.56rem' }}>{collections.length} Collections</span>
+                <div className="d-flex align-items-center gap-1"><button type="button" className="btn btn-sm btn-outline-success py-0 px-1" style={{ fontSize: '.58rem' }} title="สร้าง AppComponent จากรูปภาพ" onClick={(event) => { event.stopPropagation(); onGenerateAppComponentFromImage(); }}><ImageIcon size={9}/> From Image</button><span className="badge bg-warning bg-opacity-20 text-dark" style={{ fontSize: '0.56rem' }}>{collections.length} Collections</span></div>
               </div>
               {rootCollectionsOpen && <div className="ms-1 ps-2 border-start">{Object.entries(collectionsByModule).map(([moduleId, moduleCollections]) => <div key={moduleId} className="mb-1">
                 <div className="d-flex align-items-center gap-1 py-1 text-dark fw-semibold text-uppercase" style={{ fontSize: '0.68rem' }}><Folder size={12} className="text-warning fill-warning" /><span>{moduleId}</span><span className="badge bg-light text-secondary ms-auto">{moduleCollections.length}</span></div>
