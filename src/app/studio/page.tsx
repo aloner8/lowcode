@@ -15,6 +15,7 @@ import { ThemeCustomizerPanel } from '@/components/studio/ThemeCustomizerPanel';
 import { ComponentWorkshop } from '@/components/studio/ComponentWorkshop';
 import { PageSettingsWorkspace } from '@/components/studio/PageSettingsWorkspace';
 import type { PageSettingsValue } from '@/components/studio/PageSettingsWorkspace';
+import type { GenPageFromImageRequest } from '@/components/studio/GenPageFromImageWizard';
 import { DynamicPageRenderer } from '@/components/engine/DynamicPageRenderer';
 import { ComponentNode, AppConfig, AppWorkFlowManifest } from '@/types';
 import { ComponentPaletteItem } from '@/lib/engine/ComponentRegistry';
@@ -97,6 +98,17 @@ const createPageTemplate = (type: string, appName: string, title: string): Compo
     { id: `card_${Date.now()}`, type: 'CardComponent', props: { __sectionId: 'summary', __sectionName: 'Dashboard Summary', title: 'Overview', subtitle: title, value: '0', badge: 'Ready', variant: 'primary', footerText: 'Connect your data source' } }, content,
   ];
   return [content];
+};
+
+const createImageDashboardDraft = (request: GenPageFromImageRequest): ComponentNode[] => {
+  const uid = Date.now();
+  const metrics = [['ข่าวสาร / เนื้อหา','728','เผยแพร่แล้ว 716 รายการ'],['หน้าเว็บไซต์','38',''],['ไฟล์ดาวน์โหลด','5',''],['E-Book','0',''],['บุคลากร','49',''],['ภาพสไลด์','10',''],['ร้องเรียน / ร้องทุกข์','0','ดำเนินการครบแล้ว'],['ผู้ใช้งานระบบ','11','']];
+  const news = [['ประกาศรายชื่อผู้มีสิทธิเข้ารับการสรรหาและเลือกสรรเป็นพนักงานจ้าง','21/08/2026 11:09 · ข่าวสารประชาสัมพันธ์'],['สรุปผลการจัดซื้อจัดจ้าง ประจำเดือนกรกฎาคม พ.ศ. 2569','14/08/2026 10:59 · สรุปผลการดำเนินการจัดซื้อจัดจ้าง'],['ประกาศรับสมัครบุคคลเพื่อการสรรหาและการเลือกสรรเป็นพนักงานจ้าง','27/07/2026 10:16 · ข่าวสารประชาสัมพันธ์'],['สรุปผลการจัดซื้อจัดจ้าง ประจำเดือนมิถุนายน 2569','14/07/2026 15:31 · สรุปผลการดำเนินการจัดซื้อจัดจ้าง'],['สรุปผลการจัดซื้อจัดจ้าง ประจำเดือนพฤษภาคม 2569','14/07/2026 15:31 · สรุปผลการดำเนินการจัดซื้อจัดจ้าง'],['ประกาศจัดตั้งศูนย์ปฏิบัติการฉุกเฉินองค์การบริหารส่วนตำบลยาง','13/07/2026 21:03 · ข่าวสารประชาสัมพันธ์'],['กิจกรรมพัฒนาวัดบ้านโคก ตามโครงการ วัด ประชารัฐ สร้างสุข','01/07/2026 09:58 · กิจกรรม']];
+  const metricHtml = metrics.map(([label,value,note]) => `<div class="col-12 col-md-6 col-xl-3"><article class="gpfi-card gpfi-metric"><span class="gpfi-icon">▣</span><div><strong>${value}</strong><div>${label}</div>${note ? `<small>${note}</small>` : ''}</div></article></div>`).join('');
+  const newsHtml = news.map(([title,meta]) => `<li><i></i><div><b>${title}</b><small>${meta}</small></div><span>เผยแพร่</span></li>`).join('');
+  const actions = ['เพิ่มข่าวสาร','เพิ่มหน้าเว็บ','จัดการเมนู','ภาพสไลด์','อัปโหลดไฟล์','บุคลากร','ร้องเรียน','ผู้ใช้งาน'];
+  const content = `<style>.gpfi{--g:#0b641d;background:#f8faf4;color:#071b0a;min-height:100%;font-family:Sarabun,Arial,sans-serif}.gpfi-card{background:#fff;border:1px solid #dbe6bd;border-radius:16px;box-shadow:0 6px 18px rgba(31,65,14,.04);padding:16px}.gpfi-metric{min-height:90px;display:flex;align-items:center;gap:15px}.gpfi-metric strong{font-size:24px}.gpfi-metric small,.gpfi-news small{display:block;color:#94a3b8}.gpfi-icon{width:44px;height:44px;border-radius:14px;background:#edf5fa;display:grid;place-items:center;color:var(--g);font-size:20px}.gpfi-head{background:#f4f7fa;border-bottom:1px solid #dbe6bd;padding:14px 18px;display:flex;justify-content:space-between}.gpfi-news{list-style:none;padding:8px 16px;margin:0}.gpfi-news li{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #edf1f5}.gpfi-news li>div{flex:1}.gpfi-news i{width:8px;height:8px;border-radius:50%;background:#11a34a}.gpfi-news span{background:#11863e;color:#fff;padding:3px 9px;border-radius:20px;font-size:11px}.gpfi-stat{background:#f2f6fa;border-radius:14px;padding:12px}.gpfi-stat b,.gpfi-stat small{display:block}.gpfi-stat b{font-size:22px;color:var(--g)}</style><div class="gpfi container-fluid py-3"><div class="d-flex justify-content-between border-bottom border-warning border-3 pb-3 mb-4"><b>แผงควบคุม</b><button class="btn btn-sm btn-light border">อบต.ยาง ▾</button></div><div class="small mb-5">⌂ หน้าหลัก　›　แผงควบคุม</div><div class="row g-3 mb-4">${metricHtml}</div><div class="row g-3"><div class="col-12 col-xl-9"><section class="gpfi-card p-0 overflow-hidden h-100"><header class="gpfi-head"><b>◷ ข่าวสารล่าสุด</b><span>ดูทั้งหมด →</span></header><ul class="gpfi-news">${newsHtml}</ul></section></div><div class="col-12 col-xl-3 d-flex flex-column gap-3"><section class="gpfi-card p-0 overflow-hidden"><header class="gpfi-head"><b>สถิติผู้เข้าชม (14 วัน)</b></header><div class="row g-2 p-3 text-center"><div class="col-6"><div class="gpfi-stat"><b>0</b><small>วันนี้</small></div></div><div class="col-6"><div class="gpfi-stat"><b>0</b><small>7 วันที่ผ่านมา</small></div></div></div></section><section class="gpfi-card p-0 overflow-hidden"><header class="gpfi-head"><b>ϟ ทางลัด</b></header><div class="row g-2 p-3">${actions.map((item) => `<div class="col-6"><button class="btn btn-light border w-100 text-start small">＋ ${item}</button></div>`).join('')}</div></section></div></div></div>`;
+  return [{ id: `gen_image_dashboard_${uid}`, type: 'DynamicHtmlComponent', templateRef: 'component://DynamicHtmlComponent', htmlId: `cmp-gen-image-${uid}`, label: 'Generated Dashboard from Image', props: { __sectionId: 'generated-dashboard', __sectionName: 'Generated Dashboard', componentRole: 'GenPageFromImageDraft', sourceImageUrl: request.image.url, sourceImagePath: request.image.path, viewport: request.viewport, analysis: request.analysis, fixedCollections: { metrics, news, actions }, content } }];
 };
 
 export default function StudioPage() {
@@ -371,6 +383,34 @@ export default function StudioPage() {
       setStudioPages(nextPages); setIsPageDirty(false); setSaveStatus('Page settings saved');
     } catch (error) { setStudioError(error instanceof Error ? error.message : 'Unable to save Page settings'); setSaveStatus('Save settings failed'); }
     setTimeout(() => setSaveStatus(null), 3000);
+  };
+
+  const handleGeneratePageFromImage = async (request: GenPageFromImageRequest) => {
+    if (!platformId || !pageSettingsId) return;
+    const targetPage = studioPages.find((page) => page.id === pageSettingsId);
+    if (!targetPage) return;
+    const generatedAt = new Date().toISOString();
+    const generatedNodes = createImageDashboardDraft(request);
+    const nextTree = request.mode === 'append' ? [...nodes, ...generatedNodes] : generatedNodes;
+    const settings: PageSettingsValue = {
+      ...(targetPage.settings || {}), layoutType: 'dashboard-grid',
+      collectionSources: ['generated.dashboard.metrics', 'generated.dashboard.latest-news', 'generated.visitor', 'generated.quick-actions'],
+      generatedFromImage: { sourceImageUrl: request.image.url, sourceImagePath: request.image.path, viewport: request.viewport, mode: request.mode, generatedAt, sections: request.analysis.sections },
+    };
+    const nextPages = studioPages.map((page) => {
+      if (page.id !== pageSettingsId) return page;
+      const layoutHistory = page.componentTree?.length ? [...(page.layoutHistory || []), { templateType: page.templateType || 'custom', componentTree: page.componentTree, savedAt: generatedAt }].slice(-10) : page.layoutHistory || [];
+      return { ...page, title: request.pageTitle || page.title, templateType: 'generated-from-image', settings, componentTree: nextTree, layoutHistory };
+    });
+    setSaveStatus('Generating page from image...'); setStudioError(null);
+    try {
+      const response = await fetch(`/api/platforms/${platformId}/studio`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studioLayout: nextTree, studioPages: nextPages, studioForms, studioCollections }) });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(data.error || 'Unable to generate Page from image');
+      setStudioPages(nextPages); setNodes(nextTree); historyRef.current = new HistoryStackManager(nextTree); setIsPageDirty(false); setPageSettingsId(null); setSaveStatus('Page generated and saved');
+    } catch (error) {
+      setStudioError(error instanceof Error ? error.message : 'Unable to generate Page from image'); setSaveStatus('Generation failed'); throw error;
+    } finally { setTimeout(() => setSaveStatus(null), 3000); }
   };
 
   const handleSelectDesignForm = (formId: string, mode: 'insert' | 'update' | 'readOnly') => {
@@ -761,6 +801,7 @@ export default function StudioPage() {
                 onBack={() => setPageSettingsId(null)}
                 onAddSection={handleAddPageSection}
                 onSave={(settings) => void handleSavePageSettings(settings)}
+                onGenerateFromImage={handleGeneratePageFromImage}
               />
             ) : workshopNodeId && nodes.find((node) => node.id === workshopNodeId) ? (
               <ComponentWorkshop
