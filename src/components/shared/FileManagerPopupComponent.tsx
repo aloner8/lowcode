@@ -119,7 +119,9 @@ export const FileManagerPopupComponent: React.FC<FileManagerPopupProps> = ({
     append ? setLoadingMore(true) : setLoading(true);
     setError('');
     try {
-      const result = onLoad ? await onLoad({ rootPath, currentPath, cursor: append ? cursor : null, limit: pageSize }) : { rootPath, currentPath, directories, files: append ? [] : files, hasMore: false };
+      const result = onLoad
+        ? await onLoad({ rootPath, currentPath, cursor: append ? cursor : null, limit: pageSize })
+        : await fetch(`/api/file-manager?path=${encodeURIComponent(currentPath)}&limit=${pageSize}${append && cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, { cache: 'no-store' }).then(async (response) => { const data = await response.json(); if (!response.ok) throw new Error(data.error || 'ไม่สามารถโหลดไฟล์ได้'); return data as FileManagerLoadResult; });
       if (result.rootPath) setRootPath(result.rootPath);
       if (result.currentPath && controlledPath === undefined) setInternalPath(result.currentPath);
       if (result.directories) setDirectories(result.directories);
@@ -141,7 +143,12 @@ export const FileManagerPopupComponent: React.FC<FileManagerPopupProps> = ({
     if (!incoming.length) return;
     setLoading(true);
     try {
-      const added = onUpload ? await onUpload(incoming, currentPath) : incoming.map((file, index) => ({ id: `local-${Date.now()}-${index}`, name: file.name, path: joinPath(currentPath, file.name), url: URL.createObjectURL(file), mimeType: file.type, size: file.size, updatedAt: new Date().toISOString() }));
+      let added: FileManagerAsset[];
+      if (onUpload) added = await onUpload(incoming, currentPath);
+      else {
+        const body = new FormData(); body.set('path', currentPath); incoming.forEach((file) => body.append('files', file));
+        const response = await fetch('/api/file-manager', { method: 'POST', body }); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'อัปโหลดไม่สำเร็จ'); added = data.files;
+      }
       setFiles((value) => [...added, ...value]);
       setSelected(selectionMode === 'single' ? added.slice(0, 1).map((file) => file.id) : added.map((file) => file.id));
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'อัปโหลดไม่สำเร็จ'); }
@@ -149,12 +156,14 @@ export const FileManagerPopupComponent: React.FC<FileManagerPopupProps> = ({
   };
   const createDirectory = async () => {
     const name = window.prompt('ชื่อโฟลเดอร์ใหม่'); if (!name?.trim()) return;
-    const directory = onCreateDirectory ? await onCreateDirectory(name.trim(), currentPath) : { id: `dir-${Date.now()}`, name: name.trim(), path: joinPath(currentPath, name.trim()), parentPath: currentPath, children: [] };
+    let directory: FileManagerDirectory;
+    if (onCreateDirectory) directory = await onCreateDirectory(name.trim(), currentPath);
+    else { const response = await fetch('/api/file-manager', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create-directory', path: currentPath, name: name.trim() }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'สร้างโฟลเดอร์ไม่สำเร็จ'); directory = data.directory; }
     setDirectories((value) => [...value, directory]);
   };
-  const rename = async (entry: FileManagerDirectory | FileManagerAsset) => { const name = window.prompt('ชื่อใหม่', entry.name); if (!name?.trim() || name === entry.name) return; await onRename?.(entry, name.trim()); setFiles((value) => value.map((file) => file.id === entry.id ? { ...file, name: name.trim() } : file)); setDirectories((value) => value.map((dir) => dir.id === entry.id ? { ...dir, name: name.trim() } : dir)); };
-  const removeFile = async (file: FileManagerAsset) => { if (!window.confirm(`ลบไฟล์ “${file.name}” หรือไม่?`)) return; await onDeleteFile?.(file); setFiles((value) => value.filter((item) => item.id !== file.id)); setSelected((value) => value.filter((id) => id !== file.id)); };
-  const removeDirectory = async (directory: FileManagerDirectory) => { if (!window.confirm(`ลบโฟลเดอร์ “${directory.name}” หรือไม่?`)) return; await onDeleteDirectory?.(directory); setDirectories((value) => value.filter((item) => item.id !== directory.id)); if (currentPath === directory.path) changePath(rootPath); };
+  const rename = async (entry: FileManagerDirectory | FileManagerAsset) => { const name = window.prompt('ชื่อใหม่', entry.name); if (!name?.trim() || name === entry.name) return; if (onRename) await onRename(entry, name.trim()); else { const response = await fetch('/api/file-manager', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: entry.path, name: name.trim() }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'เปลี่ยนชื่อไม่สำเร็จ'); } await load(false); };
+  const removeFile = async (file: FileManagerAsset) => { if (!window.confirm(`ลบไฟล์ “${file.name}” หรือไม่?`)) return; if (onDeleteFile) await onDeleteFile(file); else { const response = await fetch(`/api/file-manager?path=${encodeURIComponent(file.path)}`, { method: 'DELETE' }); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'ลบไฟล์ไม่สำเร็จ'); } setFiles((value) => value.filter((item) => item.id !== file.id)); setSelected((value) => value.filter((id) => id !== file.id)); };
+  const removeDirectory = async (directory: FileManagerDirectory) => { if (!window.confirm(`ลบโฟลเดอร์ “${directory.name}” หรือไม่?`)) return; if (onDeleteDirectory) await onDeleteDirectory(directory); else { const response = await fetch(`/api/file-manager?path=${encodeURIComponent(directory.path)}`, { method: 'DELETE' }); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'ลบโฟลเดอร์ไม่สำเร็จ'); } await load(false); if (currentPath === directory.path) changePath(rootPath); };
 
   if (!open) return null;
   return <div className="modal d-block file-manager-popup-backdrop" tabIndex={-1} role="dialog" aria-modal="true">

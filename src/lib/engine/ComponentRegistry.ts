@@ -203,8 +203,8 @@ export const COMPONENT_PALETTE: ComponentPaletteItem[] = [
     defaultProps: {
       open: false,
       title: 'คลังสื่อและไฟล์',
-      rootPath: '/media',
-      currentPath: '/media',
+      rootPath: '/uploads',
+      currentPath: '/uploads',
       selectionMode: 'single',
       pageSize: 40,
       allowUpload: true,

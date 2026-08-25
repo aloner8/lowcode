@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Upload, FileText, Image as ImageIcon, Trash2, Download } from 'lucide-react';
+import { FileManagerPopupComponent, type FileManagerAsset } from './FileManagerPopupComponent';
 
 export interface FileItem {
   id: string;
@@ -20,6 +21,10 @@ export interface FileManagerProps {
   onUpload?: (files: FileList) => void;
   onDelete?: (fileId: string) => void;
   className?: string;
+  rootPath?: string;
+  currentPath?: string;
+  selectionMode?: 'single' | 'multiple';
+  onUse?: (files: FileManagerAsset[]) => void;
 }
 
 export const FileManagerComponent: React.FC<FileManagerProps> = ({
@@ -27,30 +32,16 @@ export const FileManagerComponent: React.FC<FileManagerProps> = ({
   files = [],
   maxSizeMb = 10,
   acceptedTypes = '*',
-  onUpload,
   onDelete,
   className = '',
+  rootPath = '/uploads',
+  currentPath = '/uploads',
+  selectionMode = 'multiple',
+  onUse,
 }) => {
   const [fileList, setFileList] = useState<FileItem[]>(files);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      if (onUpload) {
-        onUpload(e.target.files);
-      } else {
-        // Fallback local state demo
-        const newFiles: FileItem[] = Array.from(e.target.files).map((f, i) => ({
-          id: `file_${Date.now()}_${i}`,
-          name: f.name,
-          size: f.size,
-          type: f.type,
-          url: URL.createObjectURL(f),
-          uploadedAt: new Date().toLocaleDateString(),
-        }));
-        setFileList((prev) => [...prev, ...newFiles]);
-      }
-    }
-  };
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [activePath, setActivePath] = useState(currentPath);
 
   const handleDelete = (id: string) => {
     if (onDelete) {
@@ -71,17 +62,12 @@ export const FileManagerComponent: React.FC<FileManagerProps> = ({
       <h5 className="fw-bold mb-3">{title}</h5>
 
       {/* Dropzone */}
-      <div className="border border-2 border-dashed rounded p-4 text-center mb-4 bg-light position-relative">
+      <button type="button" className="border border-2 border-dashed rounded p-4 text-center mb-4 bg-light position-relative w-100" onClick={() => setPopupOpen(true)}>
         <Upload size={32} className="text-primary mb-2" />
         <h6 className="fw-semibold mb-1">Click or drag & drop files here to upload</h6>
         <p className="small text-muted mb-0">Max file size: {maxSizeMb} MB</p>
-        <input
-          type="file"
-          className="position-absolute top-0 start-0 w-100 h-100 opacity-0 cursor-pointer"
-          accept={acceptedTypes}
-          onChange={handleFileChange}
-        />
-      </div>
+      </button>
+      <FileManagerPopupComponent open={popupOpen} title={title} rootPath={rootPath} currentPath={activePath} selectionMode={selectionMode} accept={acceptedTypes} onCurrentPathChange={setActivePath} onUse={(assets) => { setFileList((previous) => [...previous, ...assets.map((asset) => ({ id: asset.id, name: asset.name, size: asset.size || 0, type: asset.mimeType || '', url: asset.url, uploadedAt: asset.updatedAt || new Date().toISOString() }))]); onUse?.(assets); setPopupOpen(false); }} onClose={() => setPopupOpen(false)}/>
 
       {/* File List */}
       <div className="table-responsive">

@@ -5,6 +5,8 @@ import { FieldInputComponent, FieldInputProps } from './FieldInputComponent';
 
 export interface FormComponentProps {
   id?: string;
+  formId?: string;
+  collectionId?: string;
   title?: string;
   description?: string;
   fields: FieldInputProps[];
@@ -18,6 +20,8 @@ export interface FormComponentProps {
 
 export const FormComponent: React.FC<FormComponentProps> = ({
   id,
+  formId,
+  collectionId,
   title,
   description,
   fields = [],
@@ -46,6 +50,33 @@ export const FormComponent: React.FC<FormComponentProps> = ({
     setFormData(initialValues);
   };
 
+  const uploadPathFor = (field: FieldInputProps) => {
+    if (field.fileManagerPath) return field.fileManagerPath;
+    const collection = collectionId || formId?.replace(/\.form$/, '.collection') || '';
+    const exact: Record<string, Record<string, string>> = {
+      'cms.post.collection': { files: '/uploads/file_folder', gallery: '/uploads/gallery' },
+      'cms.personnel.collection': { photo: '/uploads/personnel' },
+      'cms.slide.collection': { slide: '/uploads/slides' },
+      'cms.banner-slide.collection': { image: '/uploads/banners', imageFile: '/uploads/banners' },
+      'cms.file.collection': { files: '/uploads/file_download' },
+      'cms.ebook.collection': { cover: '/uploads/ebook/cover', ebook_file: '/uploads/ebook/pdf' },
+      'cms.homepage-highlight.collection': { left_image: '/uploads/nayok-palad', right_image: '/uploads/nayok-palad' },
+      'cms.generalhelp.collection': { imgcard: '/uploads/helppeople', imgadd: '/uploads/helppeople', imgpic: '/uploads/helppeople', imgdoc: '/uploads/helppeople', files: '/uploads/helppeople' },
+      'cms.oldage.collection': { card_copy: '/uploads/oldage', add_copy: '/uploads/oldage', bank_copy: '/uploads/oldage', files: '/uploads/oldage' },
+      'cms.usewater.collection': { card_copy: '/uploads/usewater', files: '/uploads/usewater' },
+      'cms.electric.collection': { map: '/uploads/electric', files: '/uploads/electric' },
+      'cms.getbin.collection': { map: '/uploads/getbin', files: '/uploads/getbin' },
+      'smartreport.ticket.collection': { images: '/uploads/smartreport', files: '/uploads/smartreport' },
+    };
+    return exact[collection]?.[field.name] || `/uploads/${collection.replace(/\.collection$/, '').replace(/\./g, '/') || 'files'}`;
+  };
+  const editorPathsFor = (field: FieldInputProps) => {
+    const collection = collectionId || formId?.replace(/\.form$/, '.collection') || '';
+    if (collection === 'cms.post.collection') return { imageFileManagerPath: '/uploads/gallery', documentFileManagerPath: '/uploads/file_folder' };
+    if (collection === 'cms.page.collection') return { imageFileManagerPath: '/uploads/images', documentFileManagerPath: '/uploads/files' };
+    return { imageFileManagerPath: uploadPathFor(field), documentFileManagerPath: uploadPathFor(field) };
+  };
+
   return (
     <div className={`card municipal-admin-form shadow-sm border bg-white p-4 ${className}`} id={id}>
       {title && <h4 className="card-title fw-bold mb-2">{title}</h4>}
@@ -57,6 +88,8 @@ export const FormComponent: React.FC<FormComponentProps> = ({
             key={field.name || idx}
             {...field}
             disabled={mode === 'readOnly' || field.disabled}
+            fileManagerPath={uploadPathFor(field)}
+            {...(field.type === 'html-editor' ? editorPathsFor(field) : {})}
             value={formData[field.name] ?? field.value ?? ''}
             onChange={handleFieldChange}
           />

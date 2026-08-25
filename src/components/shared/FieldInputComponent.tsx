@@ -1,7 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { HtmlEditorComponent } from './HtmlEditorComponent';
+import { FileManagerPopupComponent, type FileManagerAsset } from './FileManagerPopupComponent';
+import { FileText, FolderOpen, X } from 'lucide-react';
 
 export interface FieldInputProps {
   id?: string;
@@ -17,6 +19,10 @@ export interface FieldInputProps {
   helpText?: string;
   accept?: string;
   rows?: number;
+  fileManagerRootPath?: string;
+  fileManagerPath?: string;
+  imageFileManagerPath?: string;
+  documentFileManagerPath?: string;
   onChange?: (name: string, value: any) => void;
   className?: string;
 }
@@ -35,10 +41,22 @@ export const FieldInputComponent: React.FC<FieldInputProps> = ({
   helpText,
   accept,
   rows = 4,
+  fileManagerRootPath = '/uploads',
+  fileManagerPath = '/uploads',
+  imageFileManagerPath,
+  documentFileManagerPath,
   onChange,
   className = '',
 }) => {
   const inputId = id || `field_${name}`;
+  const [showFileManager, setShowFileManager] = useState(false);
+  const [currentPath, setCurrentPath] = useState(fileManagerPath);
+  const selectedAssets = useMemo<FileManagerAsset[]>(() => {
+    const values = Array.isArray(value) ? value : value ? [value] : [];
+    return values.map((item, index) => typeof item === 'string'
+      ? { id: `${name}-${index}-${item}`, name: decodeURIComponent(item.split('/').pop() || item), path: item, url: item }
+      : item as FileManagerAsset);
+  }, [name, value]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     if (!onChange) return;
@@ -64,6 +82,9 @@ export const FieldInputComponent: React.FC<FieldInputProps> = ({
           initialContent={typeof value === 'string' ? value : ''}
           onChange={(html) => onChange?.(name, html)}
           readOnly={disabled}
+          fileManagerRootPath={fileManagerRootPath}
+          imageFileManagerPath={imageFileManagerPath || fileManagerPath}
+          documentFileManagerPath={documentFileManagerPath || fileManagerPath}
         />
       ) : type === 'textarea' ? (
         <textarea
@@ -133,17 +154,18 @@ export const FieldInputComponent: React.FC<FieldInputProps> = ({
           ))}
         </div>
       ) : type === 'file' || type === 'multi-file' ? (
-        <input
-          id={inputId}
-          name={name}
-          type="file"
-          className={`form-control ${error ? 'is-invalid' : ''}`}
-          accept={accept}
-          multiple={type === 'multi-file'}
-          required={required}
-          disabled={disabled}
-          onChange={(event) => onChange?.(name, type === 'multi-file' ? Array.from(event.target.files || []) : event.target.files?.[0] || null)}
-        />
+        <>
+          <button id={inputId} name={name} type="button" className={`form-control text-start d-flex align-items-center gap-2 ${error ? 'is-invalid' : ''}`} disabled={disabled} onClick={() => setShowFileManager(true)}>
+            <FolderOpen size={17} className="text-primary"/>
+            <span className={selectedAssets.length ? 'text-dark' : 'text-muted'}>{selectedAssets.length ? type === 'multi-file' ? `เลือกแล้ว ${selectedAssets.length} ไฟล์` : selectedAssets[0].name : 'เลือกจาก File Manager'}</span>
+          </button>
+          {selectedAssets.length > 0 && <div className="d-flex flex-wrap gap-2 mt-2">{selectedAssets.map((asset) => <div key={asset.id} className="border rounded-2 p-1 d-flex align-items-center gap-2 bg-light" style={{ maxWidth: 240 }}>
+            {/\.(png|jpe?g|gif|webp|svg)$/i.test(asset.name) ? <img src={asset.url} alt={asset.name} style={{ width: 42, height: 42, objectFit: 'cover' }} className="rounded"/> : <FileText size={28} className="text-secondary"/>}
+            <span className="small text-truncate flex-grow-1">{asset.name}</span>
+            {!disabled && <button type="button" className="btn btn-sm border-0 p-1" onClick={() => { const next = selectedAssets.filter((item) => item.id !== asset.id); onChange?.(name, type === 'multi-file' ? next.map((item) => item.url) : ''); }}><X size={12}/></button>}
+          </div>)}</div>}
+          <FileManagerPopupComponent open={showFileManager} title={`เลือก ${label || 'ไฟล์'}`} rootPath={fileManagerRootPath} currentPath={currentPath} selectionMode={type === 'multi-file' ? 'multiple' : 'single'} accept={accept || '*/*'} onCurrentPathChange={setCurrentPath} onUse={(assets) => { onChange?.(name, type === 'multi-file' ? assets.map((asset) => asset.url) : assets[0]?.url || ''); setShowFileManager(false); }} onClose={() => setShowFileManager(false)}/>
+        </>
       ) : (
         <input
           id={inputId}

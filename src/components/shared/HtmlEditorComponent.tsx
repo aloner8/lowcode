@@ -68,6 +68,8 @@ export interface HtmlEditorProps {
   onUploadFile?: (file: File) => Promise<{ url: string; fileName: string; fileSize?: string; fileType?: string }>;
   fileManagerRootPath?: string;
   fileManagerCurrentPath?: string;
+  imageFileManagerPath?: string;
+  documentFileManagerPath?: string;
   onFileManagerPathChange?: (path: string) => void;
   onFileManagerLoad?: FileManagerPopupProps['onLoad'];
   readOnly?: boolean;
@@ -91,8 +93,10 @@ export const HtmlEditorComponent: React.FC<HtmlEditorProps> = ({
   onChange,
   onUploadImage,
   onUploadFile,
-  fileManagerRootPath = '/media',
+  fileManagerRootPath = '/uploads',
   fileManagerCurrentPath,
+  imageFileManagerPath,
+  documentFileManagerPath,
   onFileManagerPathChange,
   onFileManagerLoad,
   readOnly = false,
@@ -104,6 +108,8 @@ export const HtmlEditorComponent: React.FC<HtmlEditorProps> = ({
   const [showDocModal, setShowDocModal] = useState<boolean>(false);
   const [showTableMenu, setShowTableMenu] = useState<boolean>(false);
   const [copySuccess, setCopySuccess] = useState<boolean>(false);
+  const [imageCurrentPath, setImageCurrentPath] = useState(imageFileManagerPath || fileManagerCurrentPath || fileManagerRootPath);
+  const [documentCurrentPath, setDocumentCurrentPath] = useState(documentFileManagerPath || fileManagerCurrentPath || fileManagerRootPath);
 
 
   const editor = useEditor({
@@ -564,12 +570,12 @@ export const HtmlEditorComponent: React.FC<HtmlEditorProps> = ({
         open={showImageModal}
         title="เลือกหรืออัปโหลดรูปภาพ"
         rootPath={fileManagerRootPath}
-        currentPath={fileManagerCurrentPath}
+        currentPath={imageCurrentPath}
         selectionMode="multiple"
         accept="image/*"
         useButtonText="แทรกรูปภาพ"
         onLoad={onFileManagerLoad}
-        onCurrentPathChange={onFileManagerPathChange}
+        onCurrentPathChange={(path) => { setImageCurrentPath(path); onFileManagerPathChange?.(path); }}
         onUpload={(files, path) => uploadFromManager(files, path, 'image')}
         onUse={useImages}
         onClose={() => setShowImageModal(false)}
@@ -578,12 +584,12 @@ export const HtmlEditorComponent: React.FC<HtmlEditorProps> = ({
         open={showDocModal}
         title="เลือกหรืออัปโหลดเอกสาร"
         rootPath={fileManagerRootPath}
-        currentPath={fileManagerCurrentPath}
+        currentPath={documentCurrentPath}
         selectionMode="multiple"
         accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.txt,.csv"
         useButtonText="แนบเอกสาร"
         onLoad={onFileManagerLoad}
-        onCurrentPathChange={onFileManagerPathChange}
+        onCurrentPathChange={(path) => { setDocumentCurrentPath(path); onFileManagerPathChange?.(path); }}
         onUpload={(files, path) => uploadFromManager(files, path, 'document')}
         onUse={useDocuments}
         onClose={() => setShowDocModal(false)}
