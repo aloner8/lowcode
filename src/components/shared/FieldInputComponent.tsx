@@ -1,12 +1,13 @@
 'use client';
 
 import React from 'react';
+import { HtmlEditorComponent } from './HtmlEditorComponent';
 
 export interface FieldInputProps {
   id?: string;
   name: string;
   label?: string;
-  type?: 'text' | 'number' | 'email' | 'password' | 'date' | 'select' | 'checkbox' | 'radio' | 'textarea';
+  type?: 'text' | 'number' | 'email' | 'password' | 'date' | 'datetime' | 'select' | 'collection-select' | 'checkbox' | 'switch' | 'radio' | 'textarea' | 'html-editor' | 'file' | 'multi-file' | 'tags' | 'color';
   value?: any;
   placeholder?: string;
   options?: Array<{ label: string; value: string }>; // For select / radio
@@ -14,6 +15,8 @@ export interface FieldInputProps {
   disabled?: boolean;
   error?: string;
   helpText?: string;
+  accept?: string;
+  rows?: number;
   onChange?: (name: string, value: any) => void;
   className?: string;
 }
@@ -30,6 +33,8 @@ export const FieldInputComponent: React.FC<FieldInputProps> = ({
   disabled = false,
   error,
   helpText,
+  accept,
+  rows = 4,
   onChange,
   className = '',
 }) => {
@@ -47,13 +52,20 @@ export const FieldInputComponent: React.FC<FieldInputProps> = ({
 
   return (
     <div className={`mb-3 ${className}`}>
-      {label && type !== 'checkbox' && (
+      {label && type !== 'checkbox' && type !== 'switch' && type !== 'html-editor' && (
         <label htmlFor={inputId} className="form-label fw-semibold">
           {label} {required && <span className="text-danger">*</span>}
         </label>
       )}
 
-      {type === 'textarea' ? (
+      {type === 'html-editor' ? (
+        <HtmlEditorComponent
+          label={label || 'HTML Editor'}
+          initialContent={typeof value === 'string' ? value : ''}
+          onChange={(html) => onChange?.(name, html)}
+          readOnly={disabled}
+        />
+      ) : type === 'textarea' ? (
         <textarea
           id={inputId}
           name={name}
@@ -63,9 +75,9 @@ export const FieldInputComponent: React.FC<FieldInputProps> = ({
           required={required}
           disabled={disabled}
           onChange={handleChange}
-          rows={3}
+          rows={rows}
         />
-      ) : type === 'select' ? (
+      ) : type === 'select' || type === 'collection-select' ? (
         <select
           id={inputId}
           name={name}
@@ -82,13 +94,14 @@ export const FieldInputComponent: React.FC<FieldInputProps> = ({
             </option>
           ))}
         </select>
-      ) : type === 'checkbox' ? (
+      ) : type === 'checkbox' || type === 'switch' ? (
         <div className="form-check">
           <input
             id={inputId}
             name={name}
             type="checkbox"
-            className={`form-check-input ${error ? 'is-invalid' : ''}`}
+            className={`form-check-input ${type === 'switch' ? 'cursor-pointer' : ''} ${error ? 'is-invalid' : ''}`}
+            role={type === 'switch' ? 'switch' : undefined}
             checked={Boolean(value)}
             disabled={disabled}
             onChange={handleChange}
@@ -119,11 +132,23 @@ export const FieldInputComponent: React.FC<FieldInputProps> = ({
             </div>
           ))}
         </div>
+      ) : type === 'file' || type === 'multi-file' ? (
+        <input
+          id={inputId}
+          name={name}
+          type="file"
+          className={`form-control ${error ? 'is-invalid' : ''}`}
+          accept={accept}
+          multiple={type === 'multi-file'}
+          required={required}
+          disabled={disabled}
+          onChange={(event) => onChange?.(name, type === 'multi-file' ? Array.from(event.target.files || []) : event.target.files?.[0] || null)}
+        />
       ) : (
         <input
           id={inputId}
           name={name}
-          type={type}
+          type={type === 'datetime' ? 'datetime-local' : type === 'tags' ? 'text' : type}
           className={`form-control ${error ? 'is-invalid' : ''}`}
           placeholder={placeholder}
           value={value}

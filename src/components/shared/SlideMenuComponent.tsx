@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Menu, X, ChevronRight, ChevronDown } from 'lucide-react';
+import { Menu, X, ChevronRight, ChevronDown, LayoutDashboard, Newspaper, FileText, Image, Users, Download, Flag, Settings, BookOpen, MessageSquareWarning, Tags, Monitor, Contact } from 'lucide-react';
 
 export interface SlideMenuItem {
   id: string;
@@ -52,6 +52,23 @@ export const SlideMenuComponent: React.FC<SlideMenuProps> = ({
   onSelect,
   className = '',
 }) => {
+  const isMunicipalAdmin = title.includes('Backend') || title.includes('อบต.');
+  const menuIcon = (label: string) => {
+    const props = { size: 16, strokeWidth: 2 };
+    if (label.includes('แผงควบคุม')) return <LayoutDashboard {...props} />;
+    if (label.includes('ข่าวสาร')) return <Newspaper {...props} />;
+    if (label.includes('หน้าเว็บไซต์')) return <FileText {...props} />;
+    if (label.includes('รูปนายก') || label.includes('ภาพสไลด์') || label.includes('Banner')) return <Image {...props} />;
+    if (label.includes('บุคลากร') || label.includes('ผู้ใช้')) return <Users {...props} />;
+    if (label.includes('ติดต่อ')) return <Contact {...props} />;
+    if (label.includes('E-Book')) return <BookOpen {...props} />;
+    if (label.includes('ดาวน์โหลด')) return <Download {...props} />;
+    if (label.includes('ร้องเรียน')) return <Flag {...props} />;
+    if (label.includes('แท็ก')) return <Tags {...props} />;
+    if (label.includes('โหมดสีเทา')) return <Monitor {...props} />;
+    if (label.includes('บริการ')) return <Settings {...props} />;
+    return <MessageSquareWarning {...props} />;
+  };
   const menuItems = React.useMemo<SlideMenuItem[]>(() => {
     if (dataSourceMode !== 'collection') return items;
     const records = collectionData || collectionItems;
@@ -71,7 +88,7 @@ export const SlideMenuComponent: React.FC<SlideMenuProps> = ({
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => Object.fromEntries(menuItems.filter((item) => item.children?.length).map((item) => [item.id, Boolean(item.active)])));
 
   return (
-    <div className={`slide-menu-wrapper ${className}`}>
+    <div className={`slide-menu-wrapper ${isMunicipalAdmin ? 'municipal-admin-menu' : ''} ${className}`}>
       {/* Toggle Button for Collapsed View */}
       {!isOpen && (
         <button className="btn btn-primary shadow-sm mb-3" onClick={() => setIsOpen(true)}>
@@ -81,10 +98,10 @@ export const SlideMenuComponent: React.FC<SlideMenuProps> = ({
 
       {/* Sidebar Panel */}
       {isOpen && (
-        <div className="card shadow-sm border-0 bg-white p-3" style={{ maxWidth: '280px' }}>
+        <div className="card shadow-sm border-0 bg-white p-3" style={{ maxWidth: isMunicipalAdmin ? '234px' : '280px' }}>
           <div className="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
             <h6 className="fw-bold mb-0 text-primary">{title}</h6>
-            <button className="btn btn-sm btn-light rounded-circle" onClick={() => setIsOpen(false)}>
+            <button className={`btn btn-sm rounded-circle ${isMunicipalAdmin ? 'btn-outline-light' : 'btn-light'}`} onClick={() => setIsOpen(false)}>
               <X size={16} />
             </button>
           </div>
@@ -102,6 +119,7 @@ export const SlideMenuComponent: React.FC<SlideMenuProps> = ({
                 title={item.permission ? `RBAC: ${item.permission}` : undefined}
               >
                 <div className="d-flex align-items-center gap-2">
+                  {isMunicipalAdmin && menuIcon(item.label)}
                   {item.children?.length ? (expanded[item.id] ? <ChevronDown size={14} /> : <ChevronRight size={14} />) : <ChevronRight size={14} className={item.active ? 'text-white' : 'text-muted'} />}
                   <span>{item.label}</span>
                 </div>

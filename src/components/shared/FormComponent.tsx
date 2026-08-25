@@ -13,6 +13,7 @@ export interface FormComponentProps {
   initialValues?: Record<string, any>;
   onSubmit?: (formData: Record<string, any>) => void;
   className?: string;
+  mode?: 'insert' | 'update' | 'readOnly';
 }
 
 export const FormComponent: React.FC<FormComponentProps> = ({
@@ -25,6 +26,7 @@ export const FormComponent: React.FC<FormComponentProps> = ({
   initialValues = {},
   onSubmit,
   className = '',
+  mode = 'insert',
 }) => {
   const [formData, setFormData] = useState<Record<string, any>>(initialValues);
   useEffect(() => { setFormData(initialValues); }, [initialValues]);
@@ -45,7 +47,7 @@ export const FormComponent: React.FC<FormComponentProps> = ({
   };
 
   return (
-    <div className={`card shadow-sm border-0 bg-white p-4 ${className}`} id={id}>
+    <div className={`card municipal-admin-form shadow-sm border bg-white p-4 ${className}`} id={id}>
       {title && <h4 className="card-title fw-bold mb-2">{title}</h4>}
       {description && <p className="card-subtitle text-muted mb-4">{description}</p>}
 
@@ -54,12 +56,13 @@ export const FormComponent: React.FC<FormComponentProps> = ({
           <FieldInputComponent
             key={field.name || idx}
             {...field}
+            disabled={mode === 'readOnly' || field.disabled}
             value={formData[field.name] ?? field.value ?? ''}
             onChange={handleFieldChange}
           />
         ))}
 
-        <div className="d-flex gap-2 justify-content-end mt-4">
+        {mode !== 'readOnly' && <div className="d-flex gap-2 justify-content-end mt-4">
           {resetText && (
             <button type="button" className="btn btn-outline-secondary" onClick={handleReset}>
               {resetText}
@@ -68,7 +71,7 @@ export const FormComponent: React.FC<FormComponentProps> = ({
           <button type="submit" className="btn btn-primary px-4">
             {submitText}
           </button>
-        </div>
+        </div>}
       </form>
     </div>
   );

@@ -8,6 +8,7 @@ export type ComponentType =
   | 'ListComponent'
   | 'GalleryComponent'
   | 'FileManagerComponent'
+  | 'FileManagerPopupComponent'
   | 'DynamicHtmlComponent'
   | 'HtmlEditorComponent'
   | 'HtmlTemplateComponent'

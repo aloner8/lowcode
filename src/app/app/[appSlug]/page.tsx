@@ -8,6 +8,24 @@ import { WorkflowInterpreter } from '@/lib/engine/WorkflowInterpreter';
 import { getTenantDbClient } from '@/lib/supabase/tenantClient';
 import { Server, Database, Layers, RefreshCw, CheckCircle2 } from 'lucide-react';
 import type { ComponentNode } from '@/types';
+import { ADMIN_SIDEBAR_ITEMS } from '@/lib/studio/adminMenuTemplate';
+import type { SlideMenuItem } from '@/components/shared/SlideMenuComponent';
+
+const flattenMenuItems = (items: SlideMenuItem[]): SlideMenuItem[] =>
+  items.flatMap((item) => [item, ...(item.children ? flattenMenuItems(item.children) : [])]);
+
+const canonicalMenuItems = flattenMenuItems(ADMIN_SIDEBAR_ITEMS);
+
+const resolveCanonicalMenuItem = (item: SlideMenuItem): SlideMenuItem => {
+  const canonical = canonicalMenuItems.find((candidate) =>
+    candidate.id === item.id
+    || (Boolean(item.href) && candidate.href === item.href)
+    || (candidate.label === item.label && candidate.type !== 'section'),
+  );
+  return canonical
+    ? { ...canonical, ...item, resource: { ...canonical.resource, ...item.resource } as SlideMenuItem['resource'] }
+    : item;
+};
 
 export default function ChildAppRuntimePage() {
   const params = useParams();
@@ -43,7 +61,8 @@ export default function ChildAppRuntimePage() {
 
   const handleActionTrigger = async (actionId: string, payload: any) => {
     if (actionId === 'menu.select') {
-      const resource = payload?.resource;
+      const selectedMenu = resolveCanonicalMenuItem(payload || {});
+      const resource = selectedMenu.resource;
       let nodes: ComponentNode[] | undefined;
       if (resource?.componentType === 'FormComponent' && resource.formId) {
         nodes = runtimeData.forms?.find((form) => form.id === resource.formId)?.componentTree;
@@ -53,12 +72,12 @@ export default function ChildAppRuntimePage() {
         nodes = view?.componentTree;
       }
       if (nodes?.length) {
-        const params = resource.params || {};
+        const params = resource?.params || {};
         setSelectedContent(nodes.map((node) => ({ ...node, props: { ...node.props, ...params, routeParams: params } })));
-        setSelectedMenuLabel(payload.label || resource.route || '');
+        setSelectedMenuLabel(selectedMenu.label || resource?.route || '');
         setLastAction(null);
       } else {
-        setLastAction(`ยังไม่พบ Component binding สำหรับเมนู '${payload?.label || payload?.id}'`);
+        setLastAction(`ยังไม่พบ Component binding สำหรับเมนู '${selectedMenu.label || selectedMenu.id}'`);
       }
       return;
     }
@@ -115,7 +134,7 @@ export default function ChildAppRuntimePage() {
   };
 
   return (
-    <div className="min-vh-100 bg-light d-flex flex-column">
+    <div className="min-vh-100 bg-light d-flex flex-column municipal-admin-runtime">
       {/* Top Banner indicating Tenant Dynamic Player status */}
       <div className="bg-dark text-white py-2 px-3 shadow-sm border-bottom">
         <div className="container-fluid d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -144,9 +163,9 @@ export default function ChildAppRuntimePage() {
 
       {/* Dynamic Page Renderer with Theme Engine */}
       <div className="flex-grow-1">
-        {selectedContent ? <div className="d-flex align-items-start gap-3 p-3">
+        {selectedContent ? <div className="municipal-admin-layout d-flex align-items-start gap-0">
           <div className="flex-shrink-0"><DynamicPageRenderer nodes={pageLayout.componentTree.filter((node) => node.type === 'SlideMenuComponent')} themeConfig={appConfig.themeConfig} onActionTrigger={handleActionTrigger} /></div>
-          <main className="flex-grow-1 min-w-0"><div className="small text-muted mb-2">{selectedMenuLabel}</div><DynamicPageRenderer nodes={selectedContent} themeConfig={appConfig.themeConfig} onActionTrigger={handleActionTrigger} /></main>
+          <main className="municipal-admin-content flex-grow-1 min-w-0"><div className="municipal-admin-breadcrumb">หน้าหลัก <span>›</span> {selectedMenuLabel}</div><DynamicPageRenderer nodes={selectedContent} themeConfig={appConfig.themeConfig} onActionTrigger={handleActionTrigger} /></main>
         </div> : <DynamicPageRenderer nodes={pageLayout.componentTree} themeConfig={appConfig.themeConfig} onActionTrigger={handleActionTrigger} />}
       </div>
     </div>

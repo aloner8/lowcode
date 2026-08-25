@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -19,6 +19,7 @@ import { TaskItem as TaskItemExtension } from '@tiptap/extension-task-item';
 
 import { FileAttachment } from './editor/FileAttachmentNode';
 import { DynamicHtmlComponent } from './DynamicHtmlComponent';
+import { FileManagerPopupComponent, type FileManagerAsset, type FileManagerPopupProps } from './FileManagerPopupComponent';
 
 import {
   AlignCenter,
@@ -55,7 +56,6 @@ import {
   Trash2,
   Underline as UnderlineIcon,
   Undo2,
-  Upload,
   X,
   Plus,
 } from 'lucide-react';
@@ -66,6 +66,10 @@ export interface HtmlEditorProps {
   onChange?: (html: string) => void;
   onUploadImage?: (file: File) => Promise<string>;
   onUploadFile?: (file: File) => Promise<{ url: string; fileName: string; fileSize?: string; fileType?: string }>;
+  fileManagerRootPath?: string;
+  fileManagerCurrentPath?: string;
+  onFileManagerPathChange?: (path: string) => void;
+  onFileManagerLoad?: FileManagerPopupProps['onLoad'];
   readOnly?: boolean;
   className?: string;
 }
@@ -87,6 +91,10 @@ export const HtmlEditorComponent: React.FC<HtmlEditorProps> = ({
   onChange,
   onUploadImage,
   onUploadFile,
+  fileManagerRootPath = '/media',
+  fileManagerCurrentPath,
+  onFileManagerPathChange,
+  onFileManagerLoad,
   readOnly = false,
   className = '',
 }) => {
@@ -97,19 +105,6 @@ export const HtmlEditorComponent: React.FC<HtmlEditorProps> = ({
   const [showTableMenu, setShowTableMenu] = useState<boolean>(false);
   const [copySuccess, setCopySuccess] = useState<boolean>(false);
 
-  // Modal States
-  const [imageUrl, setImageUrl] = useState<string>('');
-  const [imageAlt, setImageAlt] = useState<string>('');
-  const [imageAlign, setImageAlign] = useState<'left' | 'center' | 'right'>('center');
-
-  const [docFile, setDocFile] = useState<File | null>(null);
-  const [docUrl, setDocUrl] = useState<string>('');
-  const [docName, setDocName] = useState<string>('');
-  const [docSize, setDocSize] = useState<string>('');
-  const [docType, setDocType] = useState<string>('DOC');
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const docInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -161,85 +156,30 @@ export const HtmlEditorComponent: React.FC<HtmlEditorProps> = ({
     }
   };
 
-  // Image Upload Logic
-  const handleImageFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (onUploadImage) {
-      try {
-        const url = await onUploadImage(file);
-        setImageUrl(url);
-        setImageAlt(file.name);
-      } catch (err) {
-        console.error('Image upload failed', err);
-      }
-    } else {
-      // Local Blob Fallback
-      const blobUrl = URL.createObjectURL(file);
-      setImageUrl(blobUrl);
-      setImageAlt(file.name);
+  const uploadFromManager = async (files: File[], path: string, kind: 'image' | 'document'): Promise<FileManagerAsset[]> => Promise.all(files.map(async (file, index) => {
+    if (kind === 'image' && onUploadImage) {
+      const url = await onUploadImage(file);
+      return { id: `image-${Date.now()}-${index}`, name: file.name, path: `${path}/${file.name}`, url, mimeType: file.type, size: file.size };
     }
-  };
+    if (kind === 'document' && onUploadFile) {
+      const result = await onUploadFile(file);
+      return { id: `document-${Date.now()}-${index}`, name: result.fileName || file.name, path: `${path}/${result.fileName || file.name}`, url: result.url, mimeType: file.type, size: file.size };
+    }
+    return { id: `local-${Date.now()}-${index}`, name: file.name, path: `${path}/${file.name}`, url: URL.createObjectURL(file), mimeType: file.type, size: file.size };
+  }));
 
-  const insertImage = () => {
-    if (!imageUrl || !editor) return;
-    editor.chain().focus().setImage({ src: imageUrl, alt: imageAlt }).run();
+  const useImages = (files: FileManagerAsset[]) => {
+    if (!editor) return;
+    files.forEach((file) => editor.chain().focus().setImage({ src: file.url, alt: file.name }).run());
     setShowImageModal(false);
-    setImageUrl('');
-    setImageAlt('');
   };
 
-  // Document Upload Logic
-  const handleDocFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setDocFile(file);
-    setDocName(file.name);
-
-    // Format file size
-    const bytes = file.size;
-    const formattedSize =
-      bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    setDocSize(formattedSize);
-
-    // Format type
-    const ext = file.name.split('.').pop()?.toUpperCase() || 'FILE';
-    setDocType(ext);
-
-    if (onUploadFile) {
-      try {
-        const res = await onUploadFile(file);
-        setDocUrl(res.url);
-        if (res.fileName) setDocName(res.fileName);
-        if (res.fileSize) setDocSize(res.fileSize);
-        if (res.fileType) setDocType(res.fileType);
-      } catch (err) {
-        console.error('File upload failed', err);
-      }
-    } else {
-      const blobUrl = URL.createObjectURL(file);
-      setDocUrl(blobUrl);
-    }
-  };
-
-  const insertDocAttachment = () => {
-    if (!docUrl || !editor) return;
-    (editor.chain().focus() as any)
-      .setFileAttachment({
-        url: docUrl,
-        fileName: docName || 'Document',
-        fileSize: docSize || '',
-        fileType: docType || 'DOC',
-      })
-      .run();
-
+  const useDocuments = (files: FileManagerAsset[]) => {
+    if (!editor) return;
+    files.forEach((file) => (editor.chain().focus() as any).setFileAttachment({
+      url: file.url, fileName: file.name, fileSize: file.size ? `${(file.size / 1024).toFixed(1)} KB` : '', fileType: file.name.split('.').pop()?.toUpperCase() || 'FILE',
+    }).run());
     setShowDocModal(false);
-    setDocFile(null);
-    setDocUrl('');
-    setDocName('');
-    setDocSize('');
   };
 
   // Link Setter
@@ -620,154 +560,34 @@ export const HtmlEditorComponent: React.FC<HtmlEditorProps> = ({
         <span>{sourceCode.length} characters</span>
       </div>
 
-      {/* ---------------------------------------------------- */}
-      {/* IMAGE UPLOAD MODAL */}
-      {/* ---------------------------------------------------- */}
-      {showImageModal && (
-        <div className="modal d-block bg-dark bg-opacity-50 z-3" tabIndex={-1}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content shadow-lg border-0">
-              <div className="modal-header">
-                <h6 className="modal-title fw-bold d-flex align-items-center gap-2">
-                  <ImageIcon size={18} className="text-success" /> Insert & Upload Image
-                </h6>
-                <button type="button" className="btn-close" onClick={() => setShowImageModal(false)} />
-              </div>
-              <div className="modal-body">
-                {/* Upload Drop Zone */}
-                <div
-                  className="border border-2 border-dashed rounded-3 p-4 text-center mb-3 bg-light cursor-pointer position-relative"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Upload size={28} className="text-success mb-2" />
-                  <p className="fw-semibold mb-1 text-dark">Click or Drag & Drop Image Here</p>
-                  <span className="small text-muted">Supports PNG, JPG, WebP, GIF (Max 10MB)</span>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="d-none"
-                    onChange={handleImageFileSelect}
-                  />
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label small fw-semibold">Or Image URL:</label>
-                  <input
-                    type="url"
-                    className="form-control form-control-sm"
-                    placeholder="https://example.com/image.jpg"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                  />
-                </div>
-
-                {imageUrl && (
-                  <div className="mb-3 border p-2 rounded text-center bg-light">
-                    <img src={imageUrl} alt="Preview" style={{ maxHeight: '140px', objectFit: 'contain' }} className="rounded" />
-                  </div>
-                )}
-
-                <div className="mb-3">
-                  <label className="form-label small fw-semibold">Alt Text (Description):</label>
-                  <input
-                    type="text"
-                    className="form-control form-control-sm"
-                    placeholder="Image description..."
-                    value={imageAlt}
-                    onChange={(e) => setImageAlt(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-sm btn-light" onClick={() => setShowImageModal(false)}>
-                  Cancel
-                </button>
-                <button type="button" className="btn btn-sm btn-success px-3" disabled={!imageUrl} onClick={insertImage}>
-                  Insert Image
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ---------------------------------------------------- */}
-      {/* DOCUMENT ATTACHMENT MODAL */}
-      {/* ---------------------------------------------------- */}
-      {showDocModal && (
-        <div className="modal d-block bg-dark bg-opacity-50 z-3" tabIndex={-1}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content shadow-lg border-0">
-              <div className="modal-header">
-                <h6 className="modal-title fw-bold d-flex align-items-center gap-2">
-                  <FileDown size={18} className="text-primary" /> Attach Document / File
-                </h6>
-                <button type="button" className="btn-close" onClick={() => setShowDocModal(false)} />
-              </div>
-              <div className="modal-body">
-                <div
-                  className="border border-2 border-dashed rounded-3 p-4 text-center mb-3 bg-light cursor-pointer"
-                  onClick={() => docInputRef.current?.click()}
-                >
-                  <Upload size={28} className="text-primary mb-2" />
-                  <p className="fw-semibold mb-1 text-dark">Click or Drag & Drop Document File</p>
-                  <span className="small text-muted">Supports PDF, DOCX, XLSX, ZIP, PPTX, TXT</span>
-                  <input
-                    ref={docInputRef}
-                    type="file"
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.txt,.csv"
-                    className="d-none"
-                    onChange={handleDocFileSelect}
-                  />
-                </div>
-
-                {docName && (
-                  <div className="card border p-3 bg-light mb-3">
-                    <div className="d-flex align-items-center gap-3">
-                      <span className="badge bg-primary p-2 font-monospace">{docType}</span>
-                      <div className="overflow-hidden flex-grow-1">
-                        <div className="fw-semibold text-truncate">{docName}</div>
-                        <small className="text-muted">{docSize}</small>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="mb-3">
-                  <label className="form-label small fw-semibold">Display File Name:</label>
-                  <input
-                    type="text"
-                    className="form-control form-control-sm"
-                    placeholder="Document Title"
-                    value={docName}
-                    onChange={(e) => setDocName(e.target.value)}
-                  />
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label small fw-semibold">File URL / Download Link:</label>
-                  <input
-                    type="url"
-                    className="form-control form-control-sm"
-                    placeholder="https://..."
-                    value={docUrl}
-                    onChange={(e) => setDocUrl(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-sm btn-light" onClick={() => setShowDocModal(false)}>
-                  Cancel
-                </button>
-                <button type="button" className="btn btn-sm btn-primary px-3" disabled={!docUrl} onClick={insertDocAttachment}>
-                  Attach Document
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <FileManagerPopupComponent
+        open={showImageModal}
+        title="เลือกหรืออัปโหลดรูปภาพ"
+        rootPath={fileManagerRootPath}
+        currentPath={fileManagerCurrentPath}
+        selectionMode="multiple"
+        accept="image/*"
+        useButtonText="แทรกรูปภาพ"
+        onLoad={onFileManagerLoad}
+        onCurrentPathChange={onFileManagerPathChange}
+        onUpload={(files, path) => uploadFromManager(files, path, 'image')}
+        onUse={useImages}
+        onClose={() => setShowImageModal(false)}
+      />
+      <FileManagerPopupComponent
+        open={showDocModal}
+        title="เลือกหรืออัปโหลดเอกสาร"
+        rootPath={fileManagerRootPath}
+        currentPath={fileManagerCurrentPath}
+        selectionMode="multiple"
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.txt,.csv"
+        useButtonText="แนบเอกสาร"
+        onLoad={onFileManagerLoad}
+        onCurrentPathChange={onFileManagerPathChange}
+        onUpload={(files, path) => uploadFromManager(files, path, 'document')}
+        onUse={useDocuments}
+        onClose={() => setShowDocModal(false)}
+      />
 
       {/* Editor CSS */}
       <style jsx global>{`

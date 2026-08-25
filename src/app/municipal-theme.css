@@ -221,3 +221,45 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+.municipal-admin-runtime {
+  --admin-green-950: #0b240d;
+  --admin-green-800: #23601d;
+  --admin-lime-border: #d8e2b7;
+  font-family: 'Anuphan', 'Noto Sans Thai', system-ui, sans-serif;
+}
+
+.municipal-admin-layout { min-height: calc(100vh - 42px); }
+.municipal-admin-layout > .flex-shrink-0 { width: 234px; align-self: stretch; background: var(--admin-green-950); }
+.municipal-admin-layout > .flex-shrink-0 > .dynamic-page-root { padding: 0 !important; }
+.municipal-admin-content { padding: 28px 24px; background: #f8faf5; }
+.municipal-admin-breadcrumb { margin: 0 0 22px; color: #315622; font-size: .86rem; }
+.municipal-admin-breadcrumb span { margin: 0 .65rem; color: #a3b18f; }
+
+.municipal-admin-menu .card {
+  width: 234px; max-width: none !important; min-height: calc(100vh - 42px);
+  padding: 14px 10px !important; border-radius: 0 !important; color: #f8fff5;
+  background: var(--admin-green-950) !important; box-shadow: none !important;
+}
+.municipal-admin-menu .card > div:first-child { padding: 8px 5px 17px !important; border-color: rgba(255,255,255,.14) !important; }
+.municipal-admin-menu h6 { color: #fff !important; font-size: .86rem; }
+.municipal-admin-menu .text-uppercase { padding: 20px 8px 7px !important; color: #879c84 !important; font-size: 9px !important; letter-spacing: .06em !important; }
+.municipal-admin-menu .list-group-item { color: #eef6eb !important; background: transparent; font-size: .78rem; }
+.municipal-admin-menu .list-group-item:hover { background: rgba(74,132,48,.35) !important; }
+.municipal-admin-menu .list-group-item.bg-primary { border-left: 3px solid #f6c500 !important; background: #285f1d !important; }
+.municipal-admin-menu .border-start { border-color: rgba(255,255,255,.12) !important; }
+.municipal-admin-menu .border-start .list-group-item { color: #d3dfd0 !important; font-size: .7rem !important; }
+.municipal-admin-content .dynamic-page-root { padding: 0 !important; }
+.municipal-admin-content .dynamic-page-root > .d-flex { gap: 14px !important; }
+.municipal-admin-form { border-color: var(--admin-lime-border) !important; border-radius: 16px !important; box-shadow: 0 8px 22px rgba(30,67,19,.06) !important; }
+.municipal-admin-form .card-title { color: #163e13; font-size: 1.08rem; }
+.municipal-admin-form .form-label { color: #253b20; font-size: .82rem; }
+.municipal-admin-form .form-control, .municipal-admin-form .form-select { border-color: #ced8bc; border-radius: 8px; font-size: .84rem; }
+.municipal-admin-form .form-control:focus, .municipal-admin-form .form-select:focus { border-color: #4f812e; box-shadow: 0 0 0 .18rem rgba(79,129,46,.14); }
+.municipal-admin-form .btn-primary { border-color: #1d681f; background: #1d681f; }
+
+@media (max-width: 767.98px) {
+  .municipal-admin-layout { display: block !important; }
+  .municipal-admin-layout > .flex-shrink-0, .municipal-admin-menu .card { width: 100%; min-height: auto; }
+  .municipal-admin-content { padding: 16px 10px; }
+}

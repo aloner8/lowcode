@@ -5,6 +5,7 @@ export * from './ListComponent';
 export * from './TableDataComponent';
 export * from './GalleryComponent';
 export * from './FileManagerComponent';
+export * from './FileManagerPopupComponent';
 export * from './DynamicHtmlComponent';
 export * from './HtmlEditorComponent';
 export * from './HtmlTemplateComponent';
