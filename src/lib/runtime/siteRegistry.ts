@@ -22,6 +22,7 @@ export interface SiteRecord {
   isActive: boolean;
   themeConfig: ThemeConfig;
   tenantOverrides: TenantOverrides;
+  seoSettings: Record<string, unknown>;
   platformId: string | null;
   platformSlug: string | null;
   domains: string[];
@@ -37,6 +38,7 @@ interface SiteRow {
   is_active: boolean;
   theme_config: ThemeConfig;
   tenant_overrides: TenantOverrides;
+  seo_settings: Record<string, unknown>;
   platform_id: string | null;
   platform_slug: string | null;
   domains: string[];
@@ -52,6 +54,7 @@ const toSite = (row: SiteRow): SiteRecord => ({
   isActive: row.is_active,
   themeConfig: row.theme_config,
   tenantOverrides: row.tenant_overrides,
+  seoSettings: row.seo_settings ?? {},
   platformId: row.platform_id,
   platformSlug: row.platform_slug,
   domains: row.domains ?? [],
@@ -59,7 +62,7 @@ const toSite = (row: SiteRow): SiteRecord => ({
 
 const SELECT_SITES = `
   SELECT app_id, app_slug, app_name, port, subdomain, tenant_db_name, is_active,
-         theme_config, tenant_overrides, platform_id, platform_slug, domains
+         theme_config, tenant_overrides, seo_settings, platform_id, platform_slug, domains
   FROM public.site_registry
 `;
 

@@ -21,7 +21,7 @@ export default function SharedDemoPage() {
     mode: 'light',
     primaryColor: '#4f46e5',
     borderRadius: '0.5rem',
-    fontFamily: 'Inter, sans-serif',
+    fontFamily: 'Anuphan, sans-serif',
   });
 
   const handleThemeChange = (presetKey: ThemePreset) => {
@@ -31,7 +31,7 @@ export default function SharedDemoPage() {
       mode: currentTheme.mode,
       primaryColor: preset.primary,
       borderRadius: preset.borderRadius,
-      fontFamily: 'Inter, sans-serif',
+      fontFamily: 'Anuphan, sans-serif',
     });
   };
 

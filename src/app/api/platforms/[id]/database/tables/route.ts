@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 /** Live tenant schema, read from information_schema — no hard-coded fixtures. */
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  const auth = await requirePlatformSession(id, 'APP_VIEWER');
+  const auth = await requirePlatformSession(id, 'VIEWER');
   if (auth instanceof NextResponse) return auth;
 
   const table = new URL(request.url).searchParams.get('table');

@@ -6,7 +6,7 @@ const payload = {
   username: 'admin',
   email: 'admin@example.com',
   fullName: 'Admin',
-  role: 'SUPER_ADMIN' as const,
+  role: 'GOD' as const,
   mustChangePassword: false,
 };
 
@@ -19,14 +19,14 @@ describe('session cookie', () => {
     const token = await signSession(payload);
     const verified = await verifySession(token);
     expect(verified?.sub).toBe(payload.sub);
-    expect(verified?.role).toBe('SUPER_ADMIN');
+    expect(verified?.role).toBe('GOD');
   });
 
   it('rejects a payload whose body was tampered with', async () => {
     const token = await signSession(payload);
     const [body, signature] = token.split('.');
     const forged = Buffer.from(
-      JSON.stringify({ ...payload, role: 'SUPER_ADMIN', iat: 1, exp: 2 ** 32 }),
+      JSON.stringify({ ...payload, role: 'GOD', iat: 1, exp: 2 ** 32 }),
     ).toString('base64url');
     expect(body).not.toBe(forged);
     expect(await verifySession(`${forged}.${signature}`)).toBeNull();

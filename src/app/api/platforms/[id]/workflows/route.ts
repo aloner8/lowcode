@@ -17,7 +17,7 @@ const SELECT_FLOWS = `
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  const auth = await requirePlatformSession(id, 'APP_VIEWER');
+  const auth = await requirePlatformSession(id, 'VIEWER');
   if (auth instanceof NextResponse) return auth;
 
   const flowCode = new URL(request.url).searchParams.get('flowCode');
@@ -40,7 +40,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  const auth = await requirePlatformSession(id, 'APP_EDITOR', 'DEVELOPER');
+  const auth = await requirePlatformSession(id, 'STAFF');
   if (auth instanceof NextResponse) return auth;
 
   try {

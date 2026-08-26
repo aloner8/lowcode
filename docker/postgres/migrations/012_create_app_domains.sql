@@ -65,7 +65,9 @@ AFTER UPDATE OF subdomain ON public.apps
 FOR EACH ROW EXECUTE FUNCTION public.sync_primary_app_domain();
 
 -- Registry consumed by the multi-site entry script and the Nginx generator.
-CREATE OR REPLACE VIEW public.site_registry AS
+-- Dropped first because CREATE OR REPLACE VIEW cannot reorder or insert columns.
+DROP VIEW IF EXISTS public.site_registry;
+CREATE VIEW public.site_registry AS
 SELECT
     a.id                AS app_id,
     a.app_slug,
@@ -76,6 +78,7 @@ SELECT
     a.is_active,
     a.theme_config,
     a.tenant_overrides,
+    a.seo_settings,
     p.id                AS platform_id,
     p.platform_slug,
     COALESCE(

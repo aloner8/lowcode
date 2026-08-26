@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
  * the admin UI.
  */
 export async function GET(request: Request) {
-  const auth = await requireApiSession('VIEWER');
+  const auth = await requireApiSession();
   if (auth instanceof NextResponse) return auth;
 
   const includeInactive = new URL(request.url).searchParams.get('includeInactive') === 'true';

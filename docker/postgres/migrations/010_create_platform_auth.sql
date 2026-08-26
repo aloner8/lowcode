@@ -12,8 +12,8 @@ CREATE TABLE IF NOT EXISTS public.platform_users (
     full_name VARCHAR(255),
     avatar_url TEXT,
     password_hash TEXT NOT NULL,
-    global_role VARCHAR(50) NOT NULL DEFAULT 'DEVELOPER'
-        CHECK (global_role IN ('SUPER_ADMIN', 'DEVELOPER', 'VIEWER')),
+    -- Tightened to ('GOD','TENANT_USER') by migration 015.
+    global_role VARCHAR(50) NOT NULL DEFAULT 'DEVELOPER',
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
     last_login_at TIMESTAMPTZ,
@@ -40,8 +40,8 @@ CREATE TABLE IF NOT EXISTS public.platform_memberships (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.platform_users(id) ON DELETE CASCADE,
     platform_id UUID NOT NULL REFERENCES public.platforms(id) ON DELETE CASCADE,
-    platform_role VARCHAR(50) NOT NULL DEFAULT 'APP_EDITOR'
-        CHECK (platform_role IN ('APP_OWNER', 'APP_EDITOR', 'APP_VIEWER')),
+    -- Tightened to ('ADMIN','STAFF','VIEWER') by migration 015.
+    platform_role VARCHAR(50) NOT NULL DEFAULT 'APP_EDITOR',
     granted_by UUID REFERENCES public.platform_users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

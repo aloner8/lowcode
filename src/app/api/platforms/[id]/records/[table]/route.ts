@@ -18,7 +18,7 @@ const failure = (error: unknown) => {
 
 export async function GET(request: Request, context: Context) {
   const { id, table } = await context.params;
-  const auth = await requirePlatformSession(id, 'APP_VIEWER');
+  const auth = await requirePlatformSession(id, 'VIEWER');
   if (auth instanceof NextResponse) return auth;
 
   const params = new URL(request.url).searchParams;
@@ -44,7 +44,7 @@ export async function GET(request: Request, context: Context) {
 
 export async function POST(request: Request, context: Context) {
   const { id, table } = await context.params;
-  const auth = await requirePlatformSession(id, 'APP_EDITOR', 'DEVELOPER');
+  const auth = await requirePlatformSession(id, 'STAFF');
   if (auth instanceof NextResponse) return auth;
 
   try {

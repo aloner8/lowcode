@@ -221,3 +221,109 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ==========================================================================
+   Thai government design tokens
+   สูตร: สีหลัก 1 (identity) + สีหลัก 2 (สีราชการ) + ทอง (accent 6%)
+   ค่าเริ่มต้นอ้างอิง CI จังหวัดปทุมธานี — แดง #D91113 + น้ำเงิน #0C58A9
+   ทุก Site ทับค่าเหล่านี้ได้ผ่าน ThemeEngine (--bs-primary ฯลฯ)
+   ========================================================================== */
+:root {
+  /* สีหลักที่ 1 — navbar, ปุ่มหลัก, หัวข้อ */
+  --gov-primary: #D91113;
+  --gov-primary-dark: #8D0B0C;
+  --gov-primary-light: #E85557;
+  --gov-primary-soft: #FDECEC;
+
+  /* สีหลักที่ 2 — footer, sidebar, ปุ่มรอง */
+  --gov-secondary: #0C58A9;
+  --gov-secondary-dark: #083A6E;
+  --gov-secondary-light: #4488CE;
+  --gov-secondary-soft: #EAF2FB;
+
+  /* ทอง — ค่ามาตรฐาน accent เท่านั้น ห้ามใช้เป็นพื้นหลังใหญ่ */
+  --gov-gold-light: #FFF3A3;
+  --gov-gold: #FFD700;
+  --gov-gold-mid: #F2B705;
+  --gov-gold-dark: #D89000;
+  --gov-gold-soft: #FFF7C2;
+  /* ข้อความบนพื้นทองต้องเป็นน้ำตาลเข้ม — ขาวบนทองได้ contrast ~1.5:1 ซึ่งตกเกณฑ์ */
+  --gov-on-gold: #3A2A00;
+
+  --gov-white: #FFFFFF;
+  --gov-bg: #F7F9FC;
+  --gov-bg-soft: #FDFEFF;
+  --gov-text: #1B2430;
+  --gov-muted: #5A6473;
+  --gov-border: #DFE5EC;
+
+  --gov-shadow: 0 12px 36px rgba(217, 17, 19, 0.12);
+  --gov-shadow-lg: 0 18px 44px rgba(217, 17, 19, 0.18);
+  --gov-radius: 16px;
+  --gov-radius-sm: 10px;
+  --gov-radius-pill: 999px;
+
+  --gov-gradient-primary: linear-gradient(135deg, #D91113 0%, #8D0B0C 100%);
+  --gov-gradient-secondary: linear-gradient(135deg, #0C58A9 0%, #083A6E 100%);
+  --gov-gradient-gold: linear-gradient(135deg, #FFF3A3 0%, #FFD700 25%, #F2B705 50%, #D89000 75%, #FFF1A8 100%);
+  --gov-gradient-footer: linear-gradient(180deg, #0C58A9 0%, #083A6E 100%);
+}
+
+/* ปุ่มและองค์ประกอบมาตรฐาน --------------------------------------------- */
+.btn-gov-primary {
+  background: var(--gov-gradient-primary);
+  border: none;
+  color: var(--gov-white);
+  border-radius: var(--gov-radius-pill);
+  padding: 0.5rem 1.4rem;
+}
+.btn-gov-primary:hover { color: var(--gov-white); filter: brightness(1.08); }
+
+.btn-gov-secondary {
+  background: var(--gov-gradient-secondary);
+  border: none;
+  color: var(--gov-white);
+  border-radius: var(--gov-radius-pill);
+  padding: 0.5rem 1.4rem;
+}
+.btn-gov-secondary:hover { color: var(--gov-white); filter: brightness(1.08); }
+
+.gov-badge-gold {
+  background: var(--gov-gradient-gold);
+  color: var(--gov-on-gold);
+  border-radius: var(--gov-radius-pill);
+  font-weight: 600;
+}
+
+/* หัวข้อ section — ขีดทองใต้หัวข้อ */
+.gov-section-title {
+  position: relative;
+  padding-bottom: 0.6rem;
+  color: var(--gov-secondary-dark);
+}
+.gov-section-title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 64px;
+  height: 4px;
+  border-radius: var(--gov-radius-pill);
+  background: var(--gov-gradient-gold);
+}
+
+.gov-card {
+  border-radius: var(--gov-radius);
+  overflow: hidden;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.gov-card:hover { transform: translateY(-4px); box-shadow: var(--gov-shadow); }
+
+/* ฟอนต์ไทยต้องการ leading มากกว่าละติน */
+.municipal-page,
+.gov-postlist { line-height: 1.7; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gov-card { transition: none; }
+  .gov-card:hover { transform: none; }
+}

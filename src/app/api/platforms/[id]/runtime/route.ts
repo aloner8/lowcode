@@ -44,7 +44,7 @@ function statusPayload(row: RuntimeRow, dockerConnected: boolean) {
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  const auth = await requirePlatformSession(id, 'APP_VIEWER');
+  const auth = await requirePlatformSession(id, 'VIEWER');
   if (auth instanceof NextResponse) return auth;
 
   const result = await getCoreDb().query<RuntimeRow>(selectRuntime, [id]);
@@ -54,7 +54,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  const auth = await requirePlatformSession(id, 'APP_OWNER', 'DEVELOPER');
+  const auth = await requirePlatformSession(id, 'ADMIN');
   if (auth instanceof NextResponse) return auth;
 
   const result = await getCoreDb().query<RuntimeRow>(selectRuntime, [id]);

@@ -3,6 +3,7 @@ import { getCoreDb } from '@/lib/db/coreDb';
 import { requireApiSession, requirePlatformAccess } from '@/lib/auth/apiAuth';
 import { recordPlatformAudit } from '@/lib/engine/AuditLogService';
 import { findSiteBySlug, listSites } from '@/lib/runtime/siteRegistry';
+import { validateSeoPayload } from '@/lib/seo/validateSeo';
 import type { ThemeConfig, ThemePreset } from '@/types';
 
 export const runtime = 'nodejs';
@@ -60,14 +61,14 @@ async function loadApp(appId: string) {
 }
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const auth = await requireApiSession('VIEWER');
+  const auth = await requireApiSession();
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await context.params;
   const app = await loadApp(id);
   if (!app) return NextResponse.json({ error: 'ไม่พบ Tenant App' }, { status: 404 });
   if (app.platform_id) {
-    const denied = await requirePlatformAccess(auth, app.platform_id, 'APP_VIEWER');
+    const denied = await requirePlatformAccess(auth, app.platform_id, 'VIEWER');
     if (denied) return denied;
   }
 
@@ -76,14 +77,14 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
-  const auth = await requireApiSession('DEVELOPER');
+  const auth = await requireApiSession('GOD');
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await context.params;
   const app = await loadApp(id);
   if (!app) return NextResponse.json({ error: 'ไม่พบ Tenant App' }, { status: 404 });
   if (app.platform_id) {
-    const denied = await requirePlatformAccess(auth, app.platform_id, 'APP_OWNER');
+    const denied = await requirePlatformAccess(auth, app.platform_id, 'ADMIN');
     if (denied) return denied;
   }
 
@@ -113,6 +114,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       if (error) return NextResponse.json({ error }, { status: 400 });
       params.push(JSON.stringify(theme));
       updates.push(`theme_config = $${params.length}::jsonb`);
+    }
+    if (body.seoSettings !== undefined) {
+      const { value, error } = validateSeoPayload(body.seoSettings);
+      if (error) return NextResponse.json({ error }, { status: 400 });
+      params.push(JSON.stringify(value));
+      updates.push(`seo_settings = $${params.length}::jsonb`);
     }
     if (body.tenantOverrides && typeof body.tenantOverrides === 'object') {
       params.push(JSON.stringify(body.tenantOverrides));
@@ -147,14 +154,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 }
 
 export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const auth = await requireApiSession('DEVELOPER');
+  const auth = await requireApiSession('GOD');
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await context.params;
   const app = await loadApp(id);
   if (!app) return NextResponse.json({ error: 'ไม่พบ Tenant App' }, { status: 404 });
   if (app.platform_id) {
-    const denied = await requirePlatformAccess(auth, app.platform_id, 'APP_OWNER');
+    const denied = await requirePlatformAccess(auth, app.platform_id, 'ADMIN');
     if (denied) return denied;
   }
 

@@ -54,6 +54,16 @@ describe('sanitizeHtml', () => {
     expect(result).toContain('&lt;');
   });
 
+  it('preserves author-written character references instead of double-escaping', () => {
+    expect(sanitizeHtml('<p>&ldquo;อ้างอิง&rdquo; &amp; &#8212;</p>'))
+      .toBe('<p>&ldquo;อ้างอิง&rdquo; &amp; &#8212;</p>');
+  });
+
+  it('still escapes a bare ampersand', () => {
+    expect(sanitizeHtml('<p>A & B</p>')).toBe('<p>A &amp; B</p>');
+    expect(sanitizeHtml('<p>&notarealentity</p>')).toBe('<p>&amp;notarealentity</p>');
+  });
+
   it('strips HTML comments that can hide payloads', () => {
     expect(sanitizeHtml('<!--[if IE]><script>x()</script><![endif]--><p>a</p>')).toBe('<p>a</p>');
   });

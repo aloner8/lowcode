@@ -1,17 +1,17 @@
 import { NextResponse } from 'next/server';
 import { getCoreDb } from '@/lib/db/coreDb';
-import { requireApiSession } from '@/lib/auth/apiAuth';
+import { requireGod } from '@/lib/auth/apiAuth';
 import { recordPlatformAudit } from '@/lib/engine/AuditLogService';
-import type { AppRole } from '@/types';
+import type { SiteRole } from '@/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const APP_ROLES: AppRole[] = ['APP_OWNER', 'APP_EDITOR', 'APP_VIEWER'];
+const SITE_ROLES: SiteRole[] = ['ADMIN', 'STAFF', 'VIEWER'];
 
 /** Platform-level access grants — this is what `requirePlatformAccess` reads. */
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const auth = await requireApiSession('SUPER_ADMIN');
+  const auth = await requireGod();
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await context.params;
@@ -24,7 +24,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 }
 
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
-  const auth = await requireApiSession('SUPER_ADMIN');
+  const auth = await requireGod();
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await context.params;
@@ -44,9 +44,9 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
           );
           continue;
         }
-        if (!APP_ROLES.includes(role as AppRole)) {
+        if (!SITE_ROLES.includes(role as SiteRole)) {
           await client.query('ROLLBACK');
-          return NextResponse.json({ error: `Role ต้องเป็น ${APP_ROLES.join(' | ')}` }, { status: 400 });
+          return NextResponse.json({ error: `Role ต้องเป็น ${SITE_ROLES.join(' | ')}` }, { status: 400 });
         }
         await client.query(
           `INSERT INTO public.platform_memberships (user_id, platform_id, platform_role, granted_by)

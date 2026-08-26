@@ -15,6 +15,7 @@ interface SiteThemeModalProps {
 }
 
 const PRESET_LABELS: Record<ThemePreset, string> = {
+  'thai-municipal': 'ราชการไทย (แดง–น้ำเงิน–ทอง)',
   'modern-indigo': 'Modern Indigo',
   'corporate-emerald': 'Corporate Emerald',
   'dark-glassmorphism': 'Dark Glassmorphism',
@@ -24,6 +25,7 @@ const PRESET_LABELS: Record<ThemePreset, string> = {
 };
 
 const FONT_OPTIONS = [
+  'Anuphan, sans-serif',
   'Inter, sans-serif',
   '"IBM Plex Sans Thai", sans-serif',
   '"Noto Sans Thai", sans-serif',
@@ -69,7 +71,7 @@ export default function SiteThemeModal({
       preset,
       primaryColor: definition.primary,
       borderRadius: definition.borderRadius,
-      mode: preset === 'dark-glassmorphism' || preset === 'cyberpunk' ? 'dark' : previous.mode,
+      mode: preset === 'dark-glassmorphism' || preset === 'cyberpunk' ? 'dark' : 'light',
     }));
   };
 

@@ -4,13 +4,13 @@ import React, { useCallback, useEffect, useState } from 'react';
 import UserTable from '@/components/admin/UserTable';
 import UserFormModal from '@/components/admin/UserFormModal';
 import AppMemberModal from '@/components/admin/AppMemberModal';
-import { UserProfile, PlatformConfig, AppRole } from '@/types';
+import { UserProfile, PlatformConfig, SiteRole } from '@/types';
 import { Users, UserPlus, Search, ShieldAlert, RefreshCw } from 'lucide-react';
 
 export default function UserManagementPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [platforms, setPlatforms] = useState<PlatformConfig[]>([]);
-  const [memberships, setMemberships] = useState<Record<string, AppRole>>({});
+  const [memberships, setMemberships] = useState<Record<string, SiteRole>>({});
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -75,8 +75,8 @@ export default function UserManagementPage() {
       const response = await fetch(`/api/users/${user.id}/memberships`, { cache: 'no-store' });
       const payload = await response.json();
       if (response.ok) {
-        const map: Record<string, AppRole> = {};
-        for (const row of payload.memberships as Array<{ platformId: string; platformRole: AppRole }>) {
+        const map: Record<string, SiteRole> = {};
+        for (const row of payload.memberships as Array<{ platformId: string; platformRole: SiteRole }>) {
           map[row.platformId] = row.platformRole;
         }
         setMemberships(map);
@@ -86,7 +86,7 @@ export default function UserManagementPage() {
     }
   };
 
-  const handleSaveAccess = async (userId: string, permissions: Record<string, AppRole | null>) => {
+  const handleSaveAccess = async (userId: string, permissions: Record<string, SiteRole | null>) => {
     setSaving(true);
     try {
       const response = await fetch(`/api/users/${userId}/memberships`, {

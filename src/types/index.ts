@@ -6,6 +6,7 @@ export type ComponentType =
   | 'TableDataComponent'
   | 'DataTableComponent'
   | 'ListComponent'
+  | 'PostListComponent'
   | 'GalleryComponent'
   | 'FileManagerComponent'
   | 'DynamicHtmlComponent'
@@ -21,6 +22,7 @@ export type ComponentType =
   | 'ModalDialogComponent';
 
 export type ThemePreset =
+  | 'thai-municipal'
   | 'modern-indigo'
   | 'corporate-emerald'
   | 'dark-glassmorphism'
@@ -218,9 +220,31 @@ export interface AuditLog {
   createdAt: string;
 }
 
-// User & Auth Types for Platform Web แม่
-export type GlobalRole = 'SUPER_ADMIN' | 'DEVELOPER' | 'VIEWER';
-export type AppRole = 'APP_OWNER' | 'APP_EDITOR' | 'APP_VIEWER';
+// ==========================================
+// Authorisation — three tiers
+// ==========================================
+//
+//   GOD    พนักงานหนุมานไอที — สร้าง Site ใหม่และตั้งค่าได้ทุก Site
+//   ADMIN  ผู้ดูแลระบบของหน่วยงาน — เพิ่มผู้ใช้ ตั้งค่าเว็บของตัวเอง ดู package/วันหมดอายุ
+//   STAFF  พนักงานของหน่วยงาน — เพิ่มข่าว (post) และแก้ไขหน้าเว็บ (page)
+//
+// GOD is global; ADMIN/STAFF/VIEWER are always scoped to one Site.
+
+export type GlobalRole = 'GOD' | 'TENANT_USER';
+export type SiteRole = 'ADMIN' | 'STAFF' | 'VIEWER';
+
+/** Effective role on a given Site — GOD outranks every site membership. */
+export type EffectiveRole = 'GOD' | SiteRole;
+
+/** @deprecated ใช้ SiteRole แทน — คงไว้เพื่อความเข้ากันได้ */
+export type AppRole = SiteRole;
+
+export const ROLE_LABELS: Record<EffectiveRole, string> = {
+  GOD: 'ผู้ให้บริการ (หนุมานไอที)',
+  ADMIN: 'ผู้ดูแลระบบหน่วยงาน',
+  STAFF: 'พนักงานหน่วยงาน',
+  VIEWER: 'ผู้อ่านอย่างเดียว',
+};
 
 export interface UserProfile {
   id: string;
@@ -236,11 +260,23 @@ export interface UserProfile {
   updatedAt: string;
 }
 
+export interface SitePackage {
+  code: string;
+  name: string;
+  startedAt: string;
+  expiresAt: string | null;
+  limits: { maxUsers?: number; maxStorageMb?: number; maxDomains?: number };
+  isSuspended: boolean;
+  suspendedReason?: string | null;
+  /** Days until expiry; negative when already expired, null when perpetual. */
+  daysRemaining: number | null;
+}
+
 export interface AppMembership {
   id: string;
   userId: string;
   appId: string;
-  appRole: AppRole;
+  appRole: SiteRole;
   user?: UserProfile;
   app?: AppConfig;
   createdAt: string;

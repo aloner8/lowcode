@@ -10,7 +10,7 @@ type Context = { params: Promise<{ id: string; assetId: string }> };
 
 export async function GET(_request: Request, context: Context) {
   const { id, assetId } = await context.params;
-  const auth = await requirePlatformSession(id, 'APP_VIEWER');
+  const auth = await requirePlatformSession(id, 'VIEWER');
   if (auth instanceof NextResponse) return auth;
 
   try {
@@ -38,7 +38,7 @@ export async function GET(_request: Request, context: Context) {
 
 export async function DELETE(_request: Request, context: Context) {
   const { id, assetId } = await context.params;
-  const auth = await requirePlatformSession(id, 'APP_EDITOR', 'DEVELOPER');
+  const auth = await requirePlatformSession(id, 'STAFF');
   if (auth instanceof NextResponse) return auth;
 
   try {

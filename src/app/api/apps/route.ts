@@ -1,18 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getCoreDb } from '@/lib/db/coreDb';
-import { requireApiSession, requirePlatformAccess } from '@/lib/auth/apiAuth';
+import { isGod, requireApiSession, requirePlatformAccess } from '@/lib/auth/apiAuth';
 import { listSites } from '@/lib/runtime/siteRegistry';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const auth = await requireApiSession('VIEWER');
+  const auth = await requireApiSession();
   if (auth instanceof NextResponse) return auth;
 
   try {
     const sites = await listSites(true);
-    const visible = auth.role === 'SUPER_ADMIN'
+    const visible = isGod(auth.role)
       ? sites
       : await (async () => {
           const memberships = await getCoreDb().query<{ platform_id: string }>(
@@ -31,7 +31,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireApiSession('DEVELOPER');
+  const auth = await requireApiSession('GOD');
   if (auth instanceof NextResponse) return auth;
 
   try {
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Slug ใช้ได้เฉพาะ a-z, 0-9 และขีดกลาง' }, { status: 400 });
     }
 
-    const denied = await requirePlatformAccess(auth, platformId, 'APP_OWNER');
+    const denied = await requirePlatformAccess(auth, platformId, 'ADMIN');
     if (denied) return denied;
 
     const created = await getCoreDb().query<{ app_id: string }>(

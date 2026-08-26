@@ -2,8 +2,9 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Box, Plus, Server, Database, ExternalLink, Globe, Trash2, Sliders, RefreshCw, Layers, Palette } from 'lucide-react';
+import { Box, Plus, Server, Database, ExternalLink, Globe, Trash2, Sliders, RefreshCw, Layers, Palette, Search } from 'lucide-react';
 import SiteThemeModal from '@/components/admin/SiteThemeModal';
+import SiteSeoModal from '@/components/admin/SiteSeoModal';
 import type { PlatformConfig, TenantOverrides, ThemeConfig } from '@/types';
 
 interface SiteApp {
@@ -16,6 +17,7 @@ interface SiteApp {
   isActive: boolean;
   themeConfig: ThemeConfig;
   tenantOverrides: TenantOverrides;
+  seoSettings: Record<string, unknown>;
   platformId: string | null;
   platformSlug: string | null;
   domains: string[];
@@ -42,6 +44,7 @@ export default function TenantAppsPage() {
   const [disabledFeatures, setDisabledFeatures] = useState('');
 
   const [themeTarget, setThemeTarget] = useState<SiteApp | null>(null);
+  const [seoTarget, setSeoTarget] = useState<SiteApp | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -191,6 +194,26 @@ export default function TenantAppsPage() {
     }
   };
 
+  const handleSaveSeo = async (seoSettings: Record<string, unknown>) => {
+    if (!seoTarget) return;
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/apps/${seoTarget.appId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seoSettings }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'บันทึก SEO ไม่สำเร็จ');
+      setSeoTarget(null);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'บันทึก SEO ไม่สำเร็จ');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleDelete = async (app: SiteApp) => {
     if (!window.confirm(`ลบ Tenant App "${app.appName}" ใช่หรือไม่? การกระทำนี้ย้อนกลับไม่ได้`)) return;
     setBusy(true);
@@ -320,6 +343,9 @@ export default function TenantAppsPage() {
                     <button className="btn btn-sm btn-outline-secondary" onClick={() => setThemeTarget(app)}>
                       <Palette size={14} className="me-1" /> ธีม
                     </button>
+                    <button className="btn btn-sm btn-outline-secondary" onClick={() => setSeoTarget(app)}>
+                      <Search size={14} className="me-1" /> SEO
+                    </button>
                     <button
                       className="btn btn-sm btn-outline-secondary"
                       onClick={() => {
@@ -434,11 +460,21 @@ export default function TenantAppsPage() {
         siteName={themeTarget?.appName ?? ''}
         initialTheme={themeTarget?.themeConfig ?? {
           preset: 'modern-indigo', mode: 'light', primaryColor: '#0d6efd',
-          borderRadius: '0.375rem', fontFamily: 'Inter, sans-serif',
+          borderRadius: '0.375rem', fontFamily: 'Anuphan, sans-serif',
         }}
         isSaving={busy}
         onClose={() => setThemeTarget(null)}
         onSave={(theme) => void handleSaveTheme(theme)}
+      />
+
+      <SiteSeoModal
+        isOpen={Boolean(seoTarget)}
+        siteName={seoTarget?.appName ?? ''}
+        primaryDomain={seoTarget?.domains[0] ?? seoTarget?.subdomain ?? ''}
+        initialValue={seoTarget?.seoSettings ?? {}}
+        isSaving={busy}
+        onClose={() => setSeoTarget(null)}
+        onSave={(value) => void handleSaveSeo(value)}
       />
 
       {/* Tenant overrides modal */}

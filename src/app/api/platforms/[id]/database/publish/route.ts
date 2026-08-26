@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  const auth = await requirePlatformSession(id, 'APP_OWNER', 'DEVELOPER');
+  const auth = await requirePlatformSession(id, 'ADMIN');
   if (auth instanceof NextResponse) return auth;
 
   try {

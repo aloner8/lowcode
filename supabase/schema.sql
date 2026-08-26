@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS public.platforms (
         "mode": "light",
         "primaryColor": "#0d6efd",
         "borderRadius": "0.375rem",
-        "fontFamily": "Inter, sans-serif"
+        "fontFamily": "Anuphan, sans-serif"
     }'::jsonb,
     is_published BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS public.apps (
         "mode": "light",
         "primaryColor": "#0d6efd",
         "borderRadius": "0.375rem",
-        "fontFamily": "Inter, sans-serif"
+        "fontFamily": "Anuphan, sans-serif"
     }'::jsonb,
     tenant_overrides JSONB NOT NULL DEFAULT '{
         "disabledFeatures": [],
@@ -305,7 +305,7 @@ VALUES (
         "mode": "light",
         "primaryColor": "#198754",
         "borderRadius": "0.5rem",
-        "fontFamily": "Inter, sans-serif"
+        "fontFamily": "Anuphan, sans-serif"
     }'::jsonb
 ) ON CONFLICT (platform_slug) DO NOTHING;
 
@@ -324,7 +324,7 @@ VALUES (
         "mode": "light",
         "primaryColor": "#198754",
         "borderRadius": "0.5rem",
-        "fontFamily": "Inter, sans-serif"
+        "fontFamily": "Anuphan, sans-serif"
     }'::jsonb
 ) ON CONFLICT (app_slug) DO NOTHING;
 

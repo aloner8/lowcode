@@ -104,7 +104,7 @@ export default function AdminSidebar({ user }: AdminSidebarProps) {
               style={{
                 width: '28px',
                 height: '28px',
-                background: user.globalRole === 'SUPER_ADMIN' ? '#ef4444' : '#3b82f6',
+                background: user.globalRole === 'GOD' ? '#ef4444' : '#3b82f6',
                 fontSize: '0.78rem',
               }}
             >
@@ -125,7 +125,7 @@ export default function AdminSidebar({ user }: AdminSidebarProps) {
             <div className="mt-1">
               <span
                 className={`badge extra-small ${
-                  user.globalRole === 'SUPER_ADMIN'
+                  user.globalRole === 'GOD'
                     ? 'bg-danger text-white'
                     : 'bg-primary text-white'
                 }`}

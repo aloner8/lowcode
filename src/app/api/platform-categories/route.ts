@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { getCoreDb } from '@/lib/db/coreDb';
-import { requireApiSession } from '@/lib/auth/apiAuth';
+import { requireApiSession , requireGod} from '@/lib/auth/apiAuth';
 import { recordPlatformAudit } from '@/lib/engine/AuditLogService';
 
 export const runtime = 'nodejs';
@@ -39,7 +39,7 @@ function createCategoryCode(name: string): string {
 }
 
 export async function GET() {
-  const auth = await requireApiSession('VIEWER');
+  const auth = await requireApiSession();
   if (auth instanceof NextResponse) return auth;
 
   try {
@@ -61,7 +61,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireApiSession('SUPER_ADMIN');
+  const auth = await requireGod();
   if (auth instanceof NextResponse) return auth;
 
   try {

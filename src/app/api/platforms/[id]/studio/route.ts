@@ -56,7 +56,7 @@ const selectStudioPlatform = `
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  const auth = await requirePlatformSession(id, 'APP_VIEWER');
+  const auth = await requirePlatformSession(id, 'VIEWER');
   if (auth instanceof NextResponse) return auth;
 
   try {
@@ -71,7 +71,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  const auth = await requirePlatformSession(id, 'APP_EDITOR', 'DEVELOPER');
+  const auth = await requirePlatformSession(id, 'STAFF');
   if (auth instanceof NextResponse) return auth;
 
   try {
@@ -118,7 +118,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  const auth = await requirePlatformSession(id, 'APP_EDITOR', 'DEVELOPER');
+  const auth = await requirePlatformSession(id, 'STAFF');
   if (auth instanceof NextResponse) return auth;
 
   try {

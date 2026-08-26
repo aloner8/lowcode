@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCoreDb } from '@/lib/db/coreDb';
-import { requireApiSession } from '@/lib/auth/apiAuth';
+import { requireGod } from '@/lib/auth/apiAuth';
 import { recordPlatformAudit } from '@/lib/engine/AuditLogService';
 import { PLATFORM_USER_COLUMNS, toUser, type PlatformUserRow } from '@/lib/auth/platformUsers';
 import type { GlobalRole } from '@/types';
@@ -8,12 +8,12 @@ import type { GlobalRole } from '@/types';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const ROLES: GlobalRole[] = ['SUPER_ADMIN', 'DEVELOPER', 'VIEWER'];
+const ROLES: GlobalRole[] = ['GOD', 'TENANT_USER'];
 
 const SELECT_USERS = `SELECT ${PLATFORM_USER_COLUMNS} FROM public.platform_users`;
 
 export async function GET() {
-  const auth = await requireApiSession('SUPER_ADMIN');
+  const auth = await requireGod();
   if (auth instanceof NextResponse) return auth;
 
   try {
@@ -26,7 +26,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireApiSession('SUPER_ADMIN');
+  const auth = await requireGod();
   if (auth instanceof NextResponse) return auth;
 
   try {
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
     const fullName = typeof body.fullName === 'string' ? body.fullName.trim() : '';
     const password = typeof body.password === 'string' ? body.password : '';
-    const globalRole = typeof body.globalRole === 'string' ? body.globalRole : 'DEVELOPER';
+    const globalRole = typeof body.globalRole === 'string' ? body.globalRole : 'TENANT_USER';
 
     if (!username || !email || !password) {
       return NextResponse.json({ error: 'กรุณาระบุ Username, Email และรหัสผ่าน' }, { status: 400 });

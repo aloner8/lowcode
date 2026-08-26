@@ -2,10 +2,10 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { SESSION_COOKIE, verifySession } from '@/lib/auth/session';
 
 /** Routes that require a valid Web แม่ (Platform) session. */
-const PROTECTED_PREFIXES = ['/admin', '/studio', '/flow-studio', '/audit-logs'];
+const PROTECTED_PREFIXES = ['/admin', '/studio', '/flow-studio', '/audit-logs', '/site'];
 
-/** Routes only a SUPER_ADMIN may open. */
-const SUPER_ADMIN_PREFIXES = ['/admin/users', '/admin/security'];
+/** Routes only the service provider (GOD) may open. */
+const GOD_ONLY_PREFIXES = ['/admin/platforms', '/admin/security'];
 
 /** Control-plane surfaces that a public site process must never expose. */
 const CONTROL_PLANE_PREFIXES = [...PROTECTED_PREFIXES, '/renderer-demo', '/shared-demo'];
@@ -75,7 +75,7 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  if (session && SUPER_ADMIN_PREFIXES.some((prefix) => path.startsWith(prefix)) && session.role !== 'SUPER_ADMIN') {
+  if (session && GOD_ONLY_PREFIXES.some((prefix) => path.startsWith(prefix)) && session.role !== 'GOD') {
     return NextResponse.redirect(new URL('/admin?error=forbidden', request.url));
   }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { UserProfile, PlatformConfig, AppRole } from '@/types';
+import { UserProfile, PlatformConfig, SiteRole, ROLE_LABELS } from '@/types';
 import { Shield, Layers, Save } from 'lucide-react';
 
 interface PlatformMemberModalProps {
@@ -10,16 +10,16 @@ interface PlatformMemberModalProps {
   user: UserProfile | null;
   platforms: PlatformConfig[];
   /** Current grants, keyed by platform id. */
-  initialRoles: Record<string, AppRole>;
-  onSaveAccess: (userId: string, permissions: Record<string, AppRole | null>) => void;
+  initialRoles: Record<string, SiteRole>;
+  onSaveAccess: (userId: string, permissions: Record<string, SiteRole | null>) => void;
   isSaving?: boolean;
 }
 
-const ROLE_OPTIONS: Array<{ value: AppRole | ''; label: string }> = [
+const ROLE_OPTIONS: Array<{ value: SiteRole | ''; label: string }> = [
   { value: '', label: 'ไม่มีสิทธิ์' },
-  { value: 'APP_VIEWER', label: 'APP_VIEWER — อ่านอย่างเดียว' },
-  { value: 'APP_EDITOR', label: 'APP_EDITOR — แก้ไข Studio ได้' },
-  { value: 'APP_OWNER', label: 'APP_OWNER — Publish และ Build Runtime ได้' },
+  { value: 'VIEWER', label: `VIEWER — ${ROLE_LABELS.VIEWER}` },
+  { value: 'STAFF', label: `STAFF — ${ROLE_LABELS.STAFF}` },
+  { value: 'ADMIN', label: `ADMIN — ${ROLE_LABELS.ADMIN}` },
 ];
 
 /**
@@ -35,7 +35,7 @@ export default function AppMemberModal({
   onSaveAccess,
   isSaving = false,
 }: PlatformMemberModalProps) {
-  const [permissions, setPermissions] = useState<Record<string, AppRole | null>>({});
+  const [permissions, setPermissions] = useState<Record<string, SiteRole | null>>({});
 
   useEffect(() => {
     if (isOpen) setPermissions({ ...initialRoles });
@@ -43,7 +43,7 @@ export default function AppMemberModal({
 
   if (!isOpen || !user) return null;
 
-  const handleRoleChange = (platformId: string, role: AppRole | '') => {
+  const handleRoleChange = (platformId: string, role: SiteRole | '') => {
     setPermissions((prev) => ({ ...prev, [platformId]: role === '' ? null : role }));
   };
 
@@ -65,9 +65,9 @@ export default function AppMemberModal({
           </div>
 
           <div className="modal-body">
-            {user.globalRole === 'SUPER_ADMIN' && (
+            {user.globalRole === 'GOD' && (
               <div className="alert alert-info border-0 small rounded-3">
-                ผู้ใช้นี้เป็น SUPER_ADMIN จึงเข้าถึงทุก Platform อยู่แล้ว โดยไม่ต้องกำหนดสิทธิ์รายรายการ
+                ผู้ใช้นี้เป็นบัญชี GOD (ผู้ให้บริการ) จึงเข้าถึงทุก Platform และทุก Site อยู่แล้ว
               </div>
             )}
 
@@ -98,7 +98,7 @@ export default function AppMemberModal({
                           <select
                             className="form-select form-select-sm"
                             value={permissions[platform.id] ?? ''}
-                            onChange={(event) => handleRoleChange(platform.id, event.target.value as AppRole | '')}
+                            onChange={(event) => handleRoleChange(platform.id, event.target.value as SiteRole | '')}
                             aria-label={`สิทธิ์บน ${platform.platformName}`}
                           >
                             {ROLE_OPTIONS.map((option) => (

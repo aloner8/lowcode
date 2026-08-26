@@ -4,6 +4,12 @@ import React, { useEffect } from 'react';
 import { ThemeConfig, ThemePreset } from '@/types';
 
 export const THEME_PRESETS: Record<ThemePreset, { primary: string; background: string; borderRadius: string }> = {
+  /* เว็บราชการไทย — CI แดง/น้ำเงิน + ทอง ตามแบบ pathum.go.th */
+  'thai-municipal': {
+    primary: '#D91113',
+    background: '#F7F9FC',
+    borderRadius: '16px',
+  },
   'modern-indigo': {
     primary: '#4f46e5',
     background: '#f8fafc',
@@ -55,7 +61,7 @@ export const ThemeEngine: React.FC<ThemeEngineProps> = ({ themeConfig, children 
     // Apply Bootstrap 5 & Custom CSS Variables
     root.style.setProperty('--bs-primary', primary);
     root.style.setProperty('--bs-border-radius', radius);
-    root.style.setProperty('--font-sans', themeConfig.fontFamily || 'Inter, sans-serif');
+    root.style.setProperty('--font-sans', themeConfig.fontFamily || 'Anuphan, sans-serif');
 
     if (isDark) {
       root.setAttribute('data-theme', 'dark');

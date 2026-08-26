@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS public.apps (
         "mode": "light",
         "primaryColor": "#0d6efd",
         "borderRadius": "0.375rem",
-        "fontFamily": "Inter, sans-serif"
+        "fontFamily": "Anuphan, sans-serif"
     }'::jsonb,
     tenant_overrides JSONB NOT NULL DEFAULT '{
         "disabledFeatures": [],
@@ -46,8 +46,8 @@ CREATE TABLE IF NOT EXISTS public.app_memberships (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.platform_users(id) ON DELETE CASCADE,
     app_id UUID NOT NULL REFERENCES public.apps(id) ON DELETE CASCADE,
-    app_role VARCHAR(50) NOT NULL DEFAULT 'APP_EDITOR'
-        CHECK (app_role IN ('APP_OWNER', 'APP_EDITOR', 'APP_VIEWER')),
+    -- Tightened to ('ADMIN','STAFF','VIEWER') by migration 015.
+    app_role VARCHAR(50) NOT NULL DEFAULT 'APP_EDITOR',
     granted_by UUID REFERENCES public.platform_users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

@@ -11,7 +11,7 @@ export default function RendererDemoPage() {
     mode: 'light',
     primaryColor: '#10b981',
     borderRadius: '0.5rem',
-    fontFamily: 'Inter, sans-serif',
+    fontFamily: 'Anuphan, sans-serif',
   });
 
   const [showJsonModal, setShowJsonModal] = useState(false);

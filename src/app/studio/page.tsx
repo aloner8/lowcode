@@ -115,7 +115,7 @@ export default function StudioPage() {
       mode: 'light',
       primaryColor: '#4f46e5',
       borderRadius: '0.5rem',
-      fontFamily: 'Inter, sans-serif',
+      fontFamily: 'Anuphan, sans-serif',
     },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

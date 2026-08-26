@@ -31,7 +31,9 @@
 
 - [Tech Stack](#tech-stack)
 - [เริ่มต้นใช้งาน](#เริ่มต้นใช้งาน)
+- [สิทธิ์ 3 ชั้น: GOD / ADMIN / STAFF](#สิทธิ์-3-ชั้น-god--admin--staff)
 - [Multi-Site & Multi-Domain](#multi-site--multi-domain)
+- [SEO](#seo)
 - [Environment Variables](#environment-variables)
 - [ฐานข้อมูล](#ฐานข้อมูล)
 - [ความปลอดภัย](#ความปลอดภัย)
@@ -105,11 +107,39 @@ migration `010_create_platform_auth.sql` จะ seed สองบัญชีน
 
 | Username | Email | Password | Role |
 |---|---|---|---|
-| `admin` | `admin@platform.com` | `1qaz@WSX` | `SUPER_ADMIN` |
-| `aloner` | `aloner@platform.com` | `1qaz@WSX` | `DEVELOPER` |
+| `admin` | `admin@platform.com` | `1qaz@WSX` | `GOD` |
+| `aloner` | `aloner@platform.com` | `1qaz@WSX` | `GOD` |
 
 > ⚠️ เป็นบัญชี bootstrap สำหรับ dev เท่านั้น — เปลี่ยนรหัสผ่านทันทีก่อนเปิดให้เข้าถึงจากภายนอก
 > รหัสผ่านถูก hash ด้วย bcrypt ในฐานข้อมูล ไม่มีรหัสผ่านอยู่ใน source code
+
+---
+
+## สิทธิ์ 3 ชั้น: GOD / ADMIN / STAFF
+
+| ชั้น | ใคร | ทำอะไรได้ | ขอบเขต |
+|---|---|---|---|
+| **GOD** | พนักงานหนุมานไอที (ผู้ให้บริการ) | สร้าง Platform และ Site ใหม่ · ตั้งค่าได้ทุก Site · กำหนดแพ็กเกจและวันหมดอายุ · เข้า Studio | ทั้งระบบ |
+| **ADMIN** | ผู้ดูแลระบบของหน่วยงาน | เพิ่ม/ถอดผู้ใช้ในหน่วยงานตัวเอง · ตั้งค่าเว็บไซต์ (ธีม SEO โดเมน) · ดูแพ็กเกจและวันหมดอายุ | Site ของตัวเอง |
+| **STAFF** | พนักงานของหน่วยงาน | เพิ่มข่าว (post) · แก้ไขหน้าเว็บ (page) | Site ของตัวเอง |
+| **VIEWER** | ผู้อ่าน | อ่านอย่างเดียว | Site ของตัวเอง |
+
+- **GOD** เก็บที่ `platform_users.global_role` (`GOD` หรือ `TENANT_USER`)
+- **ADMIN / STAFF / VIEWER** ผูกกับ Site เสมอ เก็บที่ `app_memberships.app_role`
+- ฟังก์ชัน `public.site_role_of(user, app)` คืนสิทธิ์ที่แท้จริง — GOD ชนะทุกกรณี
+- ลำดับ: `VIEWER < STAFF < ADMIN < GOD` บังคับใช้ที่ [apiAuth.ts](src/lib/auth/apiAuth.ts)
+
+### Site Console — หน้าจอของหน่วยงาน
+
+ADMIN และ STAFF ทำงานที่ `/site/[appSlug]` (ไม่ใช่ `/admin` ซึ่งเป็นของผู้ให้บริการ):
+
+| Path | สิทธิ์ | เนื้อหา |
+|---|---|---|
+| `/site/[appSlug]` | STAFF+ | ภาพรวม แพ็กเกจ วันหมดอายุ โควตาผู้ใช้/โดเมน/พื้นที่ |
+| `/site/[appSlug]/users` | ADMIN | เพิ่ม/ถอดผู้ใช้ และกำหนดสิทธิ์ภายในหน่วยงาน |
+
+ระบบบังคับให้แต่ละ Site มี ADMIN อย่างน้อยหนึ่งคนเสมอ และจำนวนผู้ใช้ถูกจำกัดตาม
+`package_limits.maxUsers` ของแพ็กเกจ
 
 ---
 
@@ -150,7 +180,7 @@ node scripts/run-sites.mjs --port-base=34000
 ### Nginx
 
 ```bash
-# สร้าง nginx.conf จาก registry จริง (ต้อง login เป็น SUPER_ADMIN)
+# สร้าง nginx.conf จาก registry จริง (ต้อง login เป็น GOD)
 curl -s -b cookies.txt http://localhost:33000/api/nginx-config > docker/nginx/nginx.conf
 docker compose restart nginx-proxy
 ```
@@ -158,6 +188,33 @@ docker compose restart nginx-proxy
 Host ที่ไม่ตรงกับ Site ใดจะได้ `404` แทนที่จะหลุดไปเว็บอื่น
 
 ---
+
+## SEO
+
+เว็บไซต์ของแต่ละ Site เป็น **Server-Side Rendered เต็มรูปแบบ** — HTML ที่ crawler ได้รับมีเนื้อหา
+หัวข้อ และ metadata ครบตั้งแต่ response แรก ไม่ต้องรัน JavaScript
+
+| ส่วน | รายละเอียด |
+|---|---|
+| **SSR** | หน้า Site เป็น Server Component อ่านข้อมูลจาก DB ตรง ([siteSeo.ts](src/lib/seo/siteSeo.ts)) |
+| **Data binding ฝั่ง server** | ข่าว/ประกาศถูก query และ render ลง HTML ก่อนส่ง ([resolveDataBindings.ts](src/lib/seo/resolveDataBindings.ts)) |
+| **Metadata** | title, description, keywords, canonical, hreflang, Open Graph, Twitter Card, theme-color |
+| **หลาย URL ต่อ Site** | `/`, `/news`, `/activity`, … ผ่าน catch-all route แต่ละหน้ามี metadata ของตัวเอง |
+| **JSON-LD** | `Organization`/`GovernmentOrganization` + `WebSite` + `WebPage` + `BreadcrumbList` ใน `@graph` เดียว |
+| **robots.txt** | สร้างต่อโดเมน ประกาศ sitemap และปิด `/api` `/admin` `/studio` — Control Plane เป็น `Disallow: /` |
+| **sitemap.xml** | สร้างจากหน้าที่เผยแพร่จริง ตัดหน้าที่ตั้ง `noindex` ออก พร้อม `changefreq`/`priority`/`lastmod` |
+| **Semantic HTML** | renderer ออก `<header> <nav> <main> <section> <article> <time>` ตามชนิด component |
+| **H1 เดียวต่อหน้า** | ถ้าเนื้อหามี `<h1>` แล้วจะไม่เติมซ้ำ ([componentTree.ts](src/lib/engine/componentTree.ts)) |
+| **lang ต่อโดเมน** | `<html lang>` มาจากค่าของ Site (ไทยได้ `th` ไม่ใช่ `en`) |
+| **404 จริง** | path ที่ไม่มีหน้า คืนสถานะ 404 ไม่ใช่หน้าเปล่า 200 |
+| **Search Console** | ใส่ token ของ Google/Bing ต่อ Site ได้จากหน้า SEO |
+
+ตั้งค่าได้ที่ `/admin/apps` → ปุ่ม **SEO** (มีตัวอย่างผลการค้นหาแบบ Google และตัวนับความยาว
+title/description) หรือระดับ Platform ผ่าน `PUT /api/platforms/{id}/seo`
+
+ค่าที่ใส่ทั้งหมดถูก validate ฝั่ง server ([validateSeo.ts](src/lib/seo/validateSeo.ts)) เพื่อไม่ให้
+หลุดออกจาก attribute หรือฉีด markup
+
 
 ## Environment Variables
 
@@ -200,6 +257,8 @@ Host ที่ไม่ตรงกับ Site ใดจะได้ `404` แ�
 | `011` | **Tenant Apps** — `apps`, `app_memberships`, `provision_tenant_app()` |
 | `012` | **Multi-domain** — `app_domains`, view `site_registry` |
 | `013` | `platforms.public_data_access` (allow-list ของ runtime สาธารณะ) |
+| `014` | **SEO** — `platforms.seo_defaults`, `apps.seo_settings`, `platform_pages.seo` |
+| `015` | **สิทธิ์ 3 ชั้น** — GOD/ADMIN/STAFF, แพ็กเกจและวันหมดอายุ, `site_role_of()` |
 
 ### Tenant DB — หนึ่งฐานต่อหนึ่ง tenant
 
@@ -300,10 +359,12 @@ tests/                          Vitest (27 tests)
 | `/` | – | Landing page |
 | `/login` | – | เข้าสู่ระบบ |
 | `/admin` | ✅ | Dashboard |
-| `/admin/platforms` | ✅ | Platform Master |
+| `/admin/platforms` | GOD | Platform Master |
 | `/admin/apps` | ✅ | Tenant Apps / Sites / โดเมน / ธีม |
-| `/admin/users` | SUPER_ADMIN | ผู้ใช้และสิทธิ์ |
-| `/admin/security` | SUPER_ADMIN | สถานะความปลอดภัย |
+| `/admin/users` | GOD | ผู้ใช้ทั้งระบบ |
+| `/admin/security` | GOD | สถานะความปลอดภัย |
+| `/site/[appSlug]` | STAFF+ | Console ของหน่วยงาน |
+| `/site/[appSlug]/users` | ADMIN | ผู้ใช้ในหน่วยงาน |
 | `/studio` | ✅ | DesignStudio IDE |
 | `/flow-studio` | ✅ | Visual Flow Designer |
 | `/audit-logs` | ✅ | Audit trail |
@@ -320,13 +381,13 @@ tests/                          Vitest (27 tests)
 | Method | Path | สิทธิ์ |
 |---|---|---|
 | `GET` | `/api/platforms` | VIEWER (เห็นเฉพาะที่มีสิทธิ์) |
-| `POST` | `/api/platforms` | SUPER_ADMIN — เรียก `create_platform_blueprint()` |
-| `DELETE` | `/api/platforms?id=` | SUPER_ADMIN |
-| `GET`/`POST` | `/api/platform-categories` | VIEWER / SUPER_ADMIN |
-| `GET`/`PUT`/`PATCH` | `/api/platforms/{id}/studio` | APP_VIEWER / APP_EDITOR |
-| `GET`/`PUT` | `/api/platforms/{id}/page-flows` | APP_VIEWER / APP_EDITOR |
-| `GET`/`PUT` | `/api/platforms/{id}/workflows` | APP_VIEWER / APP_EDITOR |
-| `GET`/`POST` | `/api/platforms/{id}/runtime` | APP_VIEWER / APP_OWNER |
+| `POST` | `/api/platforms` | GOD — เรียก `create_platform_blueprint()` |
+| `DELETE` | `/api/platforms?id=` | GOD |
+| `GET`/`POST` | `/api/platform-categories` | ผู้ใช้ที่ล็อกอิน / GOD |
+| `GET`/`PUT`/`PATCH` | `/api/platforms/{id}/studio` | VIEWER / STAFF |
+| `GET`/`PUT` | `/api/platforms/{id}/page-flows` | VIEWER / STAFF |
+| `GET`/`PUT` | `/api/platforms/{id}/workflows` | VIEWER / STAFF |
+| `GET`/`POST` | `/api/platforms/{id}/runtime` | VIEWER / ADMIN |
 
 ### ข้อมูล Tenant
 
@@ -348,8 +409,11 @@ tests/                          Vitest (27 tests)
 | `GET`/`PATCH`/`DELETE` | `/api/apps/{id}` | รายละเอียด / แก้ธีม-overrides / ลบ |
 | `GET`/`POST`/`DELETE` | `/api/apps/{id}/domains` | จัดการโดเมนของ Site |
 | `GET` | `/api/sites` | registry + domain map |
-| `GET` | `/api/nginx-config` | สร้าง nginx.conf (SUPER_ADMIN) |
-| `GET`/`POST` | `/api/users` | ผู้ใช้ (SUPER_ADMIN) |
+| `GET` | `/api/nginx-config` | สร้าง nginx.conf (GOD) |
+| `GET`/`POST`/`PATCH`/`DELETE` | `/api/apps/{id}/users` | ผู้ใช้ใน Site (ADMIN) |
+| `GET`/`PUT` | `/api/apps/{id}/package` | แพ็กเกจและวันหมดอายุ (อ่าน: STAFF+ / แก้: GOD) |
+| `GET`/`PUT` | `/api/platforms/{id}/seo` | ค่า SEO เริ่มต้นของ Platform |
+| `GET`/`POST` | `/api/users` | ผู้ใช้ทั้งระบบ (GOD) |
 | `PATCH`/`DELETE` | `/api/users/{id}` | แก้ไข / ลบ |
 | `GET`/`PUT` | `/api/users/{id}/memberships` | สิทธิ์ระดับ Platform |
 | `GET` | `/api/audit-logs` | ประวัติการเปลี่ยนแปลง |
@@ -373,15 +437,33 @@ tests/                          Vitest (27 tests)
 | `NavMenuComponent`, `SlideMenuComponent`, `EditMenuComponent` | Navigation |
 | `FormComponent`, `FieldInputComponent` | Form |
 | `TableDataComponent`, `ListComponent`, `CardComponent`, `ChartComponent` | Data |
+| `PostListComponent` | ข่าว/ประกาศ (article + time, ผูก `dataSource` ได้) |
 | `DynamicHtmlComponent`, `HtmlEditorComponent`, `HtmlTemplateComponent` | Content |
 | `GalleryComponent`, `FileManagerComponent` | Media |
 
 `TabsContainerComponent` / `AccordionComponent` / `ModalDialogComponent` ยัง fallback เป็น `CardComponent`
 
-### ธีม
+### ธีมและฟอนต์
+
+**ฟอนต์: Anuphan** โหลดผ่าน `next/font` (self-host ไม่มี request ไป Google ตอน render
+และไม่เกิด layout shift) ใช้เป็นค่าเริ่มต้นทั้งระบบผ่าน `--font-anuphan` / `--app-font-family`
 
 [ThemeEngine.tsx](src/components/shared/ThemeEngine.tsx) ฉีด CSS Variables ทับ Bootstrap 5
-preset: `modern-indigo`, `corporate-emerald`, `dark-glassmorphism`, `sunset-warm`, `cyberpunk`, `minimal-slate`
+preset: `thai-municipal`, `modern-indigo`, `corporate-emerald`, `dark-glassmorphism`,
+`sunset-warm`, `cyberpunk`, `minimal-slate`
+
+**`thai-municipal`** เป็น preset สำหรับเว็บราชการไทย (อ้างอิง CI จังหวัดปทุมธานี)
+ตามสูตร *สีหลัก 1 + สีหลัก 2 + ทอง*:
+
+| Token | ค่า | ใช้กับ |
+|---|---|---|
+| `--gov-primary` | `#D91113` | navbar ปุ่มหลัก หัวข้อ |
+| `--gov-secondary` | `#0C58A9` | footer sidebar ปุ่มรอง |
+| `--gov-gold` | `#FFD700` | accent เท่านั้น (~6%) |
+| `--gov-on-gold` | `#3A2A00` | ข้อความบนพื้นทอง (ขาวบนทองได้ contrast ~1.5:1 ซึ่งตกเกณฑ์) |
+
+พร้อม component สำเร็จรูป `.btn-gov-primary` `.btn-gov-secondary` `.gov-badge-gold`
+`.gov-section-title` `.gov-card` ใน [municipal-theme.css](src/app/municipal-theme.css)
 
 ลำดับการทับซ้อนของธีมตอน runtime:
 
@@ -450,7 +532,12 @@ CI ที่ [.github/workflows/ci.yml](.github/workflows/ci.yml) รัน migr
   animation timeline ยังไม่มีโค้ด เป็นฟีเจอร์ขนาดใหญ่ที่ควรแยกทำต่างหาก
 - **Tenant end-user auth** — Site ที่ตั้ง `LOGIN_PAGE` / `PUBLIC_HOME_WITH_LOGIN` มี blueprint
   ของหน้า Login และ Private page แล้ว แต่ยังไม่มีระบบ session ของผู้ใช้ปลายทางฝั่ง Site
-  (ปัจจุบันหน้า PRIVATE ยังไม่ถูกบังคับ guard)
+  (ปัจจุบันหน้า PRIVATE ยังไม่ถูกบังคับ guard) — คนละเรื่องกับสิทธิ์ GOD/ADMIN/STAFF
+  ซึ่งเป็นสิทธิ์ของผู้ดูแล ไม่ใช่ผู้เข้าชมเว็บ
+- **หน้ารายละเอียดข่าว** — ตอนนี้ listing แสดงหัวข้อ/วันที่/สรุปย่อครบและ index ได้
+  แต่ยังไม่มี route `/news/[id]` สำหรับอ่านเต็ม (ต้องมี `Article` JSON-LD เพิ่ม)
+- **UI แก้ SEO รายหน้าใน Studio** — โครงสร้าง `page.seo` และ API รองรับแล้ว
+  แต่ยังต้องแก้ผ่าน API ยังไม่มีฟอร์มใน Studio
 - **Export / Import SQL script** ใน Studio ยังเป็นปุ่ม disabled
 - **`TabsContainer` / `Accordion` / `ModalDialog`** ยัง fallback เป็น `CardComponent`
 - **E2E test** ยังไม่มี (มีเฉพาะ unit test ของ sanitizer, session และ merge engine)

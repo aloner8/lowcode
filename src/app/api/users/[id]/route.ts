@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCoreDb } from '@/lib/db/coreDb';
-import { requireApiSession } from '@/lib/auth/apiAuth';
+import { requireGod } from '@/lib/auth/apiAuth';
 import { recordPlatformAudit } from '@/lib/engine/AuditLogService';
 import { PLATFORM_USER_COLUMNS, toUser } from '@/lib/auth/platformUsers';
 import type { GlobalRole } from '@/types';
@@ -8,12 +8,12 @@ import type { GlobalRole } from '@/types';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const ROLES: GlobalRole[] = ['SUPER_ADMIN', 'DEVELOPER', 'VIEWER'];
+const ROLES: GlobalRole[] = ['GOD', 'TENANT_USER'];
 
 const SELECT_USER = `SELECT ${PLATFORM_USER_COLUMNS} FROM public.platform_users WHERE id = $1`;
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
-  const auth = await requireApiSession('SUPER_ADMIN');
+  const auth = await requireGod();
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await context.params;
@@ -35,15 +35,15 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       if (!ROLES.includes(body.globalRole as GlobalRole)) {
         return NextResponse.json({ error: `Role ต้องเป็น ${ROLES.join(' | ')}` }, { status: 400 });
       }
-      // Refuse to strip the last SUPER_ADMIN, which would lock everyone out.
-      if (body.globalRole !== 'SUPER_ADMIN') {
-        const admins = await getCoreDb().query<{ count: string }>(
+      // Refuse to strip the last GOD account, which would lock everyone out.
+      if (body.globalRole !== 'GOD') {
+        const gods = await getCoreDb().query<{ count: string }>(
           `SELECT COUNT(*)::text AS count FROM public.platform_users
-           WHERE global_role = 'SUPER_ADMIN' AND is_active = TRUE AND id <> $1`,
+           WHERE global_role = 'GOD' AND is_active = TRUE AND id <> $1`,
           [id],
         );
-        if (Number(admins.rows[0].count) === 0) {
-          return NextResponse.json({ error: 'ต้องมี SUPER_ADMIN อย่างน้อยหนึ่งคนในระบบ' }, { status: 409 });
+        if (Number(gods.rows[0].count) === 0) {
+          return NextResponse.json({ error: 'ต้องมีบัญชี GOD อย่างน้อยหนึ่งคนในระบบ' }, { status: 409 });
         }
       }
       params.push(body.globalRole);
@@ -98,7 +98,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 }
 
 export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const auth = await requireApiSession('SUPER_ADMIN');
+  const auth = await requireGod();
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await context.params;

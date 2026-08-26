@@ -21,7 +21,7 @@ export default function UserFormModal({
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
-  const [globalRole, setGlobalRole] = useState<GlobalRole>('DEVELOPER');
+  const [globalRole, setGlobalRole] = useState<GlobalRole>('TENANT_USER');
   const [isActive, setIsActive] = useState(true);
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export default function UserFormModal({
       setUsername(userToEdit.username || '');
       setEmail(userToEdit.email || '');
       setFullName(userToEdit.fullName || '');
-      setGlobalRole(userToEdit.globalRole || 'DEVELOPER');
+      setGlobalRole(userToEdit.globalRole || 'TENANT_USER');
       setIsActive(userToEdit.isActive ?? true);
       setPassword('');
     } else {
@@ -37,7 +37,7 @@ export default function UserFormModal({
       setEmail('');
       setFullName('');
       setPassword('');
-      setGlobalRole('DEVELOPER');
+      setGlobalRole('TENANT_USER');
       setIsActive(true);
     }
   }, [userToEdit, isOpen]);

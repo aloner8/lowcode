@@ -2,6 +2,7 @@ export * from './ThemeEngine';
 export * from './FieldInputComponent';
 export * from './FormComponent';
 export * from './ListComponent';
+export * from './PostListComponent';
 export * from './TableDataComponent';
 export * from './GalleryComponent';
 export * from './FileManagerComponent';

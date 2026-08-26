@@ -7,7 +7,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  const auth = await requireApiSession('VIEWER');
+  const auth = await requireApiSession();
   if (auth instanceof NextResponse) return auth;
 
   const params = new URL(request.url).searchParams;

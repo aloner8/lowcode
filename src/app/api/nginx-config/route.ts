@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireApiSession } from '@/lib/auth/apiAuth';
+import { requireGod } from '@/lib/auth/apiAuth';
 import { listSites } from '@/lib/runtime/siteRegistry';
 import { generateNginxConfig } from '@/lib/engine/NginxConfigGenerator';
 
@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 /** Returns an nginx.conf built from the live site registry. */
 export async function GET(request: Request) {
-  const auth = await requireApiSession('SUPER_ADMIN');
+  const auth = await requireGod();
   if (auth instanceof NextResponse) return auth;
 
   const params = new URL(request.url).searchParams;

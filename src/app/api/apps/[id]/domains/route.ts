@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 const DOMAIN_PATTERN = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/;
 
 async function authorize(appId: string, request: Request) {
-  const auth = await requireApiSession('DEVELOPER');
+  const auth = await requireApiSession('GOD');
   if (auth instanceof NextResponse) return { response: auth };
 
   const app = await getCoreDb().query<{ platform_id: string | null; app_slug: string }>(
@@ -21,14 +21,14 @@ async function authorize(appId: string, request: Request) {
     return { response: NextResponse.json({ error: 'ไม่พบ Tenant App' }, { status: 404 }) };
   }
   if (app.rows[0].platform_id) {
-    const denied = await requirePlatformAccess(auth, app.rows[0].platform_id, 'APP_OWNER');
+    const denied = await requirePlatformAccess(auth, app.rows[0].platform_id, 'ADMIN');
     if (denied) return { response: denied };
   }
   return { auth, app: app.rows[0], body: request };
 }
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const auth = await requireApiSession('VIEWER');
+  const auth = await requireApiSession();
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await context.params;
