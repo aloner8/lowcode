@@ -72,7 +72,7 @@ interface StudioTreeviewOutlineProps {
   onOpenPageSettings: (pageId: string) => void;
   onSelectPageFlow: (route: { path: string; label: string; type: 'public_page' | 'form_crud' }) => void;
   onSelectRawTable: (tableName: string) => void;
-  onOpenPageManager: () => void;
+  onOpenPageManager: (containerName?: string) => void;
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
 }
@@ -409,17 +409,17 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
         {/* Site Map is the navigation root. Page Layouts exist only as route resources. */}
         <div className="mb-2">
           <div className="d-flex align-items-center justify-content-between px-2 py-1.5 rounded-2 bg-danger bg-opacity-10 text-danger fw-bold border border-danger border-opacity-10">
-            <div className="d-flex align-items-center gap-2"><MapPin size={16}/><span>SITE MAP</span></div><div className="d-flex align-items-center gap-1"><MenuAddButton label="site route"/><span className="badge bg-danger text-white">ROOT</span></div>
+            <div className="d-flex align-items-center gap-2"><MapPin size={16}/><span>SITE MAP</span></div><div className="d-flex align-items-center gap-1"><MenuAddButton label="site route" onClick={() => onOpenPageManager()}/><span className="badge bg-danger text-white">ROOT</span></div>
           </div>
           <div className="ms-2 ps-2 border-start mt-1">{Object.entries(siteRoutesByContainer).map(([containerName, containerRoutes]) => { const containerOpen = openSiteContainers[containerName] !== false; return <div key={containerName} className="mb-1">
-            <button type="button" className="btn btn-sm border-0 w-100 d-flex align-items-center gap-1 text-start px-1 py-1 text-dark fw-bold bg-light" onClick={() => setOpenSiteContainers((current) => ({ ...current, [containerName]: !containerOpen }))}>{containerOpen ? <ChevronDown size={11}/> : <ChevronRight size={11}/>}<Box size={12} className="text-primary"/><span className="text-truncate">{containerName}</span><span className="badge bg-primary bg-opacity-10 text-primary ms-auto">{containerRoutes.length} Routes</span></button>
+            <div className="d-flex align-items-center bg-light rounded-1"><button type="button" className="btn btn-sm border-0 flex-grow-1 d-flex align-items-center gap-1 text-start px-1 py-1 text-dark fw-bold" onClick={() => setOpenSiteContainers((current) => ({ ...current, [containerName]: !containerOpen }))}>{containerOpen ? <ChevronDown size={11}/> : <ChevronRight size={11}/>}<Box size={12} className="text-primary"/><span className="text-truncate">{containerName}</span><span className="badge bg-primary bg-opacity-10 text-primary ms-auto">{containerRoutes.length} Routes</span></button><MenuAddButton label={`route to ${containerName}`} onClick={() => onOpenPageManager(containerName)}/></div>
             {containerOpen && <div className="ms-3 ps-2 border-start">{containerRoutes.map((route) => { const routeKey = `${containerName}:${route.path}`; const flowRoutePath = routeKey; const routeOpen = openSiteRoutes[routeKey] === true; const group = (name: string) => `${routeKey}:${name}`; return <div key={routeKey} className="mb-1">
             <button type="button" className="btn btn-sm border-0 w-100 d-flex align-items-center gap-1 text-start px-1 py-1 text-dark fw-semibold" onClick={() => setOpenSiteRoutes((current) => ({ ...current, [routeKey]: !routeOpen }))}>{routeOpen ? <ChevronDown size={11}/> : <ChevronRight size={11}/>}<Compass size={12} className="text-danger"/><span className="text-truncate">{route.label}</span><code className="ms-auto" style={{ fontSize: '.58rem' }}>{route.path}</code></button>
             {routeOpen && <div className="ms-3 ps-2 border-start">
               <div><div className="d-flex align-items-center justify-content-between py-1"><button className="btn btn-sm border-0 p-0 d-flex align-items-center gap-1 text-warning fw-semibold" style={{ fontSize: '.65rem' }} onClick={() => setOpenRouteGroups((current) => ({ ...current, [group('events')]: current[group('events')] === false }))}>{openRouteGroups[group('events')] !== false ? <ChevronDown size={9}/> : <ChevronRight size={9}/>}<Zap size={10}/> Events</button><MenuAddButton label="event flow" onClick={() => onSelectPageFlow({ path: flowRoutePath, label: `${containerName} / ${route.label}`, type: route.type })}/></div>
                 {openRouteGroups[group('events')] !== false && <div className="ms-3 ps-2 border-start"><button type="button" className="btn btn-sm border-0 w-100 text-start text-secondary py-1 px-1" style={{ fontSize: '.62rem' }} onClick={() => onSelectPageFlow({ path: flowRoutePath, label: `${containerName} / ${route.label}`, type: route.type })}><Workflow size={9} className="me-1 text-warning"/>OnLoad → OpenPage({route.page.id})</button></div>}
               </div>
-              <div><div className="d-flex align-items-center justify-content-between py-1"><button className="btn btn-sm border-0 p-0 d-flex align-items-center gap-1 text-primary fw-semibold" style={{ fontSize: '.65rem' }} onClick={() => setOpenRouteGroups((current) => ({ ...current, [group('pages')]: current[group('pages')] === false }))}>{openRouteGroups[group('pages')] !== false ? <ChevronDown size={9}/> : <ChevronRight size={9}/>}<FileText size={10}/> Pages</button><MenuAddButton label="page" onClick={onOpenPageManager}/></div>
+              <div><div className="d-flex align-items-center justify-content-between py-1"><button className="btn btn-sm border-0 p-0 d-flex align-items-center gap-1 text-primary fw-semibold" style={{ fontSize: '.65rem' }} onClick={() => setOpenRouteGroups((current) => ({ ...current, [group('pages')]: current[group('pages')] === false }))}>{openRouteGroups[group('pages')] !== false ? <ChevronDown size={9}/> : <ChevronRight size={9}/>}<FileText size={10}/> Pages</button><MenuAddButton label="page" onClick={() => onOpenPageManager(containerName)}/></div>
                 {openRouteGroups[group('pages')] !== false && <div className="ms-3 ps-2 border-start">{(() => {
                   const page = route.page;
                   const pageKey = `${routeKey}:page:${page.id}`;
@@ -496,7 +496,7 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
 
           {openSections.solutionExplorer && (
             <div className="ms-3 ps-2 border-start border-light pt-1">
-              <div className="d-none align-items-center justify-content-between mb-1"><div className="text-muted extra-small fw-semibold">PAGES LAYOUTS</div><button type="button" className="btn btn-sm btn-outline-primary py-0 px-2 d-flex align-items-center gap-1" style={{ fontSize: '0.62rem' }} onClick={onOpenPageManager}><Plus size={11} /> New Page</button></div>
+              <div className="d-none align-items-center justify-content-between mb-1"><div className="text-muted extra-small fw-semibold">PAGES LAYOUTS</div><button type="button" className="btn btn-sm btn-outline-primary py-0 px-2 d-flex align-items-center gap-1" style={{ fontSize: '0.62rem' }} onClick={() => onOpenPageManager()}><Plus size={11} /> New Page</button></div>
               {pages.map((p) => {
                 const grouped = (p.componentTree || []).reduce<Record<string, { name: string; nodes: ComponentNode[] }>>((result, node) => {
                   const id = String(node.props?.__sectionId || 'main');

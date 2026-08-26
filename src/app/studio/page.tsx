@@ -118,6 +118,7 @@ export default function StudioPage() {
   const [activePage, setActivePage] = useState<string>('index');
   const [zoomLevel, setZoomLevel] = useState<number>(100);
   const [isPageManagerOpen, setIsPageManagerOpen] = useState<boolean>(false);
+  const [pageManagerContainer, setPageManagerContainer] = useState<string | null>(null);
 
   // Active App Configuration & Layout AST
   const [appInfo, setAppInfo] = useState<AppConfig>({
@@ -538,26 +539,35 @@ export default function StudioPage() {
     setTimeout(() => setSaveStatus(null), 3000);
   };
 
-  const handleCreateManagedPage = async ({ slug, title, templateType }: { slug: string; title: string; templateType: string }) => {
+  const handleCreateManagedPage = async ({ slug, title, templateType, containerName }: { slug: string; title: string; templateType: string; containerName: string }) => {
     const currentPages = pagesWithCurrentDesign();
     if (currentPages.some((page) => page.id.toLowerCase() === slug.toLowerCase())) throw new Error(`Page /${slug} มีอยู่แล้ว`);
     const componentTree = createPageTemplate(templateType, appInfo.appName, title);
-    const nextPage: StudioPageDefinition = { id: slug, name: `${title} (${slug}.page)`, title, containerName: `${appInfo.appSlug}-${activeSurface}`, templateType, componentTree, isDefaultPage: currentPages.length === 0 };
+    const nextPage: StudioPageDefinition = { id: slug, name: `${title} (${slug}.page)`, title, containerName, templateType, componentTree, isDefaultPage: currentPages.length === 0 };
     await persistManagedPages([...currentPages, nextPage], componentTree);
     setActivePage(slug); setSelectedPageFlow(null); setSelectedNodeId(null); setNodes(componentTree);
     historyRef.current = new HistoryStackManager(componentTree);
   };
 
-  const handleCloneManagedPage = async (pageId: string) => {
+  const handleCloneManagedPage = async (pageId: string, containerName: string) => {
     const currentPages = pagesWithCurrentDesign(); const source = currentPages.find((page) => page.id === pageId);
     if (!source) throw new Error('ไม่พบหน้าที่ต้องการ Clone');
     let slug = `${source.id}_copy`; let suffix = 2;
     while (currentPages.some((page) => page.id === slug)) slug = `${source.id}_copy_${suffix++}`;
     const componentTree = structuredClone(source.componentTree || []);
-    const cloned = { ...source, id: slug, name: `${source.title} Copy (${slug}.page)`, title: `${source.title} Copy`, componentTree, isDefaultPage: false };
+    const cloned = { ...source, id: slug, name: `${source.title} Copy (${slug}.page)`, title: `${source.title} Copy`, containerName, componentTree, isDefaultPage: false };
     await persistManagedPages([...currentPages, cloned], componentTree);
     setActivePage(slug); setNodes(componentTree); setSelectedPageFlow(null); setSelectedNodeId(null);
     historyRef.current = new HistoryStackManager(componentTree);
+  };
+
+  const handleMoveManagedPage = async (pageId: string, containerName: string) => {
+    const currentPages = pagesWithCurrentDesign();
+    const target = currentPages.find((page) => page.id === pageId);
+    if (!target) throw new Error('ไม่พบหน้าที่ต้องการย้าย');
+    if (target.containerName === containerName) return;
+    const nextPages = currentPages.map((page) => page.id === pageId ? { ...page, containerName } : page);
+    await persistManagedPages(nextPages, target.componentTree || nodes);
   };
 
   const handleDeleteManagedPage = async (pageId: string) => {
@@ -816,7 +826,7 @@ export default function StudioPage() {
                 onOpenPageSettings={(pageId) => void openPageSettings(pageId)}
                 onSelectPageFlow={(route) => setSelectedPageFlow(route)}
                 onSelectRawTable={(tableName) => { setSelectedPageFlow(null); setSelectedRawTable(tableName); }}
-                onOpenPageManager={() => setIsPageManagerOpen(true)}
+                onOpenPageManager={(containerName) => { setPageManagerContainer(containerName || null); setIsPageManagerOpen(true); }}
                 collapsed={isExplorerCollapsed}
                 onToggleCollapsed={() => setIsExplorerCollapsed((current) => !current)}
               />
@@ -957,9 +967,12 @@ export default function StudioPage() {
         onClose={() => setIsPageManagerOpen(false)}
         activePageSlug={activePage}
         pages={studioPages}
+        containers={Array.from(new Set([`${appInfo.appSlug}-frontend`, `${appInfo.appSlug}-backend`, ...studioPages.map((page) => page.containerName).filter((name): name is string => Boolean(name))]))}
+        initialContainerName={pageManagerContainer || `${appInfo.appSlug}-${activeSurface}`}
         onSelectPage={handleSelectDesignPage}
         onCreatePage={handleCreateManagedPage}
         onClonePage={handleCloneManagedPage}
+        onMovePage={handleMoveManagedPage}
         onDeletePage={handleDeleteManagedPage}
         onSetDefaultPage={handleSetDefaultManagedPage}
       />
