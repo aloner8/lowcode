@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase/client';
-import { AppConfig, PageLayout, WorkflowTree, ComponentNode } from '@/types';
+import { AppConfig, AppRoute, PageLayout, WorkflowTree, ComponentNode } from '@/types';
 
 export interface AppRuntimeData {
   appConfig: AppConfig;
@@ -7,6 +7,8 @@ export interface AppRuntimeData {
   workflowTree?: WorkflowTree;
   forms?: Array<{ id: string; componentTree: ComponentNode[] }>;
   collections?: Array<{ id: string; name?: string; standardFlows?: Record<string, any>; components: Array<{ id: string; type: string; componentTree: ComponentNode[] }> }>;
+  routes?: AppRoute[];
+  pages?: Array<{ id: string; title?: string; componentTree: ComponentNode[] }>;
 }
 
 export async function fetchAppRuntimeData(appSlug: string): Promise<AppRuntimeData> {

@@ -18,7 +18,7 @@ import type { PageSettingsValue } from '@/components/studio/PageSettingsWorkspac
 import type { GenPageFromImageRequest } from '@/components/studio/GenPageFromImageWizard';
 import { GenAppComponentFromImageWizard, type GenAppComponentFromImageRequest } from '@/components/studio/GenAppComponentFromImageWizard';
 import { DynamicPageRenderer } from '@/components/engine/DynamicPageRenderer';
-import { ComponentNode, AppConfig, AppWorkFlowManifest } from '@/types';
+import { ComponentNode, AppConfig, AppRoute, AppWorkFlowManifest } from '@/types';
 import { ComponentPaletteItem } from '@/lib/engine/ComponentRegistry';
 import { HistoryStackManager } from '@/lib/engine/HistoryStackService';
 import { createAdminPageTemplate } from '@/lib/studio/adminMenuTemplate';
@@ -192,6 +192,7 @@ export default function StudioPage() {
   const [studioError, setStudioError] = useState<string | null>(null);
   const [isLoadingPlatform, setIsLoadingPlatform] = useState(true);
   const [studioPages, setStudioPages] = useState(DEFAULT_STUDIO_PAGES);
+  const [studioRoutes, setStudioRoutes] = useState<AppRoute[]>([]);
   const [studioForms, setStudioForms] = useState<StudioFormDefinition[]>([]);
   const [studioCollections, setStudioCollections] = useState<StudioCollectionDefinition[]>([]);
   const [showAppComponentImageWizard, setShowAppComponentImageWizard] = useState(false);
@@ -291,6 +292,7 @@ export default function StudioPage() {
             studioPages: StudioPageDefinition[];
             studioForms: StudioFormDefinition[];
             studioCollections: StudioCollectionDefinition[];
+            studioRoutes: AppRoute[];
             studioInitialized: boolean;
           };
           error?: string;
@@ -317,6 +319,7 @@ export default function StudioPage() {
         }
         setStudioForms(Array.isArray(platform.studioForms) ? platform.studioForms : []);
         setStudioCollections(Array.isArray(platform.studioCollections) ? platform.studioCollections : []);
+        setStudioRoutes(Array.isArray(platform.studioRoutes) ? platform.studioRoutes : []);
         if (!platform.studioInitialized) setShowInitializeModal(true);
       } catch (error) {
         setStudioError(error instanceof Error ? error.message : 'ไม่สามารถโหลด Platform ได้');
@@ -813,6 +816,7 @@ export default function StudioPage() {
                 setActivePage={handleSelectDesignPage}
                 onAddComponent={handleAddComponent}
                 pages={studioPages}
+                routes={studioRoutes}
                 forms={studioForms}
                 activeFormId={activeFormId}
                 onSelectForm={handleSelectDesignForm}

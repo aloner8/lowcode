@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { AppConfig, ComponentNode } from '@/types';
+import { AppConfig, AppRoute, ComponentNode } from '@/types';
 import { COMPONENT_PALETTE, ComponentPaletteItem } from '@/lib/engine/ComponentRegistry';
 import {
   Folder,
@@ -59,6 +59,7 @@ interface StudioTreeviewOutlineProps {
   setActivePage: (page: string) => void;
   onAddComponent: (item: ComponentPaletteItem) => void;
   pages: Array<{ id: string; name: string; containerName?: string; routePath?: string; isDefaultPage?: boolean; componentTree?: ComponentNode[] }>;
+  routes?: AppRoute[];
   forms: StudioFormDefinition[];
   activeFormId: string | null;
   onSelectForm: (formId: string, mode: 'insert' | 'update' | 'readOnly') => void;
@@ -129,6 +130,7 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
   setActivePage,
   onAddComponent,
   pages,
+  routes = [],
   forms,
   activeFormId,
   onSelectForm,
@@ -203,7 +205,21 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
     { path: '/services', label: 'Services Catalogue', type: 'public_page' },
     { path: '/contact', label: 'Contact Us Form', type: 'form_crud' },
   ];
-  const platformSiteRoutes = useMemo(() => {
+  const platformSiteRoutes = useMemo<Array<{ id?: string; path: string; label: string; type: 'public_page' | 'form_crud'; page: StudioTreeviewOutlineProps['pages'][number] & { containerName: string } }>>(() => {
+    if (routes.length) {
+      const generated = routes.map((route) => {
+      const linkedPage = route.targetType === 'page' && route.targetId ? pages.find((page) => page.id === route.targetId) : undefined;
+      const page = linkedPage || { id: route.targetId || route.id, name: route.label, containerName: route.containerName, routePath: route.path, componentTree: [] };
+      return { id: route.id, path: route.path, label: route.label, type: (route.targetType === 'form' ? 'form_crud' : 'public_page') as 'public_page' | 'form_crud', page: { ...page, containerName: route.containerName } };
+      });
+      const linkedPageIds = new Set(routes.filter((route) => route.targetType === 'page' && route.targetId).map((route) => route.targetId));
+      const unlinkedPages = pages.filter((page) => !linkedPageIds.has(page.id)).map((page) => {
+        const inferredSurface = /admin|backend/i.test(`${page.id} ${page.name}`) ? 'backend' : 'frontend';
+        const containerName = page.containerName?.trim() || `${appInfo.appSlug}-${inferredSurface}`;
+        return { id: `route.page.${page.id}`, path: page.routePath || (page.isDefaultPage ? '/' : `/${page.id}`), label: page.name.replace(/\s*\([^)]*\)\s*$/, '') || page.id, type: 'public_page' as const, page: { ...page, containerName } };
+      });
+      return [...generated, ...unlinkedPages];
+    }
     const seenContainers = new Set<string>();
     return pages.map((page) => {
       const inferredSurface = /admin|backend/i.test(`${page.id} ${page.name}`) ? 'backend' : 'frontend';
@@ -212,7 +228,7 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
       seenContainers.add(containerName);
       return { path: page.routePath || (page.isDefaultPage || isFirstInContainer ? '/' : `/${page.id}`), label: page.name.replace(/\s*\([^)]*\)\s*$/, '') || page.id, type: 'public_page' as const, page: { ...page, containerName } };
     });
-  }, [appInfo.appSlug, pages]);
+  }, [appInfo.appSlug, pages, routes]);
   const siteRoutesByContainer = useMemo(() => platformSiteRoutes.reduce<Record<string, typeof platformSiteRoutes>>((result, route) => {
     const inferredSurface = /admin|backend/i.test(`${route.page.id} ${route.page.name}`) ? 'backend' : 'frontend';
     const containerName = route.page.containerName?.trim() || `${appInfo.appSlug}-${inferredSurface}`;

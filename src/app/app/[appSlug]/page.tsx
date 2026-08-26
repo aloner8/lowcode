@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
 import { fetchAppRuntimeData, AppRuntimeData } from '@/lib/engine/AppRuntimeFetcher';
 import { DynamicPageRenderer } from '@/components/engine/DynamicPageRenderer';
 import { WorkflowInterpreter } from '@/lib/engine/WorkflowInterpreter';
@@ -30,6 +30,7 @@ const resolveCanonicalMenuItem = (item: SlideMenuItem): SlideMenuItem => {
 export default function ChildAppRuntimePage() {
   const params = useParams();
   const appSlug = (params?.appSlug as string) || 'client-a';
+  const pathname = usePathname();
 
   const [runtimeData, setRuntimeData] = useState<AppRuntimeData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -47,6 +48,18 @@ export default function ChildAppRuntimePage() {
     loadData();
   }, [appSlug]);
 
+  useEffect(() => {
+    if (!runtimeData) return;
+    const prefix = `/app/${appSlug}`;
+    const requestedPath = pathname.startsWith(prefix) ? pathname.slice(prefix.length) || '/' : '/';
+    const route = runtimeData.routes?.find((item) => item.path === requestedPath || item.legacyPaths?.includes(requestedPath));
+    if (!route) return;
+    if (route.targetType === 'page' && route.targetId) {
+      const page = runtimeData.pages?.find((item) => item.id === route.targetId);
+      if (page?.componentTree?.length) { setSelectedContent(page.componentTree); setSelectedMenuLabel(route.label); }
+    } else if (route.targetType === 'external' && route.externalUrl) window.location.replace(route.externalUrl);
+  }, [appSlug, pathname, runtimeData]);
+
   if (loading || !runtimeData) {
     return (
       <div className="min-vh-100 d-flex flex-column align-items-center justify-content-center bg-light">
@@ -62,6 +75,20 @@ export default function ChildAppRuntimePage() {
   const handleActionTrigger = async (actionId: string, payload: any) => {
     if (actionId === 'menu.select') {
       const selectedMenu = resolveCanonicalMenuItem(payload || {});
+      const routeId = selectedMenu.action?.type === 'openRoute' ? selectedMenu.action.routeId : selectedMenu.routeId;
+      const route = routeId ? runtimeData.routes?.find((item) => item.id === routeId) : undefined;
+      if (route) {
+        if (route.targetType === 'external' && route.externalUrl) { window.open(route.externalUrl, '_blank', 'noopener,noreferrer'); return; }
+        if (route.targetType === 'page' && route.targetId) {
+          const page = runtimeData.pages?.find((item) => item.id === route.targetId);
+          if (page?.componentTree?.length) {
+            setSelectedContent(page.componentTree); setSelectedMenuLabel(route.label); setLastAction(null);
+            window.history.pushState({ routeId: route.id }, '', `/app/${appSlug}${route.path === '/' ? '' : route.path}`);
+            return;
+          }
+        }
+        if (route.targetType === 'legacy' && route.legacyPaths?.[0]) { window.location.assign(route.legacyPaths[0]); return; }
+      }
       const resource = selectedMenu.resource;
       let nodes: ComponentNode[] | undefined;
       if (resource?.componentType === 'FormComponent' && resource.formId) {

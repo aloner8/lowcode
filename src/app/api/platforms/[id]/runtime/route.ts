@@ -8,14 +8,14 @@ export const dynamic = 'force-dynamic';
 
 interface RuntimeRow {
   id: string; platform_slug: string; platform_name: string; master_theme_config: unknown;
-  studio_pages: unknown[]; studio_forms: unknown[]; studio_collections: unknown[]; studio_initialized: boolean; content_updated_at: Date;
+  studio_pages: unknown[]; studio_forms: unknown[]; studio_collections: unknown[]; studio_routes: unknown[]; studio_initialized: boolean; content_updated_at: Date;
   runtime_path: string | null; runtime_image: string | null; runtime_container_name: string | null;
   runtime_status: string; runtime_built_at: Date | null; runtime_source_updated_at: Date | null;
   runtime_build_revision: string | null; runtime_port: number | null; runtime_error: string | null;
   runtime_surfaces: Record<string, { containerName: string; port: number | null; url: string | null }>;
 }
 
-const selectRuntime = `SELECT id, platform_slug, platform_name, master_theme_config, studio_pages, studio_forms, studio_collections,
+const selectRuntime = `SELECT id, platform_slug, platform_name, master_theme_config, studio_pages, studio_forms, studio_collections, studio_routes,
  studio_initialized, content_updated_at, runtime_path, runtime_image, runtime_container_name,
  runtime_status, runtime_built_at, runtime_source_updated_at, runtime_build_revision, runtime_port, runtime_error, runtime_surfaces
  FROM public.platforms WHERE id = $1`;
@@ -67,6 +67,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     pages: platform.studio_pages,
     forms: platform.studio_forms || [],
     collections: platform.studio_collections || [],
+    routes: platform.studio_routes || [],
     generatedAt: new Date().toISOString(),
   };
   const revision = createHash('sha256').update(JSON.stringify(snapshot)).digest('hex').slice(0, 12);

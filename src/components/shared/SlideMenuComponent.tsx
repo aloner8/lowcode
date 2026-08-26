@@ -9,6 +9,8 @@ export interface SlideMenuItem {
   type?: 'section' | 'item';
   iconName?: string;
   href?: string;
+  routeId?: string;
+  action?: { type: 'openRoute'; routeId: string; params?: Record<string, unknown> } | { type: 'openExternal'; url: string; newTab?: boolean } | { type: 'triggerAction'; actionId: string; payload?: Record<string, unknown> } | { type: 'none' };
   badge?: string;
   active?: boolean;
   permission?: string;

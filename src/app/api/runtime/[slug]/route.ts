@@ -27,5 +27,7 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
     },
     forms: snapshot.forms || [],
     collections: snapshot.collections || [],
+    routes: snapshot.routes || [],
+    pages: snapshot.pages || [],
   });
 }

@@ -19,6 +19,7 @@ interface StudioPlatformRow {
   studio_pages: Array<{ id: string; name: string; title: string }>;
   studio_forms: StudioFormDefinition[];
   studio_collections: StudioCollectionDefinition[];
+  studio_routes: unknown[];
   studio_initialized: boolean;
   is_published: boolean;
   updated_at: Date;
@@ -36,6 +37,7 @@ function toStudioPlatform(row: StudioPlatformRow) {
     studioPages: row.studio_pages,
     studioForms: row.studio_forms,
     studioCollections: row.studio_collections,
+    studioRoutes: row.studio_routes,
     studioInitialized: row.studio_initialized,
     isPublished: row.is_published,
     updatedAt: row.updated_at.toISOString(),
@@ -45,7 +47,7 @@ function toStudioPlatform(row: StudioPlatformRow) {
 const selectStudioPlatform = `
   SELECT p.id, p.platform_slug, p.platform_name, p.description,
          c.category_name, p.master_theme_config, p.studio_layout,
-         p.studio_pages, p.studio_forms, p.studio_collections, p.studio_initialized,
+         p.studio_pages, p.studio_forms, p.studio_collections, p.studio_routes, p.studio_initialized,
          p.is_published, p.updated_at
   FROM public.platforms p
   LEFT JOIN public.platform_categories c ON c.id = p.category_id

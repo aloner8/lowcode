@@ -23,6 +23,7 @@ services:
       - ./docker/postgres/migrations/005_create_tenant_database.sql:/docker-entrypoint-initdb.d/005_create_tenant_database.sql:ro
       - ./docker/postgres/migrations/006_create_platform_design_configs.sql:/docker-entrypoint-initdb.d/006_create_platform_design_configs.sql:ro
       - ./docker/postgres/migrations/007_create_studio_forms.sql:/docker-entrypoint-initdb.d/007_create_studio_forms.sql:ro
+      - ./docker/postgres/migrations/008_create_platform_routes.sql:/docker-entrypoint-initdb.d/008_create_platform_routes.sql:ro
     healthcheck:
       test:
         [

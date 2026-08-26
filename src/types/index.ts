@@ -168,6 +168,33 @@ export interface AppMembership {
   updatedAt: string;
 }
 
+export type AppRouteTargetType = 'page' | 'form' | 'collection' | 'legacy' | 'external';
+
+export interface AppRouteMigrationMetadata {
+  sourceSystemId: string;
+  sourceKey: string;
+  sourceFingerprint: string;
+  rulesVersion: string;
+  managedFields: string[];
+}
+
+export interface AppRoute {
+  id: string;
+  platformId: string;
+  containerName: string;
+  path: string;
+  label: string;
+  targetType: AppRouteTargetType;
+  targetId?: string;
+  legacyPaths?: string[];
+  externalUrl?: string;
+  permission?: string;
+  isPublic?: boolean;
+  isDefault?: boolean;
+  redirectToRouteId?: string;
+  metadata?: Record<string, unknown> & { migration?: AppRouteMigrationMetadata };
+}
+
 // ==========================================
 // Top-Level App WorkFlow (App Manifest) Types
 // ==========================================
