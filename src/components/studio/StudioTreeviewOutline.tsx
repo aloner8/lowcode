@@ -43,6 +43,7 @@ import {
   Wrench,
   Download,
   Upload,
+  Trash2,
   KeyRound,
   ArrowRight,
   Boxes,
@@ -75,6 +76,8 @@ interface StudioTreeviewOutlineProps {
   onSelectRawTable: (tableName: string) => void;
   onOpenPageManager: (containerName?: string) => void;
   onRoutesChanged?: (routes: AppRoute[]) => void;
+  onSelectSiteMapNode?: (routeId: string) => void;
+  onDeleteSiteMapNode?: (route: AppRoute) => Promise<void>;
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
 }
@@ -147,6 +150,8 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
   onSelectRawTable,
   onOpenPageManager,
   onRoutesChanged,
+  onSelectSiteMapNode,
+  onDeleteSiteMapNode,
   collapsed = false,
   onToggleCollapsed,
 }) => {
@@ -171,6 +176,12 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
   const [autoToolError, setAutoToolError] = useState<string | null>(null);
   const [autoToolBusy, setAutoToolBusy] = useState(false);
   const [conversionPreview, setConversionPreview] = useState<{ sourceFingerprint: string; summary: { discovered: number; created: number; skipped: number; unresolved: number; conflicts: number } } | null>(null);
+  const [autoSourceMode, setAutoSourceMode] = useState<'sql' | 'collection'>('sql');
+  const [selectedAutoCollectionIds, setSelectedAutoCollectionIds] = useState<string[]>([]);
+  const [collectionRoutePreview, setCollectionRoutePreview] = useState<{ selected: number; created: number; updated: number; unchanged: number } | null>(null);
+  const [autoTargetContainer, setAutoTargetContainer] = useState(`${appInfo.appSlug}-backend`);
+  const autoContainerOptions = useMemo(() => Array.from(new Set([`${appInfo.appSlug}-frontend`, `${appInfo.appSlug}-backend`, ...routes.map((route) => route.containerName).filter(Boolean)])), [appInfo.appSlug, routes]);
+  useEffect(() => { setAutoTargetContainer((current) => autoContainerOptions.includes(current) ? current : `${appInfo.appSlug}-backend`); }, [appInfo.appSlug, autoContainerOptions]);
   useEffect(() => {
     if (!platformId) return;
     fetch(`/api/platforms/${platformId}/page-flows`, { cache: 'no-store' }).then((response) => response.json()).then((data: { flows?: Array<{ routePath: string; nodes: Array<{ id: string; type?: string; data?: Record<string, unknown> }> }> }) => setRouteFlows(data.flows || [])).catch(() => setRouteFlows([]));
@@ -214,18 +225,21 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
     { path: '/services', label: 'Services Catalogue', type: 'public_page' },
     { path: '/contact', label: 'Contact Us Form', type: 'form_crud' },
   ];
-  const platformSiteRoutes = useMemo<Array<{ id?: string; path: string; label: string; type: 'public_page' | 'form_crud'; page: StudioTreeviewOutlineProps['pages'][number] & { containerName: string } }>>(() => {
+  const platformSiteRoutes = useMemo<Array<{ id?: string; path: string; label: string; type: 'public_page' | 'form_crud'; nodeType: AppRoute['targetType']; outlinePath: Array<{ id: string; label: string }>; page: StudioTreeviewOutlineProps['pages'][number] & { containerName: string } }>>(() => {
     if (routes.length) {
       const generated = routes.map((route) => {
       const linkedPage = route.targetType === 'page' && route.targetId ? pages.find((page) => page.id === route.targetId) : undefined;
       const page = linkedPage || { id: route.targetId || route.id, name: route.label, containerName: route.containerName, routePath: route.path, componentTree: [] };
-      return { id: route.id, path: route.path, label: route.label, type: (route.targetType === 'form' ? 'form_crud' : 'public_page') as 'public_page' | 'form_crud', page: { ...page, containerName: route.containerName } };
+      const storedOutline = Array.isArray(route.metadata?.outlinePath) ? route.metadata.outlinePath : [];
+      const inferredModule = route.legacyPaths?.[0]?.split('?')[0].split('/').filter(Boolean)[0];
+      const outlinePath = storedOutline.length ? storedOutline : (inferredModule ? [{ id: `module:${inferredModule}`, label: inferredModule.toUpperCase() }] : []);
+      return { id: route.id, path: route.path, label: route.label, type: (route.targetType === 'form' ? 'form_crud' : 'public_page') as 'public_page' | 'form_crud', nodeType: route.targetType, outlinePath, page: { ...page, containerName: route.containerName } };
       });
       const linkedPageIds = new Set(routes.filter((route) => route.targetType === 'page' && route.targetId).map((route) => route.targetId));
       const unlinkedPages = pages.filter((page) => !linkedPageIds.has(page.id)).map((page) => {
         const inferredSurface = /admin|backend/i.test(`${page.id} ${page.name}`) ? 'backend' : 'frontend';
         const containerName = page.containerName?.trim() || `${appInfo.appSlug}-${inferredSurface}`;
-        return { id: `route.page.${page.id}`, path: page.routePath || (page.isDefaultPage ? '/' : `/${page.id}`), label: page.name.replace(/\s*\([^)]*\)\s*$/, '') || page.id, type: 'public_page' as const, page: { ...page, containerName } };
+        return { id: `route.page.${page.id}`, path: page.routePath || (page.isDefaultPage ? '/' : `/${page.id}`), label: page.name.replace(/\s*\([^)]*\)\s*$/, '') || page.id, type: 'public_page' as const, nodeType: 'page' as const, outlinePath: [], page: { ...page, containerName } };
       });
       return [...generated, ...unlinkedPages];
     }
@@ -235,7 +249,7 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
       const containerName = page.containerName?.trim() || `${appInfo.appSlug}-${inferredSurface}`;
       const isFirstInContainer = !seenContainers.has(containerName);
       seenContainers.add(containerName);
-      return { path: page.routePath || (page.isDefaultPage || isFirstInContainer ? '/' : `/${page.id}`), label: page.name.replace(/\s*\([^)]*\)\s*$/, '') || page.id, type: 'public_page' as const, page: { ...page, containerName } };
+      return { path: page.routePath || (page.isDefaultPage || isFirstInContainer ? '/' : `/${page.id}`), label: page.name.replace(/\s*\([^)]*\)\s*$/, '') || page.id, type: 'public_page' as const, nodeType: 'page' as const, outlinePath: [], page: { ...page, containerName } };
     });
   }, [appInfo.appSlug, pages, routes]);
   const siteRoutesByContainer = useMemo(() => platformSiteRoutes.reduce<Record<string, typeof platformSiteRoutes>>((result, route) => {
@@ -396,7 +410,7 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
     if (!platformId || !yiiSqlText.trim()) return setAutoToolError('กรุณาเลือกไฟล์ Yii SQL dump ก่อน');
     setAutoToolBusy(true); setAutoToolError(null); setAutoToolStatus('กำลังวิเคราะห์ Yii routes...'); setConversionPreview(null);
     try {
-      const response = await fetch(`/api/platforms/${platformId}/route-conversions/preview`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sourceSystemId: yiiSourceSystemId.trim() || 'yii-project', sqlText: yiiSqlText, options: { rulesVersion: 'yii2-react-route-v1', targetContainers: { frontend: `${appInfo.appSlug}-frontend`, backend: `${appInfo.appSlug}-backend` }, preserveLegacyHref: true } }) });
+      const response = await fetch(`/api/platforms/${platformId}/route-conversions/preview`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sourceSystemId: yiiSourceSystemId.trim() || 'yii-project', sqlText: yiiSqlText, options: { rulesVersion: 'yii2-react-route-v1', targetContainers: { frontend: autoTargetContainer, backend: autoTargetContainer }, preserveLegacyHref: true } }) });
       const data = await response.json() as { conversion?: typeof conversionPreview; error?: string };
       if (!response.ok || !data.conversion) throw new Error(data.error || 'Preview failed');
       setConversionPreview(data.conversion); setAutoToolStatus('Preview พร้อมตรวจสอบแล้ว');
@@ -408,7 +422,7 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
     if (!platformId || !conversionPreview) return;
     setAutoToolBusy(true); setAutoToolError(null); setAutoToolStatus('กำลังสร้าง Routes และ Site Map...');
     try {
-      const response = await fetch(`/api/platforms/${platformId}/route-conversions/apply`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sourceSystemId: yiiSourceSystemId.trim() || 'yii-project', sqlText: yiiSqlText, previewFingerprint: conversionPreview.sourceFingerprint, options: { rulesVersion: 'yii2-react-route-v1', targetContainers: { frontend: `${appInfo.appSlug}-frontend`, backend: `${appInfo.appSlug}-backend` }, preserveLegacyHref: true } }) });
+      const response = await fetch(`/api/platforms/${platformId}/route-conversions/apply`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sourceSystemId: yiiSourceSystemId.trim() || 'yii-project', sqlText: yiiSqlText, previewFingerprint: conversionPreview.sourceFingerprint, options: { rulesVersion: 'yii2-react-route-v1', targetContainers: { frontend: autoTargetContainer, backend: autoTargetContainer }, preserveLegacyHref: true } }) });
       const data = await response.json() as { conversion?: { summary: typeof conversionPreview.summary }; error?: string };
       if (!response.ok) throw new Error(data.error || 'Apply failed');
       const studioResponse = await fetch(`/api/platforms/${platformId}/studio?t=${Date.now()}`, { cache: 'no-store' });
@@ -416,6 +430,32 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
       onRoutesChanged?.(studioData.platform?.studioRoutes || []);
       setAutoToolStatus(`สร้าง Site Map สำเร็จ: ${data.conversion?.summary.created || 0} routes ใหม่`);
     } catch (error) { setAutoToolError(error instanceof Error ? error.message : 'Apply failed'); setAutoToolStatus(null); }
+    finally { setAutoToolBusy(false); }
+  };
+
+  const recheckYiiTargets = async () => {
+    if (!platformId) return setAutoToolError('ไม่พบ Platform สำหรับตรวจสอบ Yii');
+    setAutoToolBusy(true); setAutoToolError(null); setAutoToolStatus('กำลังค้นหา Yii views และ forms ตาม Route...');
+    try {
+      const response = await fetch(`/api/platforms/${platformId}/route-conversions/recheck-yii`, { method: 'POST' });
+      const data = await response.json() as { routes?: AppRoute[]; summary?: { checked: number; matched: number; unresolved: number; formsAdded: number; collectionsAdded: number }; error?: string };
+      if (!response.ok || !data.summary) throw new Error(data.error || 'ReCheckYII failed');
+      onRoutesChanged?.(data.routes || []);
+      setAutoToolStatus(`ReCheckYII สำเร็จ: ผูก ${data.summary.matched}/${data.summary.checked} routes, เพิ่ม ${data.summary.formsAdded} forms และ ${data.summary.collectionsAdded} collections, ยังไม่พบ ${data.summary.unresolved}`);
+    } catch (error) { setAutoToolError(error instanceof Error ? error.message : 'ReCheckYII failed'); setAutoToolStatus(null); }
+    finally { setAutoToolBusy(false); }
+  };
+
+  const runCollectionSiteMap = async (apply: boolean) => {
+    if (!platformId || !selectedAutoCollectionIds.length) return setAutoToolError('กรุณาเลือก Collection อย่างน้อยหนึ่งรายการ');
+    setAutoToolBusy(true); setAutoToolError(null); setAutoToolStatus(apply ? 'กำลังสร้าง Routes จาก Collections...' : 'กำลัง Preview Collections...');
+    try {
+      const response = await fetch(`/api/platforms/${platformId}/site-map/from-collections`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ collectionIds: selectedAutoCollectionIds, containerName: autoTargetContainer, apply }) });
+      const data = await response.json() as { summary?: typeof collectionRoutePreview; error?: string };
+      if (!response.ok || !data.summary) throw new Error(data.error || 'Collection route generation failed');
+      setCollectionRoutePreview(data.summary); setAutoToolStatus(apply ? `สร้าง Site Map จาก ${data.summary.selected} Collections สำเร็จ` : 'Preview พร้อมตรวจสอบแล้ว');
+      if (apply) { const studioResponse = await fetch(`/api/platforms/${platformId}/studio?t=${Date.now()}`, { cache: 'no-store' }); const studioData = await studioResponse.json() as { platform?: { studioRoutes?: AppRoute[] } }; onRoutesChanged?.(studioData.platform?.studioRoutes || []); }
+    } catch (error) { setAutoToolError(error instanceof Error ? error.message : 'Collection route generation failed'); setAutoToolStatus(null); }
     finally { setAutoToolBusy(false); }
   };
 
@@ -465,9 +505,9 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
           </div>
           <div className="ms-2 ps-2 border-start mt-1">{Object.entries(siteRoutesByContainer).map(([containerName, containerRoutes]) => { const containerOpen = openSiteContainers[containerName] !== false; return <div key={containerName} className="mb-1">
             <div className="d-flex align-items-center bg-light rounded-1"><button type="button" className="btn btn-sm border-0 flex-grow-1 d-flex align-items-center gap-1 text-start px-1 py-1 text-dark fw-bold" onClick={() => setOpenSiteContainers((current) => ({ ...current, [containerName]: !containerOpen }))}>{containerOpen ? <ChevronDown size={11}/> : <ChevronRight size={11}/>}<Box size={12} className="text-primary"/><span className="text-truncate">{containerName}</span><span className="badge bg-primary bg-opacity-10 text-primary ms-auto">{containerRoutes.length} Routes</span></button><MenuAddButton label={`route to ${containerName}`} onClick={() => onOpenPageManager(containerName)}/></div>
-            {containerOpen && <div className="ms-3 ps-2 border-start">{containerRoutes.map((route) => { const routeKey = `${containerName}:${route.path}`; const flowRoutePath = routeKey; const routeOpen = openSiteRoutes[routeKey] === true; const group = (name: string) => `${routeKey}:${name}`; return <div key={routeKey} className="mb-1">
-            <button type="button" className="btn btn-sm border-0 w-100 d-flex align-items-center gap-1 text-start px-1 py-1 text-dark fw-semibold" onClick={() => setOpenSiteRoutes((current) => ({ ...current, [routeKey]: !routeOpen }))}>{routeOpen ? <ChevronDown size={11}/> : <ChevronRight size={11}/>}<Compass size={12} className="text-danger"/><span className="text-truncate">{route.label}</span><code className="ms-auto" style={{ fontSize: '.58rem' }}>{route.path}</code></button>
-            {routeOpen && <div className="ms-3 ps-2 border-start">
+            {containerOpen && <div className="ms-3 ps-2 border-start">{containerRoutes.map((route, routeIndex) => { const routeKey = `${containerName}:${route.path}`; const flowRoutePath = routeKey; const routeOpen = openSiteRoutes[routeKey] === true; const group = (name: string) => `${routeKey}:${name}`; const outlinePath = route.outlinePath || []; const previousOutline = routeIndex > 0 ? (containerRoutes[routeIndex - 1].outlinePath || []) : []; const newOutline = outlinePath.filter((item, depth) => previousOutline[depth]?.id !== item.id); return <React.Fragment key={routeKey}>{newOutline.map((item) => { const depth = outlinePath.findIndex((entry) => entry.id === item.id); return <div key={`${routeKey}:outline:${item.id}`} className="d-flex align-items-center gap-1 py-1 text-primary fw-bold" style={{ marginLeft: depth * 14, fontSize: '.68rem' }}><ChevronDown size={10}/><Folder size={11} className="text-warning fill-warning"/><span className="text-truncate">{item.label}</span></div>; })}<div className="mb-1" style={{ marginLeft: outlinePath.length * 14 }}>
+            <div className="d-flex align-items-center w-100 overflow-hidden gap-1"><button type="button" className="btn btn-sm border-0 d-flex align-items-center gap-1 text-start px-1 py-1 text-dark fw-semibold overflow-hidden" style={{ minWidth: 0 }} onClick={() => route.id && onSelectSiteMapNode?.(route.id)}>{route.nodeType === 'page' ? <FileText size={12} className="text-primary flex-shrink-0"/> : route.nodeType === 'form' ? <Files size={12} className="text-success flex-shrink-0"/> : route.nodeType === 'collection' ? <Database size={12} className="text-warning flex-shrink-0"/> : route.nodeType === 'external' ? <ExternalLink size={12} className="text-info flex-shrink-0"/> : <Compass size={12} className="text-danger flex-shrink-0"/>}<span className="text-truncate">{route.label}</span></button><button type="button" className="btn btn-sm btn-danger p-1 flex-shrink-0 d-inline-flex align-items-center justify-content-center" style={{ width: 22, height: 22 }} title={`Delete ${route.label}`} aria-label={`Delete ${route.label}`} disabled={!route.id} onClick={(event) => { event.stopPropagation(); if (route.id && window.confirm(`ลบ Node '${route.label}' (${route.path}) ใช่หรือไม่?`)) void onDeleteSiteMapNode?.({ id: route.id, platformId: platformId || '', containerName, path: route.path, label: route.label, targetType: route.nodeType }); }}><Trash2 size={12}/></button><span className="badge bg-light text-secondary text-uppercase flex-shrink-0" style={{ fontSize: '.48rem' }}>{route.nodeType}</span><code className="ms-auto text-truncate" style={{ fontSize: '.58rem', maxWidth: 72 }}>{route.path}</code></div>
+            {false && routeOpen && <div className="ms-3 ps-2 border-start">
               <div><div className="d-flex align-items-center justify-content-between py-1"><button className="btn btn-sm border-0 p-0 d-flex align-items-center gap-1 text-warning fw-semibold" style={{ fontSize: '.65rem' }} onClick={() => setOpenRouteGroups((current) => ({ ...current, [group('events')]: current[group('events')] === false }))}>{openRouteGroups[group('events')] !== false ? <ChevronDown size={9}/> : <ChevronRight size={9}/>}<Zap size={10}/> Events</button><MenuAddButton label="event flow" onClick={() => onSelectPageFlow({ path: flowRoutePath, label: `${containerName} / ${route.label}`, type: route.type })}/></div>
                 {openRouteGroups[group('events')] !== false && <div className="ms-3 ps-2 border-start"><button type="button" className="btn btn-sm border-0 w-100 text-start text-secondary py-1 px-1" style={{ fontSize: '.62rem' }} onClick={() => onSelectPageFlow({ path: flowRoutePath, label: `${containerName} / ${route.label}`, type: route.type })}><Workflow size={9} className="me-1 text-warning"/>OnLoad → OpenPage({route.page.id})</button></div>}
               </div>
@@ -504,7 +544,7 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
               </div>
               {(['services','apis'] as const).map((kind) => { const flowNodes = (routeFlows.find((flow) => flow.routePath === flowRoutePath)?.nodes || []).filter((node) => kind === 'services' ? String(node.data?.actionType || '').toLowerCase().includes('service') : String(node.data?.actionType || '').toLowerCase().includes('api')); return <div key={kind}><div className="d-flex align-items-center justify-content-between py-1"><button className="btn btn-sm border-0 p-0 d-flex align-items-center gap-1 text-info fw-semibold text-capitalize" style={{ fontSize: '.65rem' }} onClick={() => setOpenRouteGroups((current) => ({ ...current, [group(kind)]: current[group(kind)] === false }))}>{openRouteGroups[group(kind)] !== false ? <ChevronDown size={9}/> : <ChevronRight size={9}/>} {kind === 'services' ? <Server size={10}/> : <PlugZap size={10}/>} {kind} <span className="badge bg-light text-info">{flowNodes.length}</span></button><MenuAddButton label={kind === 'services' ? 'service binding' : 'API call'} onClick={() => onSelectPageFlow({ path: flowRoutePath, label: `${containerName} / ${route.label}`, type: route.type })}/></div>{openRouteGroups[group(kind)] !== false && <div className="ms-3 ps-2 border-start text-muted py-1" style={{ fontSize: '.6rem' }}>{flowNodes.length ? flowNodes.map((node) => <div key={node.id} className="py-1"><Zap size={8} className="me-1"/>{String(node.data?.label || node.id)}</div>) : `No ${kind} assigned`}</div>}</div>; })}
             </div>}
-          </div>; })}</div>}
+          </div></React.Fragment>; })}</div>}
           </div>; })}</div>
         </div>
 
@@ -512,11 +552,14 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
           <div className="card border-0 shadow-lg rounded-4 overflow-hidden" style={{ width: 'min(94vw,720px)' }} onClick={(event) => event.stopPropagation()}>
             <div className="card-header bg-dark text-white d-flex align-items-center justify-content-between p-3"><div className="d-flex align-items-center gap-2"><Sparkles size={20} className="text-warning"/><div><b>Site Map Auto Tools</b><div className="text-white-50" style={{ fontSize: '.68rem' }}>คำสั่งอัตโนมัติที่เรียกซ้ำได้สำหรับ Platform</div></div></div><button className="btn btn-sm btn-outline-light border-0" onClick={() => setShowAutoTools(false)} disabled={autoToolBusy}><X size={17}/></button></div>
             <div className="card-body p-4">
-              <div className="border rounded-3 p-3 mb-3 bg-light"><div className="d-flex align-items-start gap-2 mb-3"><Sparkles size={18} className="text-primary mt-1"/><div><b>Auto Site Map from Yii</b><div className="text-secondary small">อ่านตาราง <code>cms_menu</code>, สร้าง Route ID, legacy aliases และอัปเดต Site Map อัตโนมัติ</div></div></div>
-                <div className="row g-2"><div className="col-md-5"><label className="form-label small mb-1">Source System ID</label><input className="form-control form-control-sm" value={yiiSourceSystemId} onChange={(event) => { setYiiSourceSystemId(event.target.value); setConversionPreview(null); }} placeholder="เช่น yang-obt" disabled={autoToolBusy}/></div><div className="col-md-7"><label className="form-label small mb-1">Yii SQL dump</label><input type="file" accept=".sql,text/plain" className="form-control form-control-sm" disabled={autoToolBusy} onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; setYiiSourceSystemId((current) => current === 'yii-project' ? file.name.replace(/\.sql$/i, '').replace(/[^a-z0-9-]+/gi, '-').toLowerCase() : current); setConversionPreview(null); setAutoToolStatus(`เลือก ${file.name}`); setAutoToolError(null); void file.text().then(setYiiSqlText).catch(() => setAutoToolError('ไม่สามารถอ่านไฟล์ SQL ได้')); }}/></div></div>
+              <div className="border rounded-3 p-3 mb-3 bg-light"><div className="d-flex align-items-start gap-2 mb-3"><Sparkles size={18} className="text-primary mt-1"/><div><b>Auto Site Map</b><div className="text-secondary small">สร้าง Route ID และ Site Map จาก Yii หรือ Collections ที่มีจริงใน Project</div></div></div>
+                <div className="btn-group btn-group-sm mb-3"><button className={`btn ${autoSourceMode === 'sql' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setAutoSourceMode('sql')}>Yii SQL dump</button><button className={`btn ${autoSourceMode === 'collection' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setAutoSourceMode('collection')}>Project Collections</button></div>
+                <div className="mb-3"><label className="form-label small mb-1">Target Container</label><select className="form-select form-select-sm" value={autoTargetContainer} onChange={(event) => { setAutoTargetContainer(event.target.value); setConversionPreview(null); setCollectionRoutePreview(null); }} disabled={autoToolBusy}>{autoContainerOptions.map((containerName) => <option key={containerName} value={containerName}>{containerName}</option>)}</select><small className="text-muted">Routes ที่สร้างทั้งหมดจะถูกบันทึกใน container นี้</small></div>
+                {autoSourceMode === 'sql' ? <div className="row g-2"><div className="col-md-5"><label className="form-label small mb-1">Source System ID</label><input className="form-control form-control-sm" value={yiiSourceSystemId} onChange={(event) => { setYiiSourceSystemId(event.target.value); setConversionPreview(null); }} placeholder="เช่น yang-obt" disabled={autoToolBusy}/></div><div className="col-md-7"><label className="form-label small mb-1">Yii SQL dump</label><input type="file" accept=".sql,text/plain" className="form-control form-control-sm" disabled={autoToolBusy} onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; setYiiSourceSystemId((current) => current === 'yii-project' ? file.name.replace(/\.sql$/i, '').replace(/[^a-z0-9-]+/gi, '-').toLowerCase() : current); setConversionPreview(null); setAutoToolStatus(`เลือก ${file.name}`); setAutoToolError(null); void file.text().then(setYiiSqlText).catch(() => setAutoToolError('ไม่สามารถอ่านไฟล์ SQL ได้')); }}/></div></div> : <div><label className="form-label small mb-1">Collections ใน Project ({collections.length})</label><select multiple className="form-select form-select-sm" style={{ minHeight: 180 }} value={selectedAutoCollectionIds} onChange={(event) => { setSelectedAutoCollectionIds(Array.from(event.currentTarget.selectedOptions, (option) => option.value)); setCollectionRoutePreview(null); }}>{collections.map((collection) => <option key={collection.id} value={collection.id}>{collection.moduleId} / {collection.name} ({collection.table})</option>)}</select><div className="d-flex justify-content-between mt-1"><small className="text-muted">กด Ctrl/⌘ เพื่อเลือกหลายรายการ</small><button className="btn btn-link btn-sm p-0" onClick={() => setSelectedAutoCollectionIds(collections.map((item) => item.id))}>เลือกทั้งหมด</button></div></div>}
                 {conversionPreview && <div className="alert alert-primary py-2 mt-3 mb-0 small"><b>Preview:</b> พบ {conversionPreview.summary.discovered} เมนู · สร้าง {conversionPreview.summary.created} routes · ข้าม {conversionPreview.summary.skipped} หัวข้อ · unresolved {conversionPreview.summary.unresolved} · conflicts {conversionPreview.summary.conflicts}</div>}
+                {collectionRoutePreview && autoSourceMode === 'collection' && <div className="alert alert-primary py-2 mt-3 mb-0 small"><b>Preview:</b> เลือก {collectionRoutePreview.selected} Collections · สร้างใหม่ {collectionRoutePreview.created} · อัปเดต {collectionRoutePreview.updated} · ไม่เปลี่ยน {collectionRoutePreview.unchanged}</div>}
                 {autoToolStatus && <div className="text-success small mt-2">{autoToolStatus}</div>}{autoToolError && <div className="text-danger small mt-2">{autoToolError}</div>}
-                <div className="d-flex justify-content-end gap-2 mt-3"><button className="btn btn-sm btn-outline-primary" onClick={() => void previewYiiSiteMap()} disabled={autoToolBusy || !yiiSqlText}>{autoToolBusy ? 'กำลังทำงาน...' : '1. Preview'}</button><button className="btn btn-sm btn-primary" onClick={() => void applyYiiSiteMap()} disabled={autoToolBusy || !conversionPreview || conversionPreview.summary.unresolved > 0 || conversionPreview.summary.conflicts > 0}>2. Apply & Refresh Site Map</button></div>
+                <div className="d-flex justify-content-end gap-2 mt-3"><button className="btn btn-sm btn-outline-success me-auto" onClick={() => void recheckYiiTargets()} disabled={autoToolBusy || !platformId}><Search size={14} className="me-1"/>ReCheckYII</button><button className="btn btn-sm btn-outline-primary" onClick={() => void (autoSourceMode === 'sql' ? previewYiiSiteMap() : runCollectionSiteMap(false))} disabled={autoToolBusy || (autoSourceMode === 'sql' ? !yiiSqlText : !selectedAutoCollectionIds.length)}>{autoToolBusy ? 'กำลังทำงาน...' : '1. Preview'}</button><button className="btn btn-sm btn-primary" onClick={() => void (autoSourceMode === 'sql' ? applyYiiSiteMap() : runCollectionSiteMap(true))} disabled={autoToolBusy || (autoSourceMode === 'sql' ? !conversionPreview || conversionPreview.summary.unresolved > 0 || conversionPreview.summary.conflicts > 0 : !collectionRoutePreview)}>2. Apply & Refresh Site Map</button></div>
               </div>
               <div className="row g-2"><div className="col-md-4"><button className="btn btn-outline-secondary w-100 text-start" disabled><Sparkles size={14}/> Auto Routes from Pages<div className="small text-muted">Coming next</div></button></div><div className="col-md-4"><button className="btn btn-outline-secondary w-100 text-start" disabled><Sparkles size={14}/> Auto Menu Binding<div className="small text-muted">Coming next</div></button></div><div className="col-md-4"><button className="btn btn-outline-secondary w-100 text-start" disabled><Sparkles size={14}/> Validate & Repair<div className="small text-muted">Coming next</div></button></div></div>
             </div>

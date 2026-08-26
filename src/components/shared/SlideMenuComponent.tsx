@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Menu, X, ChevronRight, ChevronDown, LayoutDashboard, Newspaper, FileText, Image, Users, Download, Flag, Settings, BookOpen, MessageSquareWarning, Tags, Monitor, Contact } from 'lucide-react';
+import type { RuntimeMenuAction } from '@/types';
 
 export interface SlideMenuItem {
   id: string;
@@ -10,7 +11,7 @@ export interface SlideMenuItem {
   iconName?: string;
   href?: string;
   routeId?: string;
-  action?: { type: 'openRoute'; routeId: string; params?: Record<string, unknown> } | { type: 'openExternal'; url: string; newTab?: boolean } | { type: 'triggerAction'; actionId: string; payload?: Record<string, unknown> } | { type: 'none' };
+  action?: RuntimeMenuAction;
   badge?: string;
   active?: boolean;
   permission?: string;

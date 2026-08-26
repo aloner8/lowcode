@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, usePathname } from 'next/navigation';
 import { fetchAppRuntimeData, AppRuntimeData } from '@/lib/engine/AppRuntimeFetcher';
 import { DynamicPageRenderer } from '@/components/engine/DynamicPageRenderer';
+import { RuntimeContentOutlet } from '@/components/engine/RuntimeContentOutlet';
 import { WorkflowInterpreter } from '@/lib/engine/WorkflowInterpreter';
 import { getTenantDbClient } from '@/lib/supabase/tenantClient';
 import { Server, Database, Layers, RefreshCw, CheckCircle2 } from 'lucide-react';
@@ -37,6 +38,7 @@ export default function ChildAppRuntimePage() {
   const [lastAction, setLastAction] = useState<string | null>(null);
   const [selectedContent, setSelectedContent] = useState<ComponentNode[] | null>(null);
   const [selectedMenuLabel, setSelectedMenuLabel] = useState<string>('');
+  const [contentOutletMode, setContentOutletMode] = useState<'content' | 'page'>('content');
 
   useEffect(() => {
     async function loadData() {
@@ -56,7 +58,14 @@ export default function ChildAppRuntimePage() {
     if (!route) return;
     if (route.targetType === 'page' && route.targetId) {
       const page = runtimeData.pages?.find((item) => item.id === route.targetId);
-      if (page?.componentTree?.length) { setSelectedContent(page.componentTree); setSelectedMenuLabel(route.label); }
+      if (page?.componentTree?.length) { setSelectedContent(page.componentTree); setSelectedMenuLabel(route.label); setContentOutletMode('page'); }
+    } else if (route.targetType === 'form' && route.targetId) {
+      const form = runtimeData.forms?.find((item) => item.id === route.targetId);
+      if (form?.componentTree?.length) { setSelectedContent(form.componentTree); setSelectedMenuLabel(route.label); setContentOutletMode('content'); }
+    } else if (route.targetType === 'collection' && route.targetId) {
+      const collection = runtimeData.collections?.find((item) => item.id === route.targetId);
+      const view = collection?.components.find((item) => item.type === 'DataTableComponent') || collection?.components[0];
+      if (view?.componentTree?.length) { setSelectedContent(view.componentTree); setSelectedMenuLabel(route.label); setContentOutletMode('content'); }
     } else if (route.targetType === 'external' && route.externalUrl) window.location.replace(route.externalUrl);
   }, [appSlug, pathname, runtimeData]);
 
@@ -72,17 +81,77 @@ export default function ChildAppRuntimePage() {
 
   const { appConfig, pageLayout, workflowTree } = runtimeData;
 
-  const handleActionTrigger = async (actionId: string, payload: any) => {
+  const handleActionTrigger = async (actionId: string, payload: any): Promise<void> => {
     if (actionId === 'menu.select') {
       const selectedMenu = resolveCanonicalMenuItem(payload || {});
-      const routeId = selectedMenu.action?.type === 'openRoute' ? selectedMenu.action.routeId : selectedMenu.routeId;
+      const action = selectedMenu.action;
+      if (action?.type === 'switchContent' && action.contentId) {
+        try {
+          setLastAction(`Loading content '${action.contentId}'...`);
+          const response = await fetch(`/api/runtime/${encodeURIComponent(appSlug)}/content/${encodeURIComponent(action.contentId)}`, { cache: 'no-store' });
+          const result = await response.json() as { componentTree?: ComponentNode[]; error?: string };
+          if (!response.ok || !result.componentTree?.length) throw new Error(result.error || 'Content not found');
+          const params = action.params || {};
+          setSelectedContent(result.componentTree.map((node) => ({ ...node, props: { ...node.props, ...params, appSlug, routeParams: params } })));
+          setSelectedMenuLabel(selectedMenu.label || action.contentId); setContentOutletMode('content'); setLastAction(null);
+        } catch (error) { setLastAction(error instanceof Error ? error.message : 'Unable to switch content'); }
+        return;
+      }
+      if (action?.type === 'navigatePage' && action.pageId) {
+        const page = runtimeData.pages?.find((item) => item.id === action.pageId);
+        if (page?.componentTree?.length) { setSelectedContent(page.componentTree); setSelectedMenuLabel(selectedMenu.label || page.title || action.pageId); setContentOutletMode('page'); setLastAction(null); }
+        else setLastAction(`Page '${action.pageId}' not found`);
+        return;
+      }
+      if (action?.type === 'openExternal' && action.url) {
+        if (action.newTab !== false) window.open(action.url, '_blank', 'noopener,noreferrer'); else window.location.assign(action.url);
+        return;
+      }
+      if (action?.type === 'runService' && action.serviceId) {
+        if (workflowTree) await new WorkflowInterpreter(workflowTree).executeTrigger(action.serviceId, { payload: action.payload, appId: appConfig.id, showAlert: (msg) => alert(msg) });
+        setLastAction(`Service '${action.serviceId}' executed`); return;
+      }
+      if (action?.type === 'callApi' && action.url) {
+        try {
+          const response = await fetch(action.url, { method: action.method || 'GET', headers: action.payload ? { 'Content-Type': 'application/json' } : undefined, body: action.payload ? JSON.stringify(action.payload) : undefined });
+          if (!response.ok) throw new Error(`API returned ${response.status}`);
+          const result = await response.json().catch(() => ({}));
+          setLastAction(`API '${action.apiId || action.url}' completed: ${JSON.stringify(result).slice(0, 160)}`);
+          if (action.resultContentId) {
+            const contentResponse = await fetch(`/api/runtime/${encodeURIComponent(appSlug)}/content/${encodeURIComponent(action.resultContentId)}`, { cache: 'no-store' });
+            const content = await contentResponse.json() as { componentTree?: ComponentNode[] };
+            if (content.componentTree) setSelectedContent(content.componentTree.map((node) => ({ ...node, props: { ...node.props, data: result, appSlug } })));
+          }
+        } catch (error) { setLastAction(error instanceof Error ? error.message : 'API call failed'); }
+        return;
+      }
+      if (action?.type === 'triggerAction') { await handleActionTrigger(action.actionId, action.payload); return; }
+      if (action?.type === 'none') return;
+      const routeId = action?.type === 'openRoute' || action?.type === 'navigateRoute' ? action.routeId : selectedMenu.routeId;
       const route = routeId ? runtimeData.routes?.find((item) => item.id === routeId) : undefined;
       if (route) {
         if (route.targetType === 'external' && route.externalUrl) { window.open(route.externalUrl, '_blank', 'noopener,noreferrer'); return; }
         if (route.targetType === 'page' && route.targetId) {
           const page = runtimeData.pages?.find((item) => item.id === route.targetId);
           if (page?.componentTree?.length) {
-            setSelectedContent(page.componentTree); setSelectedMenuLabel(route.label); setLastAction(null);
+            setSelectedContent(page.componentTree); setSelectedMenuLabel(route.label); setContentOutletMode('page'); setLastAction(null);
+            window.history.pushState({ routeId: route.id }, '', `/app/${appSlug}${route.path === '/' ? '' : route.path}`);
+            return;
+          }
+        }
+        if (route.targetType === 'form' && route.targetId) {
+          const form = runtimeData.forms?.find((item) => item.id === route.targetId);
+          if (form?.componentTree?.length) {
+            setSelectedContent(form.componentTree); setSelectedMenuLabel(route.label); setContentOutletMode('content'); setLastAction(null);
+            window.history.pushState({ routeId: route.id }, '', `/app/${appSlug}${route.path === '/' ? '' : route.path}`);
+            return;
+          }
+        }
+        if (route.targetType === 'collection' && route.targetId) {
+          const collection = runtimeData.collections?.find((item) => item.id === route.targetId);
+          const view = collection?.components.find((item) => item.type === 'DataTableComponent') || collection?.components[0];
+          if (view?.componentTree?.length) {
+            setSelectedContent(view.componentTree); setSelectedMenuLabel(route.label); setContentOutletMode('content'); setLastAction(null);
             window.history.pushState({ routeId: route.id }, '', `/app/${appSlug}${route.path === '/' ? '' : route.path}`);
             return;
           }
@@ -190,10 +259,7 @@ export default function ChildAppRuntimePage() {
 
       {/* Dynamic Page Renderer with Theme Engine */}
       <div className="flex-grow-1">
-        {selectedContent ? <div className="municipal-admin-layout d-flex align-items-start gap-0">
-          <div className="flex-shrink-0"><DynamicPageRenderer nodes={pageLayout.componentTree.filter((node) => node.type === 'SlideMenuComponent')} themeConfig={appConfig.themeConfig} onActionTrigger={handleActionTrigger} /></div>
-          <main className="municipal-admin-content flex-grow-1 min-w-0"><div className="municipal-admin-breadcrumb">หน้าหลัก <span>›</span> {selectedMenuLabel}</div><DynamicPageRenderer nodes={selectedContent} themeConfig={appConfig.themeConfig} onActionTrigger={handleActionTrigger} /></main>
-        </div> : <DynamicPageRenderer nodes={pageLayout.componentTree} themeConfig={appConfig.themeConfig} onActionTrigger={handleActionTrigger} />}
+        {selectedContent ? <RuntimeContentOutlet mode={contentOutletMode} content={selectedContent} shellNodes={pageLayout.componentTree.filter((node) => node.type === 'SlideMenuComponent')} label={selectedMenuLabel} themeConfig={appConfig.themeConfig} onActionTrigger={handleActionTrigger}/> : <DynamicPageRenderer nodes={pageLayout.componentTree} themeConfig={appConfig.themeConfig} onActionTrigger={handleActionTrigger} />}
       </div>
     </div>
   );

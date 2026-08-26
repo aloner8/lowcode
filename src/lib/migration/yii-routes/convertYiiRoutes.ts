@@ -27,6 +27,7 @@ const canonicalPath = (legacyPath: string) => {
 export function convertYiiRoutes(input: YiiRouteConversionInput): YiiRouteConversionResult {
   const sourceFingerprint = `sha256:${hash(input.sqlText)}`;
   const normalized = extractYiiSqlDump(input.sqlText);
+  const menuById = new Map(normalized.menus.map((menu) => [menu.id, menu]));
   const issues: ConversionIssue[] = []; const routes: AppRoute[] = []; const menuPatches: YiiRouteConversionResult['menuPatches'] = [];
   const overrides = new Map((input.mappingOverrides || []).map((item) => [item.sourceKey, item]));
   const pathOwners = new Map<string, string>();
@@ -41,11 +42,21 @@ export function convertYiiRoutes(input: YiiRouteConversionInput): YiiRouteConver
     if (pathOwners.has(ownerKey)) path = `${path}-${menu.id}`;
     pathOwners.set(`${override?.containerName || defaultContainer}:${path}`, menu.sourceKey);
     const routeId = `route.yii.${slugify(input.sourceSystemId)}.${menu.id}`;
+    const outlinePath: Array<{ id: string; label: string }> = [];
+    const visited = new Set<string>();
+    let parentId = menu.parentId;
+    while (parentId && !visited.has(parentId)) {
+      visited.add(parentId);
+      const parent = menuById.get(parentId);
+      if (!parent) break;
+      outlinePath.unshift({ id: parent.id, label: parent.label });
+      parentId = parent.parentId;
+    }
     routes.push({
       id: routeId, platformId: input.platformId, containerName: override?.containerName || defaultContainer,
       path, label: menu.label, targetType: override?.targetType || (external ? 'external' : 'legacy'), targetId: override?.targetId,
       legacyPaths: external ? [] : [legacyPath], externalUrl: external ? legacyPath : undefined, isPublic: external || menu.location === 'top',
-      metadata: { migration: { sourceSystemId: input.sourceSystemId, sourceKey: menu.sourceKey, sourceFingerprint, rulesVersion: input.options.rulesVersion, managedFields: ['legacyPaths', 'targetType', 'targetId', 'externalUrl'] } },
+      metadata: { outlinePath, migration: { sourceSystemId: input.sourceSystemId, sourceKey: menu.sourceKey, sourceFingerprint, rulesVersion: input.options.rulesVersion, managedFields: ['legacyPaths', 'targetType', 'targetId', 'externalUrl', 'metadata.outlinePath'] } },
     });
     menuPatches.push({ sourceKey: menu.sourceKey, menuId: menu.id, legacyHref: menu.href, routeId, action: { type: 'openRoute', routeId } });
   }

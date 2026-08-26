@@ -12,6 +12,7 @@ interface Props {
   onClonePage: (pageId: string, containerName: string) => Promise<void>;
   onMovePage: (pageId: string, containerName: string) => Promise<void>;
   onDeletePage: (pageId: string) => Promise<void>; onSetDefaultPage: (pageId: string) => Promise<void>;
+  routeCount: number; onDeleteAllNodes: () => Promise<void>;
 }
 
 const TEMPLATES = [
@@ -20,7 +21,7 @@ const TEMPLATES = [
   { value: 'dashboard', label: 'Dashboard Starter' },
 ];
 
-export const PageManagerModal: React.FC<Props> = ({ isOpen, onClose, activePageSlug, pages, containers, initialContainerName, onSelectPage, onCreatePage, onClonePage, onMovePage, onDeletePage, onSetDefaultPage }) => {
+export const PageManagerModal: React.FC<Props> = ({ isOpen, onClose, activePageSlug, pages, containers, initialContainerName, onSelectPage, onCreatePage, onClonePage, onMovePage, onDeletePage, onSetDefaultPage, routeCount, onDeleteAllNodes }) => {
   const [slug, setSlug] = useState(''); const [title, setTitle] = useState('');
   const [templateType, setTemplateType] = useState('blank_content'); const [busy, setBusy] = useState<string | null>(null); const [error, setError] = useState<string | null>(null);
   const [containerName, setContainerName] = useState(initialContainerName);
@@ -39,6 +40,12 @@ export const PageManagerModal: React.FC<Props> = ({ isOpen, onClose, activePageS
     if (!containerName) throw new Error('Please select a target container');
     await onCreatePage({ slug: normalized, title: title.trim() || `${normalized.toUpperCase()} Page`, templateType, containerName }); setSlug(''); setTitle('');
   });
+  const deleteAllNodes = () => {
+    if (!routeCount) return;
+    if (!window.confirm(`Delete Site Map nodes ทั้งหมด ${routeCount} รายการ?\n\nPages, Forms และ Collections จะยังคงอยู่`)) return;
+    if (!window.confirm('ยืนยันอีกครั้ง: Site Map Routes ทั้งหมดจะถูกลบ และต้องสร้างใหม่ด้วยตนเองหรือ Auto Tools')) return;
+    void run('delete-all-nodes', onDeleteAllNodes);
+  };
 
   return <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center z-3 select-none" style={{ background: 'rgba(15,23,42,.5)', backdropFilter: 'blur(3px)' }}>
     <div className="card shadow-lg border-0 rounded-3 bg-white overflow-hidden w-100 animate-fadeIn" style={{ maxWidth: 820 }}>
@@ -71,7 +78,7 @@ export const PageManagerModal: React.FC<Props> = ({ isOpen, onClose, activePageS
           </div>; })}
         </div>
       </div>
-      <div className="card-footer bg-light border-top p-3 px-4 text-end"><button className="btn btn-secondary btn-sm px-4 extra-small" onClick={onClose} disabled={Boolean(busy)}>Close Manager</button></div>
+      <div className="card-footer bg-light border-top p-3 px-4 d-flex justify-content-between align-items-center"><button className="btn btn-outline-danger btn-sm d-flex align-items-center gap-1" onClick={deleteAllNodes} disabled={Boolean(busy) || routeCount === 0}><Trash2 size={13}/>{busy === 'delete-all-nodes' ? 'Deleting...' : `Delete All Nodes (${routeCount})`}</button><button className="btn btn-secondary btn-sm px-4 extra-small" onClick={onClose} disabled={Boolean(busy)}>Close Manager</button></div>
     </div>
   </div>;
 };

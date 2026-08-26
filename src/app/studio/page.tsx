@@ -7,6 +7,7 @@ import { StudioToolBar } from '@/components/studio/StudioToolBar';
 import { StudioTreeviewOutline } from '@/components/studio/StudioTreeviewOutline';
 import { RawTableWorkspace } from '@/components/studio/RawTableWorkspace';
 import { ComponentPropertyModal } from '@/components/studio/ComponentPropertyModal';
+import { SiteMapNodePropertyPage } from '@/components/studio/SiteMapNodePropertyPage';
 import { AppWorkflowDesigner } from '@/components/studio/AppWorkflowDesigner';
 import { DbSchemaExplorer } from '@/components/studio/DbSchemaExplorer';
 import { PageManagerModal } from '@/components/studio/PageManagerModal';
@@ -33,6 +34,7 @@ interface StudioPageDefinition {
   routePath?: string;
   templateType?: string;
   isDefaultPage?: boolean;
+  siteMapMaterialized?: boolean;
   componentTree?: ComponentNode[];
   settings?: PageSettingsValue;
   layoutHistory?: Array<{ templateType: string; componentTree: ComponentNode[]; savedAt: string }>;
@@ -186,6 +188,7 @@ export default function StudioPage() {
   }
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedSiteMapRouteId, setSelectedSiteMapRouteId] = useState<string | null>(null);
   const [isPreviewMode, setIsPreviewMode] = useState<boolean>(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [platformId, setPlatformId] = useState<string | null>(null);
@@ -213,6 +216,7 @@ export default function StudioPage() {
   const [pageSettingsId, setPageSettingsId] = useState<string | null>(null);
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) || null;
+  const selectedSiteMapRoute = studioRoutes.find((route) => route.id === selectedSiteMapRouteId) || null;
   const activeStudioPage = !activeFormId && !activeCollectionView ? studioPages.find((page) => page.id === activePage) : undefined;
   const pageStudioDocument = useMemo(() => activeStudioPage ? createPageStudioDocument(activeStudioPage, nodes) : null, [activeStudioPage, nodes]);
   const activeStudioForm = activeFormId ? studioForms.find((form) => form.id === activeFormId) : undefined;
@@ -319,7 +323,17 @@ export default function StudioPage() {
         }
         setStudioForms(Array.isArray(platform.studioForms) ? platform.studioForms : []);
         setStudioCollections(Array.isArray(platform.studioCollections) ? platform.studioCollections : []);
-        setStudioRoutes(Array.isArray(platform.studioRoutes) ? platform.studioRoutes : []);
+        let loadedRoutes = Array.isArray(platform.studioRoutes) ? platform.studioRoutes : [];
+        const materializedPageIds = new Set(loadedRoutes.filter((route) => route.targetType === 'page' && route.targetId).map((route) => route.targetId));
+        const needsNodeMigration = platform.studioPages.some((page) => !page.siteMapMaterialized && !materializedPageIds.has(page.id)) || loadedRoutes.some((route) => !route.id || !route.targetType);
+        if (needsNodeMigration) {
+          const migrationResponse = await fetch(`/api/platforms/${selectedPlatformId}/site-map`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'materialize-legacy-nodes' }) });
+          const migration = await migrationResponse.json() as { routes?: AppRoute[]; pages?: StudioPageDefinition[]; error?: string };
+          if (!migrationResponse.ok) throw new Error(migration.error || 'Unable to migrate legacy Site Map nodes');
+          loadedRoutes = migration.routes || [];
+          if (migration.pages) setStudioPages(migration.pages);
+        }
+        setStudioRoutes(loadedRoutes);
         if (!platform.studioInitialized) setShowInitializeModal(true);
       } catch (error) {
         setStudioError(error instanceof Error ? error.message : 'ไม่สามารถโหลด Platform ได้');
@@ -589,6 +603,36 @@ export default function StudioPage() {
     await persistManagedPages(nextPages);
   };
 
+  const handleDeleteAllSiteMapNodes = async () => {
+    if (!platformId) throw new Error('ไม่พบ Platform สำหรับลบ Site Map');
+    const response = await fetch(`/api/platforms/${platformId}/site-map`, { method: 'DELETE' });
+    const data = await response.json() as { error?: string };
+    if (!response.ok) throw new Error(data.error || 'Delete All Nodes failed');
+    setStudioRoutes([]);
+    setSelectedSiteMapRouteId(null);
+    setSelectedPageFlow(null);
+    setSaveStatus('Site Map nodes deleted');
+    setTimeout(() => setSaveStatus(null), 3000);
+  };
+
+  const handleDeleteSiteMapNode = async (route: AppRoute) => {
+    try {
+      if (!platformId) throw new Error('ไม่พบ Platform สำหรับลบ Site Map Node');
+      setStudioError(null);
+      const response = await fetch(`/api/platforms/${platformId}/site-map?routeId=${encodeURIComponent(route.id)}`, { method: 'DELETE' });
+      const data = await response.json() as { routes?: AppRoute[]; error?: string };
+      if (!response.ok) throw new Error(data.error || 'Delete Site Map Node failed');
+      setStudioRoutes(data.routes || []);
+      if (selectedSiteMapRouteId === route.id) setSelectedSiteMapRouteId(null);
+      setSaveStatus(`Deleted Site Map node: ${route.label}`);
+      setTimeout(() => setSaveStatus(null), 3000);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Delete Site Map Node failed';
+      setStudioError(message);
+      window.alert(message);
+    }
+  };
+
   const handleInitializeStudio = async () => {
     if (!platformId || isInitializing) return;
     setIsInitializing(true);
@@ -818,6 +862,8 @@ export default function StudioPage() {
                 pages={studioPages}
                 routes={studioRoutes}
                 onRoutesChanged={setStudioRoutes}
+                onSelectSiteMapNode={(routeId) => { setSelectedSiteMapRouteId(routeId); setSelectedPageFlow(null); setSelectedRawTable(null); }}
+                onDeleteSiteMapNode={handleDeleteSiteMapNode}
                 forms={studioForms}
                 activeFormId={activeFormId}
                 onSelectForm={handleSelectDesignForm}
@@ -840,7 +886,15 @@ export default function StudioPage() {
 
           {/* Center Stage: App WorkFlow Designer OR Form Designer Canvas */}
           <div className="flex-grow-1 min-w-0" style={{ minWidth: 0 }}>
-            {pageSettingsId && studioPages.find((page) => page.id === pageSettingsId) ? (
+            {selectedSiteMapRoute ? (
+              <SiteMapNodePropertyPage
+                route={selectedSiteMapRoute}
+                pageName={selectedSiteMapRoute.targetType === 'page' ? studioPages.find((page) => page.id === selectedSiteMapRoute.targetId)?.name : selectedSiteMapRoute.targetType === 'form' ? studioForms.find((form) => form.id === selectedSiteMapRoute.targetId)?.name : selectedSiteMapRoute.targetType === 'collection' ? studioCollections.find((collection) => collection.id === selectedSiteMapRoute.targetId)?.name : undefined}
+                onClose={() => setSelectedSiteMapRouteId(null)}
+                onOpenPage={selectedSiteMapRoute.targetType === 'page' && selectedSiteMapRoute.targetId ? () => { setSelectedSiteMapRouteId(null); handleSelectDesignPage(selectedSiteMapRoute.targetId!); } : selectedSiteMapRoute.targetType === 'form' && selectedSiteMapRoute.targetId ? () => { setSelectedSiteMapRouteId(null); handleSelectDesignForm(selectedSiteMapRoute.targetId!, 'insert'); } : selectedSiteMapRoute.targetType === 'collection' && selectedSiteMapRoute.targetId ? () => { const collection = studioCollections.find((item) => item.id === selectedSiteMapRoute.targetId); const view = collection?.components.find((item) => item.recommended) || collection?.components[0]; if (collection && view) { setSelectedSiteMapRouteId(null); handleSelectCollectionView(collection.id, view.id); } } : undefined}
+                onOpenFlow={() => { setSelectedSiteMapRouteId(null); setSelectedPageFlow({ path: `${selectedSiteMapRoute.containerName}:${selectedSiteMapRoute.path}`, label: `${selectedSiteMapRoute.containerName} / ${selectedSiteMapRoute.label}`, type: selectedSiteMapRoute.targetType === 'form' ? 'form_crud' : 'public_page' }); }}
+              />
+            ) : pageSettingsId && studioPages.find((page) => page.id === pageSettingsId) ? (
               <PageSettingsWorkspace
                 key={pageSettingsId}
                 page={studioPages.find((page) => page.id === pageSettingsId)!}
@@ -980,6 +1034,8 @@ export default function StudioPage() {
         onMovePage={handleMoveManagedPage}
         onDeletePage={handleDeleteManagedPage}
         onSetDefaultPage={handleSetDefaultManagedPage}
+        routeCount={studioRoutes.length}
+        onDeleteAllNodes={handleDeleteAllSiteMapNodes}
       />
 
       {/* 6. Visual Studio Bottom Output & Diagnostic Dock */}

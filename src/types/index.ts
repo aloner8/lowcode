@@ -195,6 +195,17 @@ export interface AppRoute {
   metadata?: Record<string, unknown> & { migration?: AppRouteMigrationMetadata };
 }
 
+export type RuntimeMenuAction =
+  | { type: 'switchContent'; contentId: string; params?: Record<string, unknown>; refreshIntervalMs?: number }
+  | { type: 'navigatePage'; pageId: string; params?: Record<string, unknown> }
+  | { type: 'navigateRoute'; routeId: string; params?: Record<string, unknown> }
+  | { type: 'openRoute'; routeId: string; params?: Record<string, unknown> }
+  | { type: 'openExternal'; url: string; newTab?: boolean }
+  | { type: 'runService'; serviceId: string; payload?: Record<string, unknown> }
+  | { type: 'callApi'; apiId?: string; url?: string; method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; payload?: Record<string, unknown>; resultContentId?: string }
+  | { type: 'triggerAction'; actionId: string; payload?: Record<string, unknown> }
+  | { type: 'none' };
+
 // ==========================================
 // Top-Level App WorkFlow (App Manifest) Types
 // ==========================================

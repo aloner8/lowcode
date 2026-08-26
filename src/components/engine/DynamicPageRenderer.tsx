@@ -68,7 +68,10 @@ export const DynamicNodeItem: React.FC<{
     },
     onSelect: (item: any) => {
       if (node.props?.onSelect) node.props.onSelect(item);
-      if (onActionTrigger) onActionTrigger('menu.select', item);
+      if (onActionTrigger) {
+        onActionTrigger('menu.select', item);
+        return;
+      }
       if (!isDesignMode && item?.action?.type === 'openExternal' && item.action.url) {
         if (item.action.newTab !== false) window.open(item.action.url, '_blank', 'noopener,noreferrer');
         else window.location.assign(item.action.url);
