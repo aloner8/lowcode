@@ -74,6 +74,7 @@ interface StudioTreeviewOutlineProps {
   onSelectPageFlow: (route: { path: string; label: string; type: 'public_page' | 'form_crud' }) => void;
   onSelectRawTable: (tableName: string) => void;
   onOpenPageManager: (containerName?: string) => void;
+  onRoutesChanged?: (routes: AppRoute[]) => void;
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
 }
@@ -145,6 +146,7 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
   onSelectPageFlow,
   onSelectRawTable,
   onOpenPageManager,
+  onRoutesChanged,
   collapsed = false,
   onToggleCollapsed,
 }) => {
@@ -162,6 +164,13 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
   const [openSiteRoutes, setOpenSiteRoutes] = useState<Record<string, boolean>>({ '/': true });
   const [openRouteGroups, setOpenRouteGroups] = useState<Record<string, boolean>>({ '/:events': true, '/:pages': true });
   const [routeFlows, setRouteFlows] = useState<Array<{ routePath: string; nodes: Array<{ id: string; type?: string; data?: Record<string, unknown> }> }>>([]);
+  const [showAutoTools, setShowAutoTools] = useState(false);
+  const [yiiSqlText, setYiiSqlText] = useState('');
+  const [yiiSourceSystemId, setYiiSourceSystemId] = useState('yii-project');
+  const [autoToolStatus, setAutoToolStatus] = useState<string | null>(null);
+  const [autoToolError, setAutoToolError] = useState<string | null>(null);
+  const [autoToolBusy, setAutoToolBusy] = useState(false);
+  const [conversionPreview, setConversionPreview] = useState<{ sourceFingerprint: string; summary: { discovered: number; created: number; skipped: number; unresolved: number; conflicts: number } } | null>(null);
   useEffect(() => {
     if (!platformId) return;
     fetch(`/api/platforms/${platformId}/page-flows`, { cache: 'no-store' }).then((response) => response.json()).then((data: { flows?: Array<{ routePath: string; nodes: Array<{ id: string; type?: string; data?: Record<string, unknown> }> }> }) => setRouteFlows(data.flows || [])).catch(() => setRouteFlows([]));
@@ -383,6 +392,33 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
     onClick={(event) => { event.stopPropagation(); onClick?.(); }}
   ><Plus size={11} /><span className="d-none d-xl-inline">Add</span></button>;
 
+  const previewYiiSiteMap = async () => {
+    if (!platformId || !yiiSqlText.trim()) return setAutoToolError('กรุณาเลือกไฟล์ Yii SQL dump ก่อน');
+    setAutoToolBusy(true); setAutoToolError(null); setAutoToolStatus('กำลังวิเคราะห์ Yii routes...'); setConversionPreview(null);
+    try {
+      const response = await fetch(`/api/platforms/${platformId}/route-conversions/preview`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sourceSystemId: yiiSourceSystemId.trim() || 'yii-project', sqlText: yiiSqlText, options: { rulesVersion: 'yii2-react-route-v1', targetContainers: { frontend: `${appInfo.appSlug}-frontend`, backend: `${appInfo.appSlug}-backend` }, preserveLegacyHref: true } }) });
+      const data = await response.json() as { conversion?: typeof conversionPreview; error?: string };
+      if (!response.ok || !data.conversion) throw new Error(data.error || 'Preview failed');
+      setConversionPreview(data.conversion); setAutoToolStatus('Preview พร้อมตรวจสอบแล้ว');
+    } catch (error) { setAutoToolError(error instanceof Error ? error.message : 'Preview failed'); setAutoToolStatus(null); }
+    finally { setAutoToolBusy(false); }
+  };
+
+  const applyYiiSiteMap = async () => {
+    if (!platformId || !conversionPreview) return;
+    setAutoToolBusy(true); setAutoToolError(null); setAutoToolStatus('กำลังสร้าง Routes และ Site Map...');
+    try {
+      const response = await fetch(`/api/platforms/${platformId}/route-conversions/apply`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sourceSystemId: yiiSourceSystemId.trim() || 'yii-project', sqlText: yiiSqlText, previewFingerprint: conversionPreview.sourceFingerprint, options: { rulesVersion: 'yii2-react-route-v1', targetContainers: { frontend: `${appInfo.appSlug}-frontend`, backend: `${appInfo.appSlug}-backend` }, preserveLegacyHref: true } }) });
+      const data = await response.json() as { conversion?: { summary: typeof conversionPreview.summary }; error?: string };
+      if (!response.ok) throw new Error(data.error || 'Apply failed');
+      const studioResponse = await fetch(`/api/platforms/${platformId}/studio?t=${Date.now()}`, { cache: 'no-store' });
+      const studioData = await studioResponse.json() as { platform?: { studioRoutes?: AppRoute[] } };
+      onRoutesChanged?.(studioData.platform?.studioRoutes || []);
+      setAutoToolStatus(`สร้าง Site Map สำเร็จ: ${data.conversion?.summary.created || 0} routes ใหม่`);
+    } catch (error) { setAutoToolError(error instanceof Error ? error.message : 'Apply failed'); setAutoToolStatus(null); }
+    finally { setAutoToolBusy(false); }
+  };
+
   if (collapsed) return <div className="card shadow-sm border-0 rounded-3 bg-white h-100 d-flex align-items-center pt-2">
     <button type="button" className="btn btn-sm btn-outline-primary border-0" onClick={onToggleCollapsed} title="Expand DevStudio Explorer"><PanelLeftOpen size={19}/></button>
     <div className="text-primary fw-bold mt-2" style={{ writingMode: 'vertical-rl', fontSize: '.68rem', letterSpacing: '.08em' }}>DEVSTUDIO EXPLORER</div>
@@ -425,7 +461,7 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
         {/* Site Map is the navigation root. Page Layouts exist only as route resources. */}
         <div className="mb-2">
           <div className="d-flex align-items-center justify-content-between px-2 py-1.5 rounded-2 bg-danger bg-opacity-10 text-danger fw-bold border border-danger border-opacity-10">
-            <div className="d-flex align-items-center gap-2"><MapPin size={16}/><span>SITE MAP</span></div><div className="d-flex align-items-center gap-1"><MenuAddButton label="site route" onClick={() => onOpenPageManager()}/><span className="badge bg-danger text-white">ROOT</span></div>
+            <div className="d-flex align-items-center gap-2"><MapPin size={16}/><span>SITE MAP</span></div><div className="d-flex align-items-center gap-1"><button type="button" className="btn btn-sm border-0 rounded-1 d-inline-flex align-items-center gap-1 px-2 py-0 text-warning bg-white" style={{ fontSize: '.62rem', minHeight: 20 }} onClick={() => setShowAutoTools(true)} title="Site Map Auto Tools"><Sparkles size={12}/><span className="d-none d-xl-inline">Auto</span></button><MenuAddButton label="site route" onClick={() => onOpenPageManager()}/><span className="badge bg-danger text-white">ROOT</span></div>
           </div>
           <div className="ms-2 ps-2 border-start mt-1">{Object.entries(siteRoutesByContainer).map(([containerName, containerRoutes]) => { const containerOpen = openSiteContainers[containerName] !== false; return <div key={containerName} className="mb-1">
             <div className="d-flex align-items-center bg-light rounded-1"><button type="button" className="btn btn-sm border-0 flex-grow-1 d-flex align-items-center gap-1 text-start px-1 py-1 text-dark fw-bold" onClick={() => setOpenSiteContainers((current) => ({ ...current, [containerName]: !containerOpen }))}>{containerOpen ? <ChevronDown size={11}/> : <ChevronRight size={11}/>}<Box size={12} className="text-primary"/><span className="text-truncate">{containerName}</span><span className="badge bg-primary bg-opacity-10 text-primary ms-auto">{containerRoutes.length} Routes</span></button><MenuAddButton label={`route to ${containerName}`} onClick={() => onOpenPageManager(containerName)}/></div>
@@ -471,6 +507,21 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
           </div>; })}</div>}
           </div>; })}</div>
         </div>
+
+        {showAutoTools && <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style={{ zIndex: 2060, background: 'rgba(15,23,42,.58)', backdropFilter: 'blur(3px)' }} onClick={() => !autoToolBusy && setShowAutoTools(false)}>
+          <div className="card border-0 shadow-lg rounded-4 overflow-hidden" style={{ width: 'min(94vw,720px)' }} onClick={(event) => event.stopPropagation()}>
+            <div className="card-header bg-dark text-white d-flex align-items-center justify-content-between p-3"><div className="d-flex align-items-center gap-2"><Sparkles size={20} className="text-warning"/><div><b>Site Map Auto Tools</b><div className="text-white-50" style={{ fontSize: '.68rem' }}>คำสั่งอัตโนมัติที่เรียกซ้ำได้สำหรับ Platform</div></div></div><button className="btn btn-sm btn-outline-light border-0" onClick={() => setShowAutoTools(false)} disabled={autoToolBusy}><X size={17}/></button></div>
+            <div className="card-body p-4">
+              <div className="border rounded-3 p-3 mb-3 bg-light"><div className="d-flex align-items-start gap-2 mb-3"><Sparkles size={18} className="text-primary mt-1"/><div><b>Auto Site Map from Yii</b><div className="text-secondary small">อ่านตาราง <code>cms_menu</code>, สร้าง Route ID, legacy aliases และอัปเดต Site Map อัตโนมัติ</div></div></div>
+                <div className="row g-2"><div className="col-md-5"><label className="form-label small mb-1">Source System ID</label><input className="form-control form-control-sm" value={yiiSourceSystemId} onChange={(event) => { setYiiSourceSystemId(event.target.value); setConversionPreview(null); }} placeholder="เช่น yang-obt" disabled={autoToolBusy}/></div><div className="col-md-7"><label className="form-label small mb-1">Yii SQL dump</label><input type="file" accept=".sql,text/plain" className="form-control form-control-sm" disabled={autoToolBusy} onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; setYiiSourceSystemId((current) => current === 'yii-project' ? file.name.replace(/\.sql$/i, '').replace(/[^a-z0-9-]+/gi, '-').toLowerCase() : current); setConversionPreview(null); setAutoToolStatus(`เลือก ${file.name}`); setAutoToolError(null); void file.text().then(setYiiSqlText).catch(() => setAutoToolError('ไม่สามารถอ่านไฟล์ SQL ได้')); }}/></div></div>
+                {conversionPreview && <div className="alert alert-primary py-2 mt-3 mb-0 small"><b>Preview:</b> พบ {conversionPreview.summary.discovered} เมนู · สร้าง {conversionPreview.summary.created} routes · ข้าม {conversionPreview.summary.skipped} หัวข้อ · unresolved {conversionPreview.summary.unresolved} · conflicts {conversionPreview.summary.conflicts}</div>}
+                {autoToolStatus && <div className="text-success small mt-2">{autoToolStatus}</div>}{autoToolError && <div className="text-danger small mt-2">{autoToolError}</div>}
+                <div className="d-flex justify-content-end gap-2 mt-3"><button className="btn btn-sm btn-outline-primary" onClick={() => void previewYiiSiteMap()} disabled={autoToolBusy || !yiiSqlText}>{autoToolBusy ? 'กำลังทำงาน...' : '1. Preview'}</button><button className="btn btn-sm btn-primary" onClick={() => void applyYiiSiteMap()} disabled={autoToolBusy || !conversionPreview || conversionPreview.summary.unresolved > 0 || conversionPreview.summary.conflicts > 0}>2. Apply & Refresh Site Map</button></div>
+              </div>
+              <div className="row g-2"><div className="col-md-4"><button className="btn btn-outline-secondary w-100 text-start" disabled><Sparkles size={14}/> Auto Routes from Pages<div className="small text-muted">Coming next</div></button></div><div className="col-md-4"><button className="btn btn-outline-secondary w-100 text-start" disabled><Sparkles size={14}/> Auto Menu Binding<div className="small text-muted">Coming next</div></button></div><div className="col-md-4"><button className="btn btn-outline-secondary w-100 text-start" disabled><Sparkles size={14}/> Validate & Repair<div className="small text-muted">Coming next</div></button></div></div>
+            </div>
+          </div>
+        </div>}
         
         {/* ======================================================== */}
         {/* 0. Top-Level App WorkFlow (Master Manifest) */}

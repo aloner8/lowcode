@@ -817,6 +817,7 @@ export default function StudioPage() {
                 onAddComponent={handleAddComponent}
                 pages={studioPages}
                 routes={studioRoutes}
+                onRoutesChanged={setStudioRoutes}
                 forms={studioForms}
                 activeFormId={activeFormId}
                 onSelectForm={handleSelectDesignForm}
