@@ -505,29 +505,54 @@ CI ที่ [.github/workflows/ci.yml](.github/workflows/ci.yml) รัน migr
 
 ## เอกสารออกแบบ
 
-เอกสารทั้งหมดอยู่ใน [docs/](docs/)
+เอกสารทั้งหมด **19 ฉบับ** อยู่ใน [docs/](docs/) — แบ่งตามหัวข้อดังนี้
 
-| ไฟล์ | เนื้อหา |
-|---|---|
-| [PlanOverView.MD](docs/PlanOverView.MD) | Roadmap 7 เฟส |
-| [StackDiffenning.MD](docs/StackDiffenning.MD) | เปรียบเทียบ 8 tech stack |
-| [DesignStudio.MD](docs/DesignStudio.MD) | UI ของ DesignStudio |
-| [DevStudioDeepDive.MD](docs/DevStudioDeepDive.MD) | สถาปัตยกรรม IDE เชิงลึก |
-| [DeveloperAdminPage.MD](docs/DeveloperAdminPage.MD) | Auth เว็บแม่ vs Tenant |
-| [PlatformModule.MD](docs/PlatformModule.MD) | Platform Master & Inheritance |
-| [CreatePlatform.MD](docs/CreatePlatform.MD) | ข้อกำหนดการสร้าง Platform |
-| [AppWorkFlow.MD](docs/AppWorkFlow.MD) | `AppWorkFlowManifest` |
-| [DefaultFlow.MD](docs/DefaultFlow.MD) | Sequence Diagram AST |
-| [EnterpriseFlow.MD](docs/EnterpriseFlow.MD) | `EnterpriseWorkflowAST` |
-| [GenFormBackend.MD](docs/GenFormBackend.MD) | Backend module/form blueprint |
-| [HTMLStudio.MD](docs/HTMLStudio.MD) | HTML/SVG/Theme authoring |
-| [EditMenuComponent.MD](docs/EditMenuComponent.MD) | สัญญาข้อมูล EditMenuComponent |
-| [Walkthrough.MD](docs/Walkthrough.MD) | สรุปผลงานรายเฟส |
-| [BACKEND_YANG_MAPPING.md](docs/BACKEND_YANG_MAPPING.md) | การแมประบบหลังบ้านจาก YII |
-| [ComponentWorkShop.MD](docs/ComponentWorkShop.MD) | Component Workshop ใน Studio |
-| [PropertyPageShareComponent.MD](docs/PropertyPageShareComponent.MD) | Property Page ของ Shared Component |
-| [GenPageFromImage.MD](docs/GenPageFromImage.MD) | สร้างหน้าเว็บจากรูปภาพ |
-| [RouteForReact.MD](docs/RouteForReact.MD) | การแปลง Route จาก YII มาเป็น React |
+### ภาพรวมและการตัดสินใจเชิงสถาปัตยกรรม
+
+| เอกสาร | เนื้อหา | บรรทัด |
+|---|---|---:|
+| [PlanOverView.MD](docs/PlanOverView.MD) | Roadmap 7 เฟส ตั้งแต่วาง schema จนถึง Docker + Nginx + Audit Log พร้อมตารางผลลัพธ์ที่ทดสอบได้จริงต่อเฟส | 121 |
+| [StackDiffenning.MD](docs/StackDiffenning.MD) | เปรียบเทียบ 8 tech stack สำหรับระบบ Low-Code พร้อมเหตุผลที่เลือก Next.js + PostgreSQL และคำตอบเรื่อง stack ของ App ลูก | 150 |
+| [Walkthrough.MD](docs/Walkthrough.MD) | สรุปสิ่งที่ทำเสร็จรายเฟส พร้อมรายการ URL สำหรับทดสอบและวิธีรันโปรเจกต์ | 111 |
+
+### Platform Master และ Tenant App
+
+| เอกสาร | เนื้อหา | บรรทัด |
+|---|---|---:|
+| [PlatformModule.MD](docs/PlatformModule.MD) | ลำดับชั้น Platform Master → Tenant App, กลไก Cascading Inheritance และการ merge master layout กับ tenant overrides | 168 |
+| [CreatePlatform.MD](docs/CreatePlatform.MD) | ข้อกำหนดการสร้าง Platform: ตาราง Category, ฟิลด์ First Public Page 3 โหมด, Module ตั้งต้น, procedure `create_platform_blueprint` และ Acceptance Criteria | 348 |
+| [DeveloperAdminPage.MD](docs/DeveloperAdminPage.MD) | ความต่างระหว่าง Auth ของเว็บแม่กับ Auth ของ App ลูก, การขยาย schema ผู้ใช้ และการออกแบบหน้า `/admin` | 289 |
+
+### Studio (เครื่องมือออกแบบ)
+
+| เอกสาร | เนื้อหา | บรรทัด |
+|---|---|---:|
+| [DesignStudio.MD](docs/DesignStudio.MD) | Layout ของ DesignStudio แบบ Visual Studio 2022 — Palette / Canvas / Property Inspector | 74 |
+| [DevStudioDeepDive.MD](docs/DevStudioDeepDive.MD) | สถาปัตยกรรม DevStudio เชิงลึกและแผนที่ความเชื่อมโยงของแต่ละส่วนประกอบ | 47 |
+| [ComponentWorkShop.MD](docs/ComponentWorkShop.MD) | แยก Component Template ออกจาก Component Instance และพื้นที่แก้ Component รายตัวภายใน Page | 111 |
+| [PropertyPageShareComponent.MD](docs/PropertyPageShareComponent.MD) | Property Page เฉพาะตามชนิดของ Shared Component และการบันทึกค่าลง Instance โดยไม่แตะแม่แบบกลาง | 94 |
+| [HTMLStudio.MD](docs/HTMLStudio.MD) | เอกสารที่ยาวที่สุด — document AST, template syntax, reference resolver, SVG Studio, theme/CSS editor, compiler และ security model | 1,113 |
+| [GenPageFromImage.MD](docs/GenPageFromImage.MD) | สเปกการสร้าง Page Layout, Collection และ Component variants จากภาพอ้างอิง 4 เฟส พร้อม Safety/Quality Gates | 655 |
+
+### Flow และ Workflow
+
+| เอกสาร | เนื้อหา | บรรทัด |
+|---|---|---:|
+| [AppWorkFlow.MD](docs/AppWorkFlow.MD) | สถาปัตยกรรมระดับบนสุดของ App ลูก, วงจรชีวิตเมื่อผู้ใช้เข้าเว็บ และ schema ของ `AppWorkFlowManifest` | 177 |
+| [DefaultFlow.MD](docs/DefaultFlow.MD) | Sequence Diagram ตั้งต้น 6 lifelines และโครงสร้าง `SequenceWorkflowAST` | 150 |
+| [EnterpriseFlow.MD](docs/EnterpriseFlow.MD) | Enterprise Master Lifecycle, ระบบ Sub-Flow ย่อย 5 หมวด และ `EnterpriseWorkflowAST` | 150 |
+
+### Backend, Route และการย้ายระบบจาก YII
+
+| เอกสาร | เนื้อหา | บรรทัด |
+|---|---|---:|
+| [GenFormBackend.MD](docs/GenFormBackend.MD) | พิมพ์เขียว Backend ทั้งระบบ — 43 form, 42 collection ครอบคลุม CMS / Smart Report / Booking / Forum / RBAC พร้อม Implementation Verification Log | 640 |
+| [RouteForReact.MD](docs/RouteForReact.MD) | เปลี่ยนจาก URL แบบ Yii มาเป็น Route Model กลางที่อ้างด้วย Route ID, Route Manifest และ workflow การแปลง Route อัตโนมัติ | 682 |
+| [BACKEND_YANG_MAPPING.md](docs/BACKEND_YANG_MAPPING.md) | ตารางแมป canonical ระหว่างเมนู/ตารางของ YII ต้นฉบับกับ Collection และ Form ฝั่ง React | 64 |
+| [EditMenuComponent.MD](docs/EditMenuComponent.MD) | สัญญาข้อมูลของ `EditMenuComponent` — โหมด manager/field, props, events และ API contract | 136 |
+
+> เอกสารเหล่านี้เป็น **สเปกการออกแบบ** บางฉบับอธิบายสิ่งที่ยังไม่ได้ลงมือทำ
+> สถานะจริงของโค้ดดูที่หัวข้อ [สิ่งที่ยังไม่ได้ทำ](#สิ่งที่ยังไม่ได้ทำ)
 
 ---
 
