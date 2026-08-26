@@ -30,7 +30,6 @@ import {
   Braces,
   CheckSquare,
   Code,
-  Code2,
   Copy,
   Eye,
   FileDown,
@@ -38,7 +37,6 @@ import {
   Heading1,
   Heading2,
   Heading3,
-  Heading4,
   Highlighter,
   Image as ImageIcon,
   Italic,
@@ -56,7 +54,6 @@ import {
   Trash2,
   Underline as UnderlineIcon,
   Undo2,
-  X,
   Plus,
 } from 'lucide-react';
 

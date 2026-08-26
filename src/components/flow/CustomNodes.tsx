@@ -2,7 +2,7 @@
 
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
-import { Play, Zap, HelpCircle, ArrowRight } from 'lucide-react';
+import { Play, Zap, HelpCircle } from 'lucide-react';
 
 export const TriggerNode = memo(({ data }: NodeProps) => {
   return (

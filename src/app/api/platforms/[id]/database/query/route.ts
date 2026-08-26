@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getTenantDb } from '@/lib/db/tenantDb';
+import { requirePlatformSession } from '@/lib/auth/apiAuth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,8 +19,11 @@ function normalizeReadOnlySql(value: unknown): string {
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const startedAt = performance.now();
+  const { id } = await context.params;
+  const auth = await requirePlatformSession(id, 'STAFF');
+  if (auth instanceof NextResponse) return auth;
+
   try {
-    const { id } = await context.params;
     const body = (await request.json()) as { sql?: unknown };
     const sql = normalizeReadOnlySql(body.sql);
     const { pool, database } = await getTenantDb(id);

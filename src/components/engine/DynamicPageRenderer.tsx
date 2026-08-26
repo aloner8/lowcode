@@ -1,9 +1,46 @@
 'use client';
 
 import React from 'react';
-import { ComponentNode, ThemeConfig } from '@/types';
+import { ComponentNode, ComponentType, ThemeConfig } from '@/types';
 import { COMPONENT_REGISTRY } from '@/lib/engine/ComponentRegistry';
 import { ThemeEngine } from '@/components/shared/ThemeEngine';
+
+/**
+ * Semantic element used to wrap each component type.
+ *
+ * Crawlers and assistive technology rely on landmarks, so a nav renders inside
+ * <nav> and body content inside <section> rather than a wall of <div>.
+ * A node can override this with `props.semanticTag`.
+ */
+const SEMANTIC_TAG: Partial<Record<ComponentType, keyof React.JSX.IntrinsicElements>> = {
+  NavMenuComponent: 'header',
+  SlideMenuComponent: 'nav',
+  EditMenuComponent: 'nav',
+  DynamicHtmlComponent: 'section',
+  HtmlTemplateComponent: 'section',
+  HtmlEditorComponent: 'section',
+  GalleryComponent: 'section',
+  TableDataComponent: 'section',
+  DataTableComponent: 'section',
+  ListComponent: 'section',
+  PostListComponent: 'section',
+  CardComponent: 'article',
+  ChartComponent: 'figure',
+  FormComponent: 'section',
+  FileManagerComponent: 'section',
+};
+
+const ALLOWED_SEMANTIC_TAGS = new Set([
+  'header', 'nav', 'section', 'article', 'aside', 'footer', 'figure', 'div', 'main',
+]);
+
+function semanticTagFor(node: ComponentNode): keyof React.JSX.IntrinsicElements {
+  const requested = node.props?.semanticTag;
+  if (typeof requested === 'string' && ALLOWED_SEMANTIC_TAGS.has(requested)) {
+    return requested as keyof React.JSX.IntrinsicElements;
+  }
+  return SEMANTIC_TAG[node.type] ?? 'div';
+}
 
 export interface DynamicPageRendererProps {
   nodes: ComponentNode[];
@@ -12,6 +49,12 @@ export interface DynamicPageRendererProps {
   isDesignMode?: boolean;
   selectedNodeId?: string | null;
   onSelectNode?: (nodeId: string) => void;
+  /**
+   * Landmark used for the renderer root. A page renders one `main`; secondary
+   * renders (a sidebar, a detail pane) must pass something else so the document
+   * never contains nested or duplicate landmarks.
+   */
+  rootTag?: 'main' | 'div' | 'nav' | 'section' | 'aside';
 }
 
 export const DynamicNodeItem: React.FC<{
@@ -83,10 +126,16 @@ export const DynamicNodeItem: React.FC<{
     },
   };
 
+  const Wrapper = semanticTagFor(node);
+  const ariaLabel = typeof node.props?.ariaLabel === 'string'
+    ? node.props.ariaLabel
+    : (Wrapper === 'nav' && typeof node.props?.title === 'string' ? node.props.title : undefined);
+
   return (
-    <div
+    <Wrapper
       id={node.htmlId || node.id}
       data-component-instance-id={node.id}
+      aria-label={ariaLabel}
       className={`dynamic-node-wrapper position-relative ${stylePreset ? `municipal-component ${stylePreset}` : ''} ${
         isDesignMode ? 'cursor-pointer hover-outline transition' : ''
       } ${isSelected ? 'border border-2 border-primary rounded p-1 shadow-sm' : ''}`}
@@ -122,7 +171,7 @@ export const DynamicNodeItem: React.FC<{
           </div>
         )}
       </TargetComponent>
-    </div>
+    </Wrapper>
   );
 };
 
@@ -133,15 +182,18 @@ export const DynamicPageRenderer: React.FC<DynamicPageRendererProps> = ({
   isDesignMode = false,
   selectedNodeId,
   onSelectNode,
+  rootTag,
 }) => {
   const isMunicipalPage = nodes.some((node) =>
     (typeof node.props?.stylePreset === 'string' && node.props.stylePreset.startsWith('municipal-'))
     || node.id.startsWith('municipal_')
   );
 
+  const Root = rootTag ?? (isDesignMode ? 'div' : 'main');
+
   return (
     <ThemeEngine themeConfig={themeConfig}>
-      <div className={`dynamic-page-root container-fluid py-3 ${isMunicipalPage ? 'municipal-page' : ''}`}>
+      <Root className={`dynamic-page-root container-fluid py-3 ${isMunicipalPage ? 'municipal-page' : ''}`}>
         {nodes.length > 0 ? (
           <div className="d-flex flex-column gap-4">
             {nodes.map((node) => (
@@ -164,7 +216,7 @@ export const DynamicPageRenderer: React.FC<DynamicPageRendererProps> = ({
             )}
           </div>
         )}
-      </div>
+      </Root>
     </ThemeEngine>
   );
 };

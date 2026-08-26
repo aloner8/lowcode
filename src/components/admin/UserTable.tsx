@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { UserProfile } from '@/types';
-import { ShieldCheck, Code, Eye, Edit3, Key, Lock, CheckCircle, XCircle } from 'lucide-react';
+import { ShieldCheck, Code, Eye, Edit3, Lock, CheckCircle, XCircle } from 'lucide-react';
 
 interface UserTableProps {
   users: UserProfile[];
@@ -13,16 +13,16 @@ interface UserTableProps {
 export default function UserTable({ users, onEditUser, onManageAppAccess }: UserTableProps) {
   const getRoleBadge = (role: string) => {
     switch (role) {
-      case 'SUPER_ADMIN':
+      case 'GOD':
         return (
           <span className="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2.5 py-1 rounded-2 d-inline-flex align-items-center gap-1">
-            <ShieldCheck size={13} /> SUPER_ADMIN
+            <ShieldCheck size={13} /> GOD
           </span>
         );
-      case 'DEVELOPER':
+      case 'TENANT_USER':
         return (
           <span className="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2.5 py-1 rounded-2 d-inline-flex align-items-center gap-1">
-            <Code size={13} /> DEVELOPER
+            <Code size={13} /> TENANT_USER
           </span>
         );
       default:
@@ -55,7 +55,7 @@ export default function UserTable({ users, onEditUser, onManageAppAccess }: User
                     style={{
                       width: '40px',
                       height: '40px',
-                      background: u.globalRole === 'SUPER_ADMIN' ? 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)' : 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                      background: u.globalRole === 'GOD' ? 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)' : 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
                     }}
                   >
                     {u.username ? u.username[0].toUpperCase() : 'U'}

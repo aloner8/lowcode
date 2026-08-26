@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { UserProfile, GlobalRole } from '@/types';
-import { X, UserPlus, Save } from 'lucide-react';
+import { UserPlus, Save } from 'lucide-react';
 
 interface UserFormModalProps {
   isOpen: boolean;
@@ -21,7 +21,7 @@ export default function UserFormModal({
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
-  const [globalRole, setGlobalRole] = useState<GlobalRole>('DEVELOPER');
+  const [globalRole, setGlobalRole] = useState<GlobalRole>('TENANT_USER');
   const [isActive, setIsActive] = useState(true);
 
   useEffect(() => {
@@ -29,15 +29,15 @@ export default function UserFormModal({
       setUsername(userToEdit.username || '');
       setEmail(userToEdit.email || '');
       setFullName(userToEdit.fullName || '');
-      setGlobalRole(userToEdit.globalRole || 'DEVELOPER');
+      setGlobalRole(userToEdit.globalRole || 'TENANT_USER');
       setIsActive(userToEdit.isActive ?? true);
       setPassword('');
     } else {
       setUsername('');
       setEmail('');
       setFullName('');
-      setPassword('1qaz@WSX');
-      setGlobalRole('DEVELOPER');
+      setPassword('');
+      setGlobalRole('TENANT_USER');
       setIsActive(true);
     }
   }, [userToEdit, isOpen]);

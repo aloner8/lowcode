@@ -1,13 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useParams, usePathname } from 'next/navigation';
-import { fetchAppRuntimeData, AppRuntimeData } from '@/lib/engine/AppRuntimeFetcher';
-import { DynamicPageRenderer } from '@/components/engine/DynamicPageRenderer';
+import { usePathname } from 'next/navigation';
+import type { AppRuntimeData } from '@/lib/engine/AppRuntimeFetcher';
 import { RuntimeContentOutlet } from '@/components/engine/RuntimeContentOutlet';
+import { StorageScopeProvider } from '@/components/shared/StorageScopeContext';
 import { WorkflowInterpreter } from '@/lib/engine/WorkflowInterpreter';
-import { getTenantDbClient } from '@/lib/supabase/tenantClient';
-import { Server, Database, Layers, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import type { ComponentNode } from '@/types';
 import { ADMIN_SIDEBAR_ITEMS } from '@/lib/studio/adminMenuTemplate';
 import type { SlideMenuItem } from '@/components/shared/SlideMenuComponent';
@@ -28,27 +27,33 @@ const resolveCanonicalMenuItem = (item: SlideMenuItem): SlideMenuItem => {
     : item;
 };
 
-export default function ChildAppRuntimePage() {
-  const params = useParams();
-  const appSlug = (params?.appSlug as string) || 'client-a';
+export interface SiteRuntimeViewProps {
+  readonly appSlug: string;
+  /** Tenant App id, used to scope File Manager storage. Null for a bare platform preview. */
+  readonly appId: string | null;
+  readonly runtimeData: AppRuntimeData;
+  /**
+   * Tree the server already rendered for this URL. Keeping it as the initial
+   * state means the markup a crawler received is exactly what hydrates.
+   */
+  readonly initialContent: ComponentNode[];
+}
+
+/**
+ * Interactive shell for a published site.
+ *
+ * All data arrives from the Server Component, so nothing is fetched to paint
+ * the first screen; this component only adds navigation and actions on top of
+ * markup the server already produced.
+ */
+export function SiteRuntimeView({ appSlug, appId, runtimeData, initialContent }: SiteRuntimeViewProps) {
   const pathname = usePathname();
 
-  const [runtimeData, setRuntimeData] = useState<AppRuntimeData | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
   const [lastAction, setLastAction] = useState<string | null>(null);
   const [selectedContent, setSelectedContent] = useState<ComponentNode[] | null>(null);
   const [selectedMenuLabel, setSelectedMenuLabel] = useState<string>('');
-  const [contentOutletMode, setContentOutletMode] = useState<'content' | 'page'>('content');
+  const [contentOutletMode, setContentOutletMode] = useState<'content' | 'page'>('page');
 
-  useEffect(() => {
-    async function loadData() {
-      setLoading(true);
-      const data = await fetchAppRuntimeData(appSlug);
-      setRuntimeData(data);
-      setLoading(false);
-    }
-    loadData();
-  }, [appSlug]);
 
   useEffect(() => {
     if (!runtimeData) return;
@@ -75,17 +80,8 @@ export default function ChildAppRuntimePage() {
     } else if (route.targetType === 'external' && route.externalUrl) window.location.replace(route.externalUrl);
   }, [appSlug, pathname, runtimeData]);
 
-  if (loading || !runtimeData) {
-    return (
-      <div className="min-vh-100 d-flex flex-column align-items-center justify-content-center bg-light">
-        <RefreshCw size={32} className="text-primary spin mb-2" />
-        <h5 className="fw-bold text-dark">Loading App Dynamic Player...</h5>
-        <p className="text-muted small">Fetching Layout JSON, Theme Tokens & Workflow AST from DB</p>
-      </div>
-    );
-  }
 
-  const { appConfig, pageLayout, workflowTree } = runtimeData;
+  const { appConfig, workflowTree } = runtimeData;
 
   const handleActionTrigger = async (actionId: string, payload: any): Promise<void> => {
     if (actionId === 'auth.login.submit') {
@@ -244,56 +240,77 @@ export default function ChildAppRuntimePage() {
       }
       return;
     }
+    // Form submissions persist into this site's own tenant database. The table
+    // must be listed in the platform's public insert allow-list, or the API
+    // refuses the write.
+    if (actionId === 'submit' || actionId.endsWith('.submit')) {
+      const table = payload?.table || payload?.dataSource?.table;
+      if (!table) {
+        setLastAction('ฟอร์มนี้ยังไม่ได้ผูกตารางปลายทาง (dataSource.table)');
+        return;
+      }
+      try {
+        const response = await fetch(
+          `/api/runtime/${encodeURIComponent(appSlug)}/records/${encodeURIComponent(table)}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload?.values ?? payload),
+          },
+        );
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'บันทึกข้อมูลไม่สำเร็จ');
+        setLastAction(`บันทึกข้อมูลลงตาราง ${table} เรียบร้อยแล้ว`);
+      } catch (error) {
+        setLastAction(error instanceof Error ? error.message : 'บันทึกข้อมูลไม่สำเร็จ');
+      }
+      return;
+    }
+
     setLastAction(`Event '${actionId}' triggered with data: ${JSON.stringify(payload)}`);
 
-    // Execute workflow if available
     if (workflowTree) {
       const interpreter = new WorkflowInterpreter(workflowTree);
       await interpreter.executeTrigger(actionId, {
         payload,
         appId: appConfig.id,
-        showAlert: (msg) => alert(`[Tenant App Alert]\n${msg}`),
+        showAlert: (message) => setLastAction(message),
       });
-    } else {
-      // Direct Tenant DB interaction demo
-      const tenantClient = getTenantDbClient(appConfig.tenantDbName);
-      console.log(`[Tenant DB Client Connected] DB: ${appConfig.tenantDbName}`, tenantClient);
-      alert(`[Tenant DB Action Executed]\nSaved to Tenant Database: '${appConfig.tenantDbName}'\nPayload: ${JSON.stringify(payload, null, 2)}`);
     }
   };
 
   return (
+    <StorageScopeProvider scope={{ appId: appId ?? undefined }}>
     <div className="min-vh-100 bg-light d-flex flex-column municipal-admin-runtime">
-      {/* Top Banner indicating Tenant Dynamic Player status */}
-      <div className="bg-dark text-white py-2 px-3 shadow-sm border-bottom">
-        <div className="container-fluid d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <div className="d-flex align-items-center gap-3">
+      {/* Runtime diagnostics — development only: never expose tenant DB names publicly. */}
+      {process.env.NODE_ENV !== 'production' && (
+        <div className="bg-dark text-white py-2 px-3 shadow-sm border-bottom">
+          <div className="container-fluid d-flex justify-content-between align-items-center flex-wrap gap-2">
             <span className="badge bg-success px-3 py-1">Thin Dynamic Player (Child App)</span>
-            <small className="font-monospace text-info d-flex align-items-center me-2">
-              <Server size={14} className="me-1" /> Subdomain Port: :{appConfig.port}
-            </small>
-            <small className="font-monospace text-warning d-flex align-items-center">
-              <Database size={14} className="me-1" /> Isolated DB: {appConfig.tenantDbName}
-            </small>
-          </div>
-
-          <div className="small text-muted">
-            Host Nginx Mapping Target: <span className="text-white fw-bold">{appConfig.subdomain}</span>
+            <small className="font-monospace text-warning">{appConfig.tenantDbName}</small>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Action Event Toast */}
       {lastAction && (
         <div className="alert alert-info border-0 rounded-0 mb-0 py-2 text-center small fw-semibold">
-          <CheckCircle2 size={16} className="me-1 inline" /> {lastAction}
+          <CheckCircle2 size={16} className="me-1" /> {lastAction}
         </div>
       )}
 
       {/* Dynamic Page Renderer with Theme Engine */}
       <div className="flex-grow-1">
-        {selectedContent ? <RuntimeContentOutlet mode={contentOutletMode} content={selectedContent} shellNodes={pageLayout.componentTree.filter((node) => node.type === 'SlideMenuComponent')} label={selectedMenuLabel} themeConfig={appConfig.themeConfig} onActionTrigger={handleActionTrigger}/> : <DynamicPageRenderer nodes={pageLayout.componentTree} themeConfig={appConfig.themeConfig} onActionTrigger={handleActionTrigger} />}
+        <RuntimeContentOutlet
+          mode={selectedContent ? contentOutletMode : 'page'}
+          content={selectedContent ?? initialContent}
+          shellNodes={initialContent.filter((node) => node.type === 'SlideMenuComponent')}
+          label={selectedMenuLabel}
+          themeConfig={appConfig.themeConfig}
+          onActionTrigger={handleActionTrigger}
+        />
       </div>
     </div>
+    </StorageScopeProvider>
   );
 }

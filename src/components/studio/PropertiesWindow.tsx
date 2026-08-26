@@ -205,7 +205,7 @@ export const PropertiesWindow: React.FC<PropertiesWindowProps> = ({
                         try {
                           const parsed = JSON.parse(e.target.value);
                           handlePropChange(propKey, parsed);
-                        } catch (err) {
+                        } catch {
                           // ignore syntax error while typing
                         }
                       }}

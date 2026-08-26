@@ -6,6 +6,7 @@ export type ComponentType =
   | 'TableDataComponent'
   | 'DataTableComponent'
   | 'ListComponent'
+  | 'PostListComponent'
   | 'GalleryComponent'
   | 'FileManagerComponent'
   | 'FileManagerPopupComponent'
@@ -22,6 +23,7 @@ export type ComponentType =
   | 'ModalDialogComponent';
 
 export type ThemePreset =
+  | 'thai-municipal'
   | 'modern-indigo'
   | 'corporate-emerald'
   | 'dark-glassmorphism'
@@ -39,12 +41,62 @@ export interface ThemeConfig {
   customVariables?: Record<string, string>;
 }
 
+/** CreatePlatform.MD §4 — decides which pages, modules and flows a blueprint gets. */
+export type FirstPublicPageMode = 'PUBLIC_HOME' | 'PUBLIC_HOME_WITH_LOGIN' | 'LOGIN_PAGE';
+
+export type PlatformModuleCode =
+  | 'PAGES'
+  | 'AUTH'
+  | 'FLOW'
+  | 'STYLE'
+  | 'FORM'
+  | 'SERVICE'
+  | 'EVENT'
+  | 'REPORT';
+
+export interface PlatformModule {
+  id: string;
+  platformId: string;
+  moduleCode: PlatformModuleCode;
+  moduleName: string;
+  moduleOrder: number;
+  isEnabled: boolean;
+  config: Record<string, any>;
+}
+
+export interface PlatformPage {
+  id: string;
+  platformId: string;
+  pageSlug: string;
+  title: string;
+  accessLevel: 'PUBLIC' | 'PRIVATE';
+  isEntryPage: boolean;
+  componentTree: ComponentNode[];
+  pageConfig: Record<string, any>;
+}
+
+export type PlatformFlowType = 'ENTERPRISE' | 'SEQUENCE' | 'APP_MANIFEST' | 'PAGE';
+
+export interface PlatformWorkflow {
+  id: string;
+  platformId: string;
+  flowCode: string;
+  flowName: string;
+  flowType: PlatformFlowType;
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
+  config: Record<string, any>;
+  updatedAt?: string;
+}
+
 export interface PlatformConfig {
   id: string; // UUID
   platformSlug: string; // e.g. "platform-erp"
   platformName: string; // e.g. "PlatformERP Solution"
   description?: string;
   category?: string; // e.g. "ERP", "CRM", "POS"
+  categoryId?: string;
+  firstPublicPage?: FirstPublicPageMode;
   masterThemeConfig: ThemeConfig;
   isPublished?: boolean;
   createdAt: string;
@@ -158,10 +210,40 @@ export interface WorkflowTree {
   updatedAt: string;
 }
 
+export type AuditLogEntityType = 'PLATFORM' | 'APP' | 'PAGE' | 'FLOW' | 'THEME' | 'USER' | 'DATABASE' | 'RUNTIME';
+
+export type AuditLogAction =
+  | 'CREATE_PLATFORM'
+  | 'UPDATE_PLATFORM'
+  | 'DELETE_PLATFORM'
+  | 'CREATE_APP'
+  | 'UPDATE_APP'
+  | 'DELETE_APP'
+  | 'UPDATE_PAGE'
+  | 'UPDATE_THEME'
+  | 'UPDATE_FLOW'
+  | 'DELETE_PAGE'
+  | 'PROVISION_MODULE'
+  | 'PUBLISH_DATABASE'
+  | 'BUILD_RUNTIME'
+  | 'RECORD_INSERT'
+  | 'RECORD_UPDATE'
+  | 'RECORD_DELETE'
+  | 'UPLOAD_ASSET'
+  | 'DELETE_ASSET'
+  | 'CREATE_USER'
+  | 'UPDATE_USER'
+  | 'DELETE_USER'
+  | 'CHANGE_PASSWORD'
+  | 'LOGIN';
+
 export interface AuditLog {
   id: string;
-  appId: string;
-  action: 'CREATE_APP' | 'UPDATE_PAGE' | 'UPDATE_THEME' | 'UPDATE_FLOW' | 'DELETE_PAGE';
+  platformId?: string;
+  platformName?: string;
+  entityType: AuditLogEntityType;
+  entityId?: string;
+  action: AuditLogAction;
   performedBy: string;
   changesSummary: string;
   snapshotBefore?: Record<string, any>;
@@ -169,9 +251,31 @@ export interface AuditLog {
   createdAt: string;
 }
 
-// User & Auth Types for Platform Web แม่
-export type GlobalRole = 'SUPER_ADMIN' | 'DEVELOPER' | 'VIEWER';
-export type AppRole = 'APP_OWNER' | 'APP_EDITOR' | 'APP_VIEWER';
+// ==========================================
+// Authorisation — three tiers
+// ==========================================
+//
+//   GOD    พนักงานหนุมานไอที — สร้าง Site ใหม่และตั้งค่าได้ทุก Site
+//   ADMIN  ผู้ดูแลระบบของหน่วยงาน — เพิ่มผู้ใช้ ตั้งค่าเว็บของตัวเอง ดู package/วันหมดอายุ
+//   STAFF  พนักงานของหน่วยงาน — เพิ่มข่าว (post) และแก้ไขหน้าเว็บ (page)
+//
+// GOD is global; ADMIN/STAFF/VIEWER are always scoped to one Site.
+
+export type GlobalRole = 'GOD' | 'TENANT_USER';
+export type SiteRole = 'ADMIN' | 'STAFF' | 'VIEWER';
+
+/** Effective role on a given Site — GOD outranks every site membership. */
+export type EffectiveRole = 'GOD' | SiteRole;
+
+/** @deprecated ใช้ SiteRole แทน — คงไว้เพื่อความเข้ากันได้ */
+export type AppRole = SiteRole;
+
+export const ROLE_LABELS: Record<EffectiveRole, string> = {
+  GOD: 'ผู้ให้บริการ (หนุมานไอที)',
+  ADMIN: 'ผู้ดูแลระบบหน่วยงาน',
+  STAFF: 'พนักงานหน่วยงาน',
+  VIEWER: 'ผู้อ่านอย่างเดียว',
+};
 
 export interface UserProfile {
   id: string;
@@ -181,15 +285,29 @@ export interface UserProfile {
   avatarUrl?: string;
   globalRole: GlobalRole;
   isActive: boolean;
+  mustChangePassword?: boolean;
+  lastLoginAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SitePackage {
+  code: string;
+  name: string;
+  startedAt: string;
+  expiresAt: string | null;
+  limits: { maxUsers?: number; maxStorageMb?: number; maxDomains?: number };
+  isSuspended: boolean;
+  suspendedReason?: string | null;
+  /** Days until expiry; negative when already expired, null when perpetual. */
+  daysRemaining: number | null;
 }
 
 export interface AppMembership {
   id: string;
   userId: string;
   appId: string;
-  appRole: AppRole;
+  appRole: SiteRole;
   user?: UserProfile;
   app?: AppConfig;
   createdAt: string;
@@ -347,4 +465,43 @@ export interface DbTableDefinition {
   tableName: string;
   columns: DbColumnDefinition[];
   rowCount?: number;
+}
+
+// ==========================================
+// Tenant Data Access (Collection CRUD)
+// ==========================================
+
+export interface TenantRecordPage {
+  table: string;
+  columns: string[];
+  rows: Record<string, unknown>[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface TenantTableColumn {
+  columnName: string;
+  dataType: string;
+  isNullable: boolean;
+  isPrimaryKey: boolean;
+  defaultValue?: string | null;
+}
+
+export interface TenantTableSchema {
+  tableName: string;
+  columns: TenantTableColumn[];
+  rowCount: number;
+}
+
+export interface PlatformAsset {
+  id: string;
+  platformId: string;
+  fileName: string;
+  contentType: string;
+  byteSize: number;
+  checksum: string;
+  url: string;
+  uploadedBy: string;
+  createdAt: string;
 }

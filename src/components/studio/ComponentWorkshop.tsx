@@ -39,7 +39,7 @@ export const ComponentWorkshop: React.FC<ComponentWorkshopProps> = ({ pageName, 
   const [draft, setDraft] = useState<ComponentNode>(() => normalizeInstance(component));
   const [styleText, setStyleText] = useState(() => JSON.stringify(component.style || {}, null, 2));
   const [eventText, setEventText] = useState(() => JSON.stringify(component.props?.events || [], null, 2));
-  const [fixedItemsText, setFixedItemsText] = useState(() => JSON.stringify(component.props?.items || [], null, 2));
+  const [_fixedItemsText, setFixedItemsText] = useState(() => JSON.stringify(component.props?.items || [], null, 2));
   const document = useMemo<HtmlStudioDocument>(() => {
     const stored = component.props?.workshopDocument as HtmlStudioDocument | undefined;
     if (stored) return stored;

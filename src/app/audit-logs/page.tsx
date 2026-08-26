@@ -1,20 +1,29 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { AuditLogService } from '@/lib/engine/AuditLogService';
 import { AuditLog } from '@/types';
-import { History, FileText, User, Calendar, RefreshCw, Eye } from 'lucide-react';
+import { History, User, Calendar, RefreshCw, Eye } from 'lucide-react';
 
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
   const loadLogs = async () => {
     setLoading(true);
-    const data = await AuditLogService.fetchLogs();
-    setLogs(data);
-    setLoading(false);
+    setError('');
+    try {
+      const response = await fetch('/api/audit-logs?limit=200', { cache: 'no-store' });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'ไม่สามารถอ่าน Audit Log ได้');
+      setLogs(payload.logs as AuditLog[]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ไม่สามารถอ่าน Audit Log ได้');
+      setLogs([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -43,6 +52,10 @@ export default function AuditLogsPage() {
           </div>
         </div>
 
+        {error && (
+          <div className="alert alert-danger border-0 rounded-3 small" role="alert">{error}</div>
+        )}
+
         {/* Logs Table */}
         <div className="card shadow-sm border-0 p-4 bg-white mb-4">
           <h5 className="fw-bold mb-3">Revision Log Records</h5>
@@ -69,9 +82,11 @@ export default function AuditLogsPage() {
                       <td>
                         <span
                           className={`badge ${
-                            log.action === 'CREATE_APP'
+                            log.action.startsWith('CREATE')
                               ? 'bg-success'
-                              : log.action === 'UPDATE_PAGE'
+                              : log.action.startsWith('DELETE')
+                              ? 'bg-danger'
+                              : log.action.startsWith('UPDATE')
                               ? 'bg-primary'
                               : 'bg-warning text-dark'
                           }`}
@@ -82,6 +97,9 @@ export default function AuditLogsPage() {
                       <td className="small fw-semibold">
                         <User size={14} className="me-1 text-muted inline" />
                         {log.performedBy}
+                        {log.platformName && (
+                          <span className="badge bg-light text-dark ms-2 fw-normal">{log.platformName}</span>
+                        )}
                       </td>
                       <td className="small text-truncate" style={{ maxWidth: '300px' }}>
                         {log.changesSummary}

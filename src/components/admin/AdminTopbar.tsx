@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { UserProfile } from '@/types';
-import { Shield, ExternalLink } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 
 interface AdminTopbarProps {
@@ -43,7 +43,7 @@ export default function AdminTopbar({ user }: AdminTopbarProps) {
             style={{
               width: '36px',
               height: '36px',
-              background: user.globalRole === 'SUPER_ADMIN' ? 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)' : 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+              background: user.globalRole === 'GOD' ? 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)' : 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
             }}
           >
             {user.username ? user.username[0].toUpperCase() : 'U'}
@@ -51,7 +51,7 @@ export default function AdminTopbar({ user }: AdminTopbarProps) {
           <div className="d-none d-md-block text-end">
             <div className="fw-medium text-dark small lh-1">{user.fullName || user.username}</div>
             <div className="text-muted extra-small" style={{ fontSize: '0.7rem' }}>
-              {user.globalRole === 'SUPER_ADMIN' ? '🔴 Super Admin' : '🔵 Platform Developer'}
+              {user.globalRole === 'GOD' ? '🔴 Super Admin' : '🔵 Platform Developer'}
             </div>
           </div>
         </div>

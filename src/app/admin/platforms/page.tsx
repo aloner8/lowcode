@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Layers, Plus, Box, Palette, Workflow, ExternalLink, ArrowRight, ShieldCheck, Sparkles, Check, X } from 'lucide-react';
+import { Layers, Plus, Box, Palette, ArrowRight, Sparkles, Check, X } from 'lucide-react';
 import Link from 'next/link';
 import { PlatformConfig } from '@/types';
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   ReactFlow,
   Controls,
@@ -18,7 +18,6 @@ import { LifelineHeaderNode, SequenceStepNode } from '@/components/flow/Sequence
 import { LifelineParticipant, SequenceMessageType } from '@/types';
 import {
   Workflow,
-  Plus,
   Play,
   Save,
   Code2,
@@ -30,9 +29,6 @@ import {
   FileCode,
   Sliders,
   X,
-  ArrowRight,
-  Layers,
-  Sparkles,
 } from 'lucide-react';
 
 export default function FlowStudioPage() {
@@ -156,6 +152,44 @@ export default function FlowStudioPage() {
   const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
   const [testRunStatus, setTestRunStatus] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // The sequence diagram belongs to a Platform Master, so pick one to persist against.
+  const [platforms, setPlatforms] = useState<Array<{ id: string; platformName: string }>>([]);
+  const [platformId, setPlatformId] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/platforms', { cache: 'no-store' })
+      .then((response) => response.json())
+      .then((payload) => {
+        if (cancelled || !payload.platforms) return;
+        setPlatforms(payload.platforms);
+        setPlatformId((current) => current || payload.platforms[0]?.id || '');
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
+  // Load the saved diagram whenever the selected platform changes.
+  useEffect(() => {
+    if (!platformId) return;
+    let cancelled = false;
+    fetch(`/api/platforms/${platformId}/workflows?flowCode=MASTER_SEQUENCE`, { cache: 'no-store' })
+      .then((response) => response.json())
+      .then((payload) => {
+        if (cancelled || !payload.workflow) return;
+        if (Array.isArray(payload.workflow.nodes) && payload.workflow.nodes.length) {
+          setNodes(payload.workflow.nodes as Node[]);
+          setEdges((payload.workflow.edges ?? []) as Edge[]);
+          setSaveStatus('โหลด Sequence Flow จากฐานข้อมูลแล้ว');
+          setTimeout(() => setSaveStatus(null), 2500);
+        }
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [platformId]);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
@@ -227,10 +261,36 @@ export default function FlowStudioPage() {
     setTimeout(() => setTestRunStatus(null), 6000);
   };
 
-  // Save Flow AST
-  const handleSaveSequenceAst = () => {
-    setSaveStatus('Sequence Flow AST Saved!');
-    setTimeout(() => setSaveStatus(null), 3000);
+  // Persist the diagram into public.platform_workflows.
+  const handleSaveSequenceAst = async () => {
+    if (!platformId) {
+      setSaveStatus('กรุณาเลือก Platform ก่อนบันทึก');
+      setTimeout(() => setSaveStatus(null), 3000);
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/platforms/${platformId}/workflows`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          flowCode: 'MASTER_SEQUENCE',
+          flowName: 'Master Sequence Lifecycle Flow',
+          flowType: 'SEQUENCE',
+          nodes,
+          edges,
+          config: { lifelines: Object.keys(lifelineXPositions) },
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'บันทึกไม่สำเร็จ');
+      setSaveStatus('บันทึก Sequence Flow AST ลงฐานข้อมูลแล้ว');
+    } catch (error) {
+      setSaveStatus(error instanceof Error ? error.message : 'บันทึกไม่สำเร็จ');
+    } finally {
+      setIsSaving(false);
+      setTimeout(() => setSaveStatus(null), 4000);
+    }
   };
 
   return (
@@ -269,8 +329,23 @@ export default function FlowStudioPage() {
             <button className="btn btn-success btn-sm fw-semibold extra-small px-3 shadow-sm" onClick={handleTestRunSequence}>
               <Play size={15} className="me-1 fill-current" /> Test Run Flow
             </button>
-            <button className="btn btn-primary btn-sm fw-semibold extra-small px-3 shadow-sm" onClick={handleSaveSequenceAst}>
-              <Save size={15} className="me-1" /> Save Workflow AST
+            <select
+              className="form-select form-select-sm w-auto extra-small"
+              value={platformId}
+              onChange={(event) => setPlatformId(event.target.value)}
+              aria-label="เลือก Platform ที่จะบันทึก Flow"
+            >
+              <option value="">เลือก Platform…</option>
+              {platforms.map((platform) => (
+                <option key={platform.id} value={platform.id}>{platform.platformName}</option>
+              ))}
+            </select>
+            <button
+              className="btn btn-primary btn-sm fw-semibold extra-small px-3 shadow-sm"
+              onClick={() => void handleSaveSequenceAst()}
+              disabled={isSaving || !platformId}
+            >
+              <Save size={15} className="me-1" /> {isSaving ? 'กำลังบันทึก…' : 'Save Workflow AST'}
             </button>
           </div>
         </div>

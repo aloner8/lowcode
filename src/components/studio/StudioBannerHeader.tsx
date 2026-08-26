@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { AppConfig } from '@/types';
-import { Palette, Eye, Download, Save, Box, Database, Server, RefreshCw } from 'lucide-react';
+import { Palette, Eye, Download, Save, Box, Database, Server } from 'lucide-react';
 
 interface StudioBannerHeaderProps {
   appInfo: AppConfig;

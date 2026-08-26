@@ -1,10 +1,27 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { storageScopeQuery, useStorageScope } from './StorageScopeContext';
 import {
-  ChevronDown, ChevronRight, FileArchive, FileCode2, FileSpreadsheet, FileText,
-  FileType2, Folder, FolderOpen, Image as ImageIcon, Loader2, Music, Pencil,
-  Plus, RefreshCw, Trash2, Upload, Video, X,
+  ChevronDown,
+  ChevronRight,
+  FileArchive,
+  FileCode2,
+  FileSpreadsheet,
+  FileText,
+  FileType2,
+  Folder,
+  FolderOpen,
+  Image as ImageIcon,
+  Loader2,
+  Music,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Trash2,
+  Upload,
+  Video,
+  X,
 } from 'lucide-react';
 
 export interface FileManagerDirectory {
@@ -58,7 +75,7 @@ export interface FileManagerPopupProps {
   onClose: () => void;
 }
 
-const joinPath = (parent: string, name: string) => `${parent.replace(/\/$/, '')}/${name}`.replace(/\/+/g, '/');
+const _joinPath = (parent: string, name: string) => `${parent.replace(/\/$/, '')}/${name}`.replace(/\/+/g, '/');
 const isImage = (file: FileManagerAsset) => file.mimeType?.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg)$/i.test(file.name);
 const formatSize = (bytes = 0) => bytes < 1024 ? `${bytes} B` : bytes < 1048576 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1048576).toFixed(1)} MB`;
 const iconFor = (file: FileManagerAsset) => {
@@ -106,6 +123,11 @@ export const FileManagerPopupComponent: React.FC<FileManagerPopupProps> = ({
   const currentPath = controlledPath ?? internalPath;
   const [directories, setDirectories] = useState<FileManagerDirectory[]>([]);
   const [files, setFiles] = useState<FileManagerAsset[]>([]);
+  // Uploads are tenant data: the scope decides which tenant's storage is used.
+  const storageScope = useStorageScope();
+  const scopeQuery = storageScopeQuery(storageScope);
+  const scoped = (url: string) => (scopeQuery ? `${url}${url.includes('?') ? '&' : '?'}${scopeQuery}` : url);
+
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -121,7 +143,7 @@ export const FileManagerPopupComponent: React.FC<FileManagerPopupProps> = ({
     try {
       const result = onLoad
         ? await onLoad({ rootPath, currentPath, cursor: append ? cursor : null, limit: pageSize })
-        : await fetch(`/api/file-manager?path=${encodeURIComponent(currentPath)}&limit=${pageSize}${append && cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, { cache: 'no-store' }).then(async (response) => { const data = await response.json(); if (!response.ok) throw new Error(data.error || 'ไม่สามารถโหลดไฟล์ได้'); return data as FileManagerLoadResult; });
+        : await fetch(scoped(`/api/file-manager?path=${encodeURIComponent(currentPath)}&limit=${pageSize}${append && cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`), { cache: 'no-store' }).then(async (response) => { const data = await response.json(); if (!response.ok) throw new Error(data.error || 'ไม่สามารถโหลดไฟล์ได้'); return data as FileManagerLoadResult; });
       if (result.rootPath) setRootPath(result.rootPath);
       if (result.currentPath && controlledPath === undefined) setInternalPath(result.currentPath);
       if (result.directories) setDirectories(result.directories);
@@ -147,7 +169,7 @@ export const FileManagerPopupComponent: React.FC<FileManagerPopupProps> = ({
       if (onUpload) added = await onUpload(incoming, currentPath);
       else {
         const body = new FormData(); body.set('path', currentPath); incoming.forEach((file) => body.append('files', file));
-        const response = await fetch('/api/file-manager', { method: 'POST', body }); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'อัปโหลดไม่สำเร็จ'); added = data.files;
+        const response = await fetch(scoped('/api/file-manager'), { method: 'POST', body }); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'อัปโหลดไม่สำเร็จ'); added = data.files;
       }
       setFiles((value) => [...added, ...value]);
       setSelected(selectionMode === 'single' ? added.slice(0, 1).map((file) => file.id) : added.map((file) => file.id));
@@ -158,12 +180,12 @@ export const FileManagerPopupComponent: React.FC<FileManagerPopupProps> = ({
     const name = window.prompt('ชื่อโฟลเดอร์ใหม่'); if (!name?.trim()) return;
     let directory: FileManagerDirectory;
     if (onCreateDirectory) directory = await onCreateDirectory(name.trim(), currentPath);
-    else { const response = await fetch('/api/file-manager', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create-directory', path: currentPath, name: name.trim() }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'สร้างโฟลเดอร์ไม่สำเร็จ'); directory = data.directory; }
+    else { const response = await fetch(scoped('/api/file-manager'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create-directory', path: currentPath, name: name.trim() }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'สร้างโฟลเดอร์ไม่สำเร็จ'); directory = data.directory; }
     setDirectories((value) => [...value, directory]);
   };
-  const rename = async (entry: FileManagerDirectory | FileManagerAsset) => { const name = window.prompt('ชื่อใหม่', entry.name); if (!name?.trim() || name === entry.name) return; if (onRename) await onRename(entry, name.trim()); else { const response = await fetch('/api/file-manager', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: entry.path, name: name.trim() }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'เปลี่ยนชื่อไม่สำเร็จ'); } await load(false); };
-  const removeFile = async (file: FileManagerAsset) => { if (!window.confirm(`ลบไฟล์ “${file.name}” หรือไม่?`)) return; if (onDeleteFile) await onDeleteFile(file); else { const response = await fetch(`/api/file-manager?path=${encodeURIComponent(file.path)}`, { method: 'DELETE' }); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'ลบไฟล์ไม่สำเร็จ'); } setFiles((value) => value.filter((item) => item.id !== file.id)); setSelected((value) => value.filter((id) => id !== file.id)); };
-  const removeDirectory = async (directory: FileManagerDirectory) => { if (!window.confirm(`ลบโฟลเดอร์ “${directory.name}” หรือไม่?`)) return; if (onDeleteDirectory) await onDeleteDirectory(directory); else { const response = await fetch(`/api/file-manager?path=${encodeURIComponent(directory.path)}`, { method: 'DELETE' }); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'ลบโฟลเดอร์ไม่สำเร็จ'); } await load(false); if (currentPath === directory.path) changePath(rootPath); };
+  const rename = async (entry: FileManagerDirectory | FileManagerAsset) => { const name = window.prompt('ชื่อใหม่', entry.name); if (!name?.trim() || name === entry.name) return; if (onRename) await onRename(entry, name.trim()); else { const response = await fetch(scoped('/api/file-manager'), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: entry.path, name: name.trim() }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'เปลี่ยนชื่อไม่สำเร็จ'); } await load(false); };
+  const removeFile = async (file: FileManagerAsset) => { if (!window.confirm(`ลบไฟล์ “${file.name}” หรือไม่?`)) return; if (onDeleteFile) await onDeleteFile(file); else { const response = await fetch(scoped(`/api/file-manager?path=${encodeURIComponent(file.path)}`), { method: 'DELETE' }); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'ลบไฟล์ไม่สำเร็จ'); } setFiles((value) => value.filter((item) => item.id !== file.id)); setSelected((value) => value.filter((id) => id !== file.id)); };
+  const removeDirectory = async (directory: FileManagerDirectory) => { if (!window.confirm(`ลบโฟลเดอร์ “${directory.name}” หรือไม่?`)) return; if (onDeleteDirectory) await onDeleteDirectory(directory); else { const response = await fetch(scoped(`/api/file-manager?path=${encodeURIComponent(directory.path)}`), { method: 'DELETE' }); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'ลบโฟลเดอร์ไม่สำเร็จ'); } await load(false); if (currentPath === directory.path) changePath(rootPath); };
 
   if (!open) return null;
   return <div className="modal d-block file-manager-popup-backdrop" tabIndex={-1} role="dialog" aria-modal="true">

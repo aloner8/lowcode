@@ -10,9 +10,6 @@ import {
   Database,
   FileCode,
   ArrowRight,
-  ArrowLeft,
-  RefreshCw,
-  HelpCircle,
 } from 'lucide-react';
 import { LifelineParticipant, SequenceMessageType } from '@/types';
 

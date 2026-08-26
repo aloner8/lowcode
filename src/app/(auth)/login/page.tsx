@@ -1,40 +1,11 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useActionState } from 'react';
 import { loginAction } from '@/lib/auth/authActions';
-import { LogIn, Lock, User, Sparkles, ShieldCheck, Code2 } from 'lucide-react';
+import { LogIn, Lock, User, Sparkles } from 'lucide-react';
 
 export default function LoginPage() {
-  const [isPending, startTransition] = useTransition();
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setErrorMessage(null);
-
-    const formData = new FormData();
-    formData.append('identifier', identifier);
-    formData.append('password', password);
-
-    startTransition(async () => {
-      const res = await loginAction(formData);
-      if (res?.error) {
-        setErrorMessage(res.error);
-      }
-    });
-  };
-
-  const fillQuickLogin = (user: 'admin' | 'aloner') => {
-    if (user === 'admin') {
-      setIdentifier('admin@platform.com');
-      setPassword('1qaz@WSX');
-    } else {
-      setIdentifier('aloner');
-      setPassword('1qaz@WSX');
-    }
-  };
+  const [state, formAction, isPending] = useActionState(loginAction, {});
 
   return (
     <div
@@ -66,43 +37,49 @@ export default function LoginPage() {
         </div>
 
         {/* Error Feedback */}
-        {errorMessage && (
+        {state?.error && (
           <div className="alert alert-danger border-0 bg-danger bg-opacity-25 text-danger-emphasis mb-4 small rounded-3" role="alert">
-            {errorMessage}
+            {state.error}
           </div>
         )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit}>
+        {/* Form — submitted as a Server Action so credentials never touch client state */}
+        <form action={formAction}>
           <div className="mb-3">
-            <label className="form-label small text-white-50 fw-medium">ชื่อผู้ใช้ หรือ อีเมล</label>
+            <label htmlFor="identifier" className="form-label small text-white-50 fw-medium">
+              ชื่อผู้ใช้ หรือ อีเมล
+            </label>
             <div className="input-group">
               <span className="input-group-text bg-dark bg-opacity-50 border-secondary border-opacity-25 text-white-50">
                 <User size={18} />
               </span>
               <input
+                id="identifier"
+                name="identifier"
                 type="text"
+                autoComplete="username"
                 className="form-control bg-dark bg-opacity-50 border-secondary border-opacity-25 text-white placeholder-secondary"
-                placeholder="admin@platform.com หรือ aloner"
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder="you@example.com"
                 required
               />
             </div>
           </div>
 
           <div className="mb-4">
-            <label className="form-label small text-white-50 fw-medium">รหัสผ่าน</label>
+            <label htmlFor="password" className="form-label small text-white-50 fw-medium">
+              รหัสผ่าน
+            </label>
             <div className="input-group">
               <span className="input-group-text bg-dark bg-opacity-50 border-secondary border-opacity-25 text-white-50">
                 <Lock size={18} />
               </span>
               <input
+                id="password"
+                name="password"
                 type="password"
+                autoComplete="current-password"
                 className="form-control bg-dark bg-opacity-50 border-secondary border-opacity-25 text-white"
                 placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
@@ -111,7 +88,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isPending}
-            className="btn w-100 py-2.5 fw-semibold shadow-sm text-white mb-4 d-flex align-items-center justify-content-center gap-2"
+            className="btn w-100 py-2.5 fw-semibold shadow-sm text-white mb-2 d-flex align-items-center justify-content-center gap-2"
             style={{
               background: 'linear-gradient(135deg, #4f46e5 0%, #9333ea 100%)',
               border: 'none',
@@ -119,7 +96,7 @@ export default function LoginPage() {
             }}
           >
             {isPending ? (
-              <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+              <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
             ) : (
               <>
                 <LogIn size={18} /> เข้าสู่ระบบ (Sign In)
@@ -128,28 +105,9 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <hr className="border-secondary border-opacity-25 my-4" />
-
-        {/* Quick Credentials Test Panel */}
-        <div className="text-center">
-          <p className="text-white-50 extra-small mb-2 fw-medium">บัญชีทดสอบด่วน (Quick Test Accounts):</p>
-          <div className="d-flex gap-2">
-            <button
-              type="button"
-              onClick={() => fillQuickLogin('admin')}
-              className="btn btn-outline-light btn-sm w-50 py-1.5 small bg-white bg-opacity-10 border-white border-opacity-25 text-white d-flex align-items-center justify-content-center gap-1.5"
-            >
-              <ShieldCheck size={14} className="text-danger" /> Admin User
-            </button>
-            <button
-              type="button"
-              onClick={() => fillQuickLogin('aloner')}
-              className="btn btn-outline-light btn-sm w-50 py-1.5 small bg-white bg-opacity-10 border-white border-opacity-25 text-white d-flex align-items-center justify-content-center gap-1.5"
-            >
-              <Code2 size={14} className="text-info" /> Dev: aloner
-            </button>
-          </div>
-        </div>
+        <p className="text-white-50 extra-small text-center mb-0 mt-3">
+          บัญชีผู้ใช้ถูกจัดเก็บและตรวจสอบที่ฐานข้อมูล — ติดต่อผู้ดูแลระบบหากลืมรหัสผ่าน
+        </p>
       </div>
     </div>
   );

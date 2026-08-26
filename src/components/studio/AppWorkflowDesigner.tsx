@@ -1,25 +1,16 @@
 'use client';
 
 import React, { useState } from 'react';
-import { AppConfig, AppWorkFlowManifest, AppBootService, AppMenuItem, MenuActionType } from '@/types';
+import { AppConfig, AppWorkFlowManifest, AppBootService, AppMenuItem } from '@/types';
 import {
   Workflow,
   Server,
   Compass,
-  Play,
   Plus,
   Trash2,
   Save,
-  Check,
-  ExternalLink,
   Code2,
-  Database,
-  ShieldCheck,
-  Palette,
-  FileText,
   Zap,
-  ArrowRight,
-  Layers,
 } from 'lucide-react';
 
 interface AppWorkflowDesignerProps {

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getCoreDb } from '@/lib/db/coreDb';
-import { AppRoute, ComponentNode, ThemeConfig, StudioServiceDefinition, createDefaultJwtAuthService } from '@/types';
+import { requirePlatformSession } from '@/lib/auth/apiAuth';
+import { recordPlatformAudit } from '@/lib/engine/AuditLogService';
+import { AppRoute, ComponentNode, StudioServiceDefinition, ThemeConfig, createDefaultJwtAuthService } from '@/types';
 import { createAdminPageTemplate } from '@/lib/studio/adminMenuTemplate';
 import { ALL_BACKEND_COLLECTION_SEEDS, ALL_BACKEND_FORM_SEEDS, StudioCollectionDefinition, StudioFormDefinition } from '@/lib/studio/backendFormDefinitions';
 import { BACKEND_DEFINITION_ISSUES } from '@/lib/studio/backendDefinitionValidation';
@@ -58,8 +60,11 @@ const selectStudioPlatform = `
 `;
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  const auth = await requirePlatformSession(id, 'VIEWER');
+  if (auth instanceof NextResponse) return auth;
+
   try {
-    const { id } = await context.params;
     const result = await getCoreDb().query<StudioPlatformRow>(selectStudioPlatform, [id]);
     if (!result.rowCount) return NextResponse.json({ error: 'ไม่พบ Platform ที่เลือก' }, { status: 404 });
     return NextResponse.json({ platform: toStudioPlatform(result.rows[0]) });
@@ -70,8 +75,11 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 }
 
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  const auth = await requirePlatformSession(id, 'STAFF');
+  if (auth instanceof NextResponse) return auth;
+
   try {
-    const { id } = await context.params;
     const body = (await request.json()) as { studioLayout?: unknown; studioPages?: unknown; studioForms?: unknown; studioCollections?: unknown; studioServices?: unknown };
     if (!Array.isArray(body.studioLayout)) {
       return NextResponse.json({ error: 'ข้อมูล Layout ไม่ถูกต้อง' }, { status: 400 });
@@ -100,6 +108,14 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     if (!update.rowCount) return NextResponse.json({ error: 'ไม่พบ Platform ที่เลือก' }, { status: 404 });
 
     const result = await getCoreDb().query<StudioPlatformRow>(selectStudioPlatform, [id]);
+    await recordPlatformAudit({
+      platformId: id,
+      entityType: 'PAGE',
+      entityId: id,
+      action: 'UPDATE_PAGE',
+      performedBy: auth.actor,
+      changesSummary: `บันทึก Studio Layout (${(body.studioLayout as unknown[]).length} node)`,
+    });
     return NextResponse.json({ platform: toStudioPlatform(result.rows[0]) });
   } catch (error) {
     console.error('Unable to save platform studio data', error);
@@ -108,8 +124,11 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+  const auth = await requirePlatformSession(id, 'STAFF');
+  if (auth instanceof NextResponse) return auth;
+
   try {
-    const { id } = await context.params;
     const body = (await request.json()) as { action?: string; pageId?: string; moduleId?: string; preserveExisting?: boolean };
     if (!['provision-admin-sidebar', 'provision-cms-forms', 'provision-backend-module', 'provision-jwt-auth-bundle'].includes(body.action || '')) return NextResponse.json({ error: 'Unsupported Studio action' }, { status: 400 });
 
@@ -162,6 +181,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       const studioForms = body.preserveExisting ? [...currentForms, ...formsToAdd] : [...currentForms.filter((item) => !formIds.has(item.id)), ...formsToAdd];
       const studioCollections = body.preserveExisting ? [...currentCollections, ...collectionsToAdd] : [...currentCollections.filter((item) => !collectionIds.has(item.id)), ...collectionsToAdd];
       await getCoreDb().query(`UPDATE public.platforms SET studio_forms=$2::jsonb, studio_collections=$3::jsonb, content_updated_at=NOW(), runtime_status=CASE WHEN runtime_built_at IS NULL THEN 'not_created' ELSE 'stale' END WHERE id=$1`, [id, JSON.stringify(studioForms), JSON.stringify(studioCollections)]);
+      await recordPlatformAudit({
+        platformId: id,
+        entityType: 'PLATFORM',
+        entityId: id,
+        action: 'PROVISION_MODULE',
+        performedBy: auth.actor,
+        changesSummary: `Provision module '${requestedModule || 'all'}' (${formsToAdd.length} forms, ${collectionsToAdd.length} collections)`,
+      });
       return NextResponse.json({ forms: studioForms, collections: studioCollections, provisioned: { moduleId: requestedModule || 'all', forms: formsToAdd.length, collections: collectionsToAdd.length, preserveExisting: Boolean(body.preserveExisting) } });
     }
     const pageId = body.pageId || 'admin';
@@ -179,6 +206,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
        WHERE id = $1`,
       [id, JSON.stringify(componentTree), JSON.stringify(studioPages)],
     );
+    await recordPlatformAudit({
+      platformId: id,
+      entityType: 'PAGE',
+      entityId: id,
+      action: 'PROVISION_MODULE',
+      performedBy: auth.actor,
+      changesSummary: `Provision admin sidebar สำหรับหน้า '${pageId}'`,
+    });
     return NextResponse.json({ page: adminPage, menuItemCount: componentTree[0]?.props?.items?.length || 0 });
   } catch (error) {
     console.error('Unable to provision admin sidebar', error);

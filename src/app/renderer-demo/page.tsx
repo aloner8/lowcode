@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { DynamicPageRenderer } from '@/components/engine/DynamicPageRenderer';
 import { ComponentNode, ThemeConfig } from '@/types';
-import { Play, Code, Palette, CheckCircle2 } from 'lucide-react';
+import { Code, Palette } from 'lucide-react';
 
 export default function RendererDemoPage() {
   const [activeTheme, setActiveTheme] = useState<ThemeConfig>({
@@ -11,7 +11,7 @@ export default function RendererDemoPage() {
     mode: 'light',
     primaryColor: '#10b981',
     borderRadius: '0.5rem',
-    fontFamily: 'Inter, sans-serif',
+    fontFamily: 'Anuphan, sans-serif',
   });
 
   const [showJsonModal, setShowJsonModal] = useState(false);

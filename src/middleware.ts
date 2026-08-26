@@ -1,87 +1,93 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { SESSION_COOKIE, verifySession } from '@/lib/auth/session';
+
+/** Routes that require a valid Web แม่ (Platform) session. */
+const PROTECTED_PREFIXES = ['/admin', '/studio', '/flow-studio', '/audit-logs', '/site'];
+
+/** Routes only the service provider (GOD) may open. */
+const GOD_ONLY_PREFIXES = ['/admin/platforms', '/admin/security'];
+
+/** Control-plane surfaces that a public site process must never expose. */
+const CONTROL_PLANE_PREFIXES = [...PROTECTED_PREFIXES, '/renderer-demo', '/shared-demo'];
+
+/**
+ * When the process was started by `scripts/run-sites.mjs` it serves exactly one
+ * site (`SITE_SLUG`), optionally answering several domains (`SITE_DOMAIN_MAP`).
+ * Both are plain environment variables so this stays Edge-safe — no database
+ * call happens on the request path.
+ */
+const SITE_SLUG = process.env.SITE_SLUG?.trim() ?? '';
+
+let cachedDomainMap: Record<string, string> | null = null;
+function getDomainMap(): Record<string, string> {
+  if (cachedDomainMap) return cachedDomainMap;
+  try {
+    cachedDomainMap = JSON.parse(process.env.SITE_DOMAIN_MAP || '{}') as Record<string, string>;
+  } catch {
+    console.warn('[sites] SITE_DOMAIN_MAP is not valid JSON — falling back to SITE_SLUG only.');
+    cachedDomainMap = {};
+  }
+  return cachedDomainMap;
+}
+
+function resolveSiteSlug(request: NextRequest): string {
+  const hostname = (request.headers.get('host') ?? '').split(':')[0].trim().toLowerCase();
+  return getDomainMap()[hostname] ?? SITE_SLUG;
+}
+
+const isSiteProcess = () => Boolean(SITE_SLUG) || Object.keys(getDomainMap()).length > 0;
+
+/** Site process: serve exactly one tenant site, never the control plane. */
+function handleSiteRequest(request: NextRequest, path: string): NextResponse {
+  const slug = resolveSiteSlug(request);
+
+  if (!slug) {
+    return new NextResponse('Site not configured for this host', { status: 404 });
+  }
+  if (CONTROL_PLANE_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) {
+    return new NextResponse('Not found', { status: 404 });
+  }
+  // `/app/<slug>` and API routes are already canonical; everything else is
+  // rewritten so each site can be reached at the root of its own domain.
+  if (!path.startsWith('/app/') && !path.startsWith('/api/')) {
+    const rewritten = request.nextUrl.clone();
+    rewritten.pathname = path === '/' ? `/app/${slug}` : `/app/${slug}${path}`;
+    return NextResponse.rewrite(rewritten);
+  }
+  return NextResponse.next({ request: { headers: request.headers } });
+}
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
-
   const path = request.nextUrl.pathname;
 
-  // Paths requiring Web แม่ Platform Authentication
-  const isProtectedRoute =
-    path.startsWith('/admin') ||
-    path.startsWith('/studio') ||
-    path.startsWith('/flow-studio') ||
-    path.startsWith('/audit-logs');
+  if (isSiteProcess()) return handleSiteRequest(request, path);
 
-  const isAuthRoute = path === '/login';
+  // ---- Control plane (App แม่) ----
+  const session = await verifySession(request.cookies.get(SESSION_COOKIE)?.value);
+  const isProtected = PROTECTED_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 
-  // Check mock session cookie
-  const mockCookie = request.cookies.get('platform_mock_session');
-  let isAuthenticated = !!mockCookie?.value;
-
-  if (!isAuthenticated) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-project.supabase.co';
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
-
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({ name, value, ...options });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          });
-          response.cookies.set({ name, value, ...options });
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({ name, value: '', ...options });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          });
-          response.cookies.set({ name, value: '', ...options });
-        },
-      },
-    });
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (user) {
-      isAuthenticated = true;
-    }
-  }
-
-  // Route protection logic
-  if (isProtectedRoute && !isAuthenticated) {
+  if (isProtected && !session) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', path);
-    return NextResponse.redirect(loginUrl);
+    const response = NextResponse.redirect(loginUrl);
+    // Clear a stale or forged cookie so the browser stops resending it.
+    response.cookies.delete(SESSION_COOKIE);
+    return response;
   }
 
-  if (isAuthRoute && isAuthenticated) {
+  if (session && GOD_ONLY_PREFIXES.some((prefix) => path.startsWith(prefix)) && session.role !== 'GOD') {
+    return NextResponse.redirect(new URL('/admin?error=forbidden', request.url));
+  }
+
+  if (path === '/login' && session) {
     return NextResponse.redirect(new URL('/admin', request.url));
   }
 
-  return response;
+  return NextResponse.next({ request: { headers: request.headers } });
 }
 
 export const config = {
-  matcher: [
-    '/admin/:path*',
-    '/studio/:path*',
-    '/flow-studio/:path*',
-    '/audit-logs/:path*',
-    '/login',
-  ],
+  // Everything except Next internals and static files, so site processes can
+  // rewrite arbitrary public paths onto their own /app/<slug> subtree.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.[\\w]+$).*)'],
 };

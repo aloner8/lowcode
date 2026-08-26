@@ -32,7 +32,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ appInfo, activ
           </h6>
         </div>
         <span className="badge bg-secondary bg-opacity-10 text-secondary extra-small" style={{ fontSize: '0.62rem' }}>
-          Solution 'App' (1 Project)
+          Solution &apos;App&apos; (1 Project)
         </span>
       </div>
 
@@ -40,7 +40,7 @@ export const ProjectExplorer: React.FC<ProjectExplorerProps> = ({ appInfo, activ
         {/* Solution Root Item */}
         <div className="fw-bold text-dark d-flex align-items-center gap-1.5 mb-1 text-truncate">
           <Folder size={15} className="text-warning fill-warning" />
-          <span>Solution '{appInfo.appName}'</span>
+          <span>Solution &apos;{appInfo.appName}&apos;</span>
         </div>
 
         <div className="ms-2 ps-2 border-start border-light">

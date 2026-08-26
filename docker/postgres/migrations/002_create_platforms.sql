@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS public.platforms (
         "mode": "light",
         "primaryColor": "#0d6efd",
         "borderRadius": "0.375rem",
-        "fontFamily": "Inter, sans-serif"
+        "fontFamily": "Anuphan, sans-serif"
     }'::jsonb,
     studio_layout JSONB NOT NULL DEFAULT '[]'::jsonb,
     studio_pages JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -66,13 +66,13 @@ SELECT seed.platform_slug, seed.platform_name, seed.description, c.id, seed.them
 FROM (VALUES
     ('platform-erp', 'PlatformERP Enterprise Solution',
      'Master Enterprise Resource Planning Low-Code Blueprint Solution', 'ERP',
-     '{"preset":"corporate-emerald","mode":"light","primaryColor":"#198754","borderRadius":"0.5rem","fontFamily":"Inter, sans-serif"}'),
+     '{"preset":"corporate-emerald","mode":"light","primaryColor":"#198754","borderRadius":"0.5rem","fontFamily":"Anuphan, sans-serif"}'),
     ('platform-crm', 'PlatformCRM Sales & Lead Solution',
      'Master Customer Relationship Management Low-Code Blueprint', 'CRM',
-     '{"preset":"modern-indigo","mode":"light","primaryColor":"#0d6efd","borderRadius":"0.375rem","fontFamily":"Inter, sans-serif"}'),
+     '{"preset":"modern-indigo","mode":"light","primaryColor":"#0d6efd","borderRadius":"0.375rem","fontFamily":"Anuphan, sans-serif"}'),
     ('plateform-obt', 'Web อบต.',
      'Master CMS Solution Blueprint', 'CMS',
-     '{"preset":"modern-indigo","mode":"light","primaryColor":"#0d6efd","borderRadius":"0.375rem","fontFamily":"Inter, sans-serif"}')
+     '{"preset":"modern-indigo","mode":"light","primaryColor":"#0d6efd","borderRadius":"0.375rem","fontFamily":"Anuphan, sans-serif"}')
 ) AS seed(platform_slug, platform_name, description, category_name, theme)
 JOIN public.platform_categories c ON c.category_name = seed.category_name
 ON CONFLICT (platform_slug) DO UPDATE

@@ -14,7 +14,6 @@ import {
   MapPin,
   Zap,
   Timer,
-  CheckCircle2,
 } from 'lucide-react';
 import { SubFlowCategory } from '@/types';
 

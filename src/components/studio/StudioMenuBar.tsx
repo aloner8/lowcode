@@ -204,12 +204,12 @@ export const StudioMenuBar: React.FC<StudioMenuBarProps> = ({
         </div>
         <span className="bg-secondary opacity-25" style={{ width: 1, height: 26 }} />
         <Link href="/admin" className="d-flex align-items-center gap-2 text-white text-decoration-none" title="Back to Platform Control Admin">
-          <div className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold" style={{ width: 30, height: 30, background: user?.globalRole === 'SUPER_ADMIN' ? 'linear-gradient(135deg,#ef4444,#b91c1c)' : 'linear-gradient(135deg,#3b82f6,#1d4ed8)' }}>
+          <div className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold" style={{ width: 30, height: 30, background: user?.globalRole === 'GOD' ? 'linear-gradient(135deg,#ef4444,#b91c1c)' : 'linear-gradient(135deg,#3b82f6,#1d4ed8)' }}>
             {user?.username?.[0]?.toUpperCase() || user?.fullName?.[0]?.toUpperCase() || <CircleUserRound size={16}/>} 
           </div>
           <div className="d-none d-lg-block lh-sm">
             <div className="small fw-semibold">{user?.fullName || user?.username || 'Studio User'}</div>
-            <div className="text-white-50" style={{ fontSize: '.65rem' }}>{user?.globalRole === 'SUPER_ADMIN' ? 'Super Admin' : 'Platform Developer'}</div>
+            <div className="text-white-50" style={{ fontSize: '.65rem' }}>{user?.globalRole === 'GOD' ? 'Super Admin' : 'Platform Developer'}</div>
           </div>
         </Link>
       </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Braces, ChevronRight, Code2, Eye, LayoutPanelLeft, Monitor, Plus, Save, Smartphone, Tablet, Trash2, X } from 'lucide-react';
+import { Braces, ChevronRight, Code2, Eye, LayoutPanelLeft, Monitor, Save, Smartphone, Tablet, Trash2, X } from 'lucide-react';
 import { appendNode, cloneDocument, compileDocument, createNodeId, findNode, parseHtmlSource, removeNode, serializeStudioNodes, updateNode, type HtmlStudioDocument, type StudioNode } from '@/lib/html-studio';
 import { COMPONENT_REGISTRY } from '@/lib/engine/ComponentRegistry';
 

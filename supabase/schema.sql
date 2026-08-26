@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS public.platforms (
         "mode": "light",
         "primaryColor": "#0d6efd",
         "borderRadius": "0.375rem",
-        "fontFamily": "Inter, sans-serif"
+        "fontFamily": "Anuphan, sans-serif"
     }'::jsonb,
     is_published BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS public.apps (
         "mode": "light",
         "primaryColor": "#0d6efd",
         "borderRadius": "0.375rem",
-        "fontFamily": "Inter, sans-serif"
+        "fontFamily": "Anuphan, sans-serif"
     }'::jsonb,
     tenant_overrides JSONB NOT NULL DEFAULT '{
         "disabledFeatures": [],
@@ -167,6 +167,131 @@ CREATE TRIGGER on_auth_user_created
 AFTER INSERT ON auth.users
 FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
+
+-- ===========================================================================
+-- Row Level Security
+-- ---------------------------------------------------------------------------
+-- Every table below denies access by default; the policies then grant exactly
+-- what each role needs. `helper` functions are SECURITY DEFINER so a policy can
+-- read the caller's role without recursing into the policy it is evaluating.
+-- ===========================================================================
+
+CREATE OR REPLACE FUNCTION public.current_global_role()
+RETURNS TEXT
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+    SELECT global_role FROM public.profiles WHERE id = auth.uid();
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_super_admin()
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+    SELECT COALESCE(public.current_global_role() = 'SUPER_ADMIN', FALSE);
+$$;
+
+CREATE OR REPLACE FUNCTION public.has_app_role(p_app_id UUID, p_minimum TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+    SELECT public.is_super_admin() OR EXISTS (
+        SELECT 1 FROM public.app_memberships m
+        WHERE m.app_id = p_app_id
+          AND m.user_id = auth.uid()
+          AND CASE m.app_role
+                WHEN 'APP_OWNER'  THEN 3
+                WHEN 'APP_EDITOR' THEN 2
+                ELSE 1
+              END >= CASE p_minimum
+                WHEN 'APP_OWNER'  THEN 3
+                WHEN 'APP_EDITOR' THEN 2
+                ELSE 1
+              END
+    );
+$$;
+
+ALTER TABLE public.profiles          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.app_memberships   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.platforms         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.apps              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.page_layouts      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.workflow_trees    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_logs        ENABLE ROW LEVEL SECURITY;
+
+-- profiles: read your own row (or any row as SUPER_ADMIN); only SUPER_ADMIN
+-- may change roles or deactivate accounts.
+DROP POLICY IF EXISTS profiles_select ON public.profiles;
+CREATE POLICY profiles_select ON public.profiles
+    FOR SELECT USING (id = auth.uid() OR public.is_super_admin());
+
+DROP POLICY IF EXISTS profiles_update_self ON public.profiles;
+CREATE POLICY profiles_update_self ON public.profiles
+    FOR UPDATE USING (id = auth.uid())
+    WITH CHECK (id = auth.uid() AND global_role = public.current_global_role());
+
+DROP POLICY IF EXISTS profiles_admin_write ON public.profiles;
+CREATE POLICY profiles_admin_write ON public.profiles
+    FOR ALL USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
+
+-- app_memberships: a developer sees their own grants; only SUPER_ADMIN grants.
+DROP POLICY IF EXISTS app_memberships_select ON public.app_memberships;
+CREATE POLICY app_memberships_select ON public.app_memberships
+    FOR SELECT USING (user_id = auth.uid() OR public.is_super_admin());
+
+DROP POLICY IF EXISTS app_memberships_admin_write ON public.app_memberships;
+CREATE POLICY app_memberships_admin_write ON public.app_memberships
+    FOR ALL USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
+
+-- platforms: readable by any signed-in user, writable by SUPER_ADMIN only.
+DROP POLICY IF EXISTS platforms_select ON public.platforms;
+CREATE POLICY platforms_select ON public.platforms
+    FOR SELECT USING (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS platforms_admin_write ON public.platforms;
+CREATE POLICY platforms_admin_write ON public.platforms
+    FOR ALL USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
+
+-- apps: visible to members of that app; metadata changes need APP_OWNER.
+DROP POLICY IF EXISTS apps_select ON public.apps;
+CREATE POLICY apps_select ON public.apps
+    FOR SELECT USING (public.has_app_role(id, 'APP_VIEWER'));
+
+DROP POLICY IF EXISTS apps_owner_write ON public.apps;
+CREATE POLICY apps_owner_write ON public.apps
+    FOR ALL USING (public.has_app_role(id, 'APP_OWNER'))
+    WITH CHECK (public.has_app_role(id, 'APP_OWNER'));
+
+-- page_layouts / workflow_trees: read for viewers, write for editors.
+DROP POLICY IF EXISTS page_layouts_select ON public.page_layouts;
+CREATE POLICY page_layouts_select ON public.page_layouts
+    FOR SELECT USING (public.has_app_role(app_id, 'APP_VIEWER'));
+
+DROP POLICY IF EXISTS page_layouts_edit ON public.page_layouts;
+CREATE POLICY page_layouts_edit ON public.page_layouts
+    FOR ALL USING (public.has_app_role(app_id, 'APP_EDITOR'))
+    WITH CHECK (public.has_app_role(app_id, 'APP_EDITOR'));
+
+DROP POLICY IF EXISTS workflow_trees_select ON public.workflow_trees;
+CREATE POLICY workflow_trees_select ON public.workflow_trees
+    FOR SELECT USING (public.has_app_role(app_id, 'APP_VIEWER'));
+
+DROP POLICY IF EXISTS workflow_trees_edit ON public.workflow_trees;
+CREATE POLICY workflow_trees_edit ON public.workflow_trees
+    FOR ALL USING (public.has_app_role(app_id, 'APP_EDITOR'))
+    WITH CHECK (public.has_app_role(app_id, 'APP_EDITOR'));
+
+-- audit_logs: append-only. Members read; nobody updates or deletes history.
+DROP POLICY IF EXISTS audit_logs_select ON public.audit_logs;
+CREATE POLICY audit_logs_select ON public.audit_logs
+    FOR SELECT USING (public.has_app_role(app_id, 'APP_VIEWER'));
+
+DROP POLICY IF EXISTS audit_logs_insert ON public.audit_logs;
+CREATE POLICY audit_logs_insert ON public.audit_logs
+    FOR INSERT WITH CHECK (public.has_app_role(app_id, 'APP_VIEWER'));
+
 -- Sample Seed Data for Platform Master Blueprint & App ลูก Demo
 INSERT INTO public.platforms (id, platform_slug, platform_name, description, category, master_theme_config)
 VALUES (
@@ -180,7 +305,7 @@ VALUES (
         "mode": "light",
         "primaryColor": "#198754",
         "borderRadius": "0.5rem",
-        "fontFamily": "Inter, sans-serif"
+        "fontFamily": "Anuphan, sans-serif"
     }'::jsonb
 ) ON CONFLICT (platform_slug) DO NOTHING;
 
@@ -199,7 +324,7 @@ VALUES (
         "mode": "light",
         "primaryColor": "#198754",
         "borderRadius": "0.5rem",
-        "fontFamily": "Inter, sans-serif"
+        "fontFamily": "Anuphan, sans-serif"
     }'::jsonb
 ) ON CONFLICT (app_slug) DO NOTHING;
 
