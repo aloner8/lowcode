@@ -42,13 +42,22 @@ export async function getApiSession(): Promise<ApiSession | null> {
   if (!payload) return null;
 
   try {
-    const result = await getCoreDb().query<{ global_role: GlobalRole; username: string; email: string }>(
-      'SELECT global_role, username, email FROM public.platform_users WHERE id = $1 AND is_active = TRUE',
+    const result = await getCoreDb().query<{
+      global_role: GlobalRole; username: string; email: string; must_change_password: boolean;
+    }>(
+      `SELECT global_role, username, email, must_change_password
+       FROM public.platform_users WHERE id = $1 AND is_active = TRUE`,
       [payload.sub],
     );
     if (!result.rowCount) return null;
     const row = result.rows[0];
-    return { ...payload, role: row.global_role, actor: row.username || row.email };
+    return {
+      ...payload,
+      role: row.global_role,
+      // Re-read rather than trusting the cookie, which may predate a reset.
+      mustChangePassword: row.must_change_password,
+      actor: row.username || row.email,
+    };
   } catch (error) {
     console.error('[auth] unable to validate API session', error);
     return null;
@@ -68,6 +77,13 @@ export async function requireApiSession(
 ): Promise<ApiSession | NextResponse> {
   const session = await getApiSession();
   if (!session) return unauthorized();
+
+  if (session.mustChangePassword) {
+    return NextResponse.json(
+      { error: 'ต้องเปลี่ยนรหัสผ่านเริ่มต้นก่อนใช้งาน', redirect: '/account/password' },
+      { status: 403 },
+    );
+  }
   if (minimumGlobalRole === 'GOD' && !isGod(session.role)) {
     return forbidden('เฉพาะผู้ให้บริการ (GOD) เท่านั้นที่ทำรายการนี้ได้');
   }

@@ -34,6 +34,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # only dependency (pg, already traced into standalone/node_modules) are copied in.
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 
+# Tenant uploads live here and are backed by a named volume in compose.
+# Created before dropping privileges so the app can write to it.
+RUN mkdir -p /app/storage/tenants && chown -R nextjs:nodejs /app/storage
+ENV TENANT_STORAGE_ROOT=/app/storage/tenants
+
 USER nextjs
 
 # 33000 = control plane; 33001-33020 = tenant sites started by run-sites.mjs

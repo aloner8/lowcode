@@ -45,6 +45,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Tenant uploads written by the File Manager
+/storage/
+
 # Local database data and dumps
 *.sqlite
 *.sqlite3

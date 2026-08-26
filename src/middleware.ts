@@ -2,7 +2,10 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { SESSION_COOKIE, verifySession } from '@/lib/auth/session';
 
 /** Routes that require a valid Web แม่ (Platform) session. */
-const PROTECTED_PREFIXES = ['/admin', '/studio', '/flow-studio', '/audit-logs', '/site'];
+const PROTECTED_PREFIXES = ['/admin', '/studio', '/flow-studio', '/audit-logs', '/site', '/account'];
+
+/** Where an account with a seeded password is sent until it sets its own. */
+const CHANGE_PASSWORD_PATH = '/account/password';
 
 /** Routes only the service provider (GOD) may open. */
 const GOD_ONLY_PREFIXES = ['/admin/platforms', '/admin/security'];
@@ -73,6 +76,13 @@ export async function middleware(request: NextRequest) {
     // Clear a stale or forged cookie so the browser stops resending it.
     response.cookies.delete(SESSION_COOKIE);
     return response;
+  }
+
+  // An account still using the password it was created with cannot reach
+  // anything except the change-password screen. API callers are left alone
+  // here so the route guard can answer with JSON instead of an HTML redirect.
+  if (session?.mustChangePassword && path !== CHANGE_PASSWORD_PATH && !path.startsWith('/api/')) {
+    return NextResponse.redirect(new URL(CHANGE_PASSWORD_PATH, request.url));
   }
 
   if (session && GOD_ONLY_PREFIXES.some((prefix) => path.startsWith(prefix)) && session.role !== 'GOD') {

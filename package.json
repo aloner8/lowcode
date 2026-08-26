@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "sites": "node scripts/run-sites.mjs",
     "sites:dev": "node scripts/run-sites.mjs --dev",
-    "sites:list": "node scripts/run-sites.mjs --list"
+    "sites:list": "node scripts/run-sites.mjs --list",
+    "secrets": "node scripts/generate-secrets.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

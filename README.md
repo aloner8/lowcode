@@ -71,9 +71,13 @@
 ### 1. Docker Compose (แนะนำ)
 
 ```bash
-cp .env.example .env          # แล้วแก้ AUTH_SECRET เป็นค่าสุ่มยาว >= 32 ตัวอักษร
+npm run secrets               # สร้าง .env พร้อม AUTH_SECRET / PLATFORM_JWT_SECRET แบบสุ่ม
 docker compose up -d --build
 ```
+
+> `docker compose` จะ **ไม่ยอมสตาร์ท** ถ้าไม่มี `AUTH_SECRET` หรือ `PLATFORM_JWT_SECRET`
+> และตัวแอปจะปฏิเสธค่าที่เคยถูก publish ไว้ใน repo นี้ — ค่า default ที่ใครก็อ่านได้
+> ไม่ต่างจากไม่มี secret เลย หมุนค่าใหม่ด้วย `npm run secrets -- --rotate`
 
 | Service | Container | Host Port | หน้าที่ |
 |---|---|---|---|
@@ -110,8 +114,12 @@ migration `010_create_platform_auth.sql` จะ seed สองบัญชีน
 | `admin` | `admin@platform.com` | `1qaz@WSX` | `GOD` |
 | `aloner` | `aloner@platform.com` | `1qaz@WSX` | `GOD` |
 
-> ⚠️ เป็นบัญชี bootstrap สำหรับ dev เท่านั้น — เปลี่ยนรหัสผ่านทันทีก่อนเปิดให้เข้าถึงจากภายนอก
-> รหัสผ่านถูก hash ด้วย bcrypt ในฐานข้อมูล ไม่มีรหัสผ่านอยู่ใน source code
+ทั้งสองบัญชีถูกตั้ง `must_change_password = TRUE` และ **ระบบบังคับให้เปลี่ยนก่อนใช้งานจริง**:
+เข้าสู่ระบบแล้วจะถูกพาไป `/account/password` ทุกหน้า และ API ตอบ `403` พร้อม
+`{"redirect":"/account/password"}` จนกว่าจะตั้งรหัสผ่านของตัวเอง
+
+ค่าสถานะนี้ถูกอ่านใหม่จากฐานข้อมูลทุกครั้ง — แก้ cookie เองไม่ช่วยให้ผ่าน
+รหัสผ่านถูก hash ด้วย bcrypt ในฐานข้อมูล ไม่มีรหัสผ่านอยู่ใน source code
 
 ---
 
@@ -221,7 +229,9 @@ title/description) หรือระดับ Platform ผ่าน `PUT /api/p
 | ตัวแปร | จำเป็น | คำอธิบาย |
 |---|---|---|
 | `CORE_DATABASE_URL` | ✅ | connection string ของ Core DB |
-| `AUTH_SECRET` | ✅ (production) | กุญแจเซ็น session อย่างน้อย 32 ตัวอักษร — ไม่ตั้งใน production จะ throw |
+| `AUTH_SECRET` | ✅ | กุญแจเซ็น session อย่างน้อย 32 ตัวอักษร — compose ไม่สตาร์ทถ้าไม่มี และค่าที่ publish แล้วถูกปฏิเสธ |
+| `PLATFORM_JWT_SECRET` | ✅ | กุญแจเซ็น JWT ของ tenant service auth |
+| `TENANT_STORAGE_ROOT` | ⭕ | โฟลเดอร์เก็บไฟล์อัปโหลด แยกไดเรกทอรีต่อ tenant (compose ใช้ named volume `lowcode_tenant_storage`) |
 | `MAX_UPLOAD_BYTES` | ⭕ | ขนาดไฟล์อัปโหลดสูงสุด (default 10 MB) |
 | `SITES_HOSTNAME` | ⭕ | interface ที่ Site bind (default `0.0.0.0`) |
 | `SITE_SLUG` | อัตโนมัติ | Site ที่โปรเซสนี้ให้บริการ — ตั้งโดย `run-sites.mjs` |
@@ -299,6 +309,8 @@ title/description) หรือระดับ Platform ผ่าน `PUT /api/p
 | ผู้เข้าชมสาธารณะอ่าน/เขียนได้เฉพาะตารางใน allow-list และแก้/ลบไม่ได้เลย | [013](docker/postgres/migrations/013_add_public_data_access.sql) |
 | ธีมถูก validate ฝั่ง server (สี HEX, หน่วย CSS, ฟอนต์) กันการฉีด CSS | [apps/[id]/route.ts](src/app/api/apps/[id]/route.ts) |
 | ไฟล์ที่เสิร์ฟกลับมีทั้ง `nosniff` และ CSP `sandbox` | [assets/[assetId]/route.ts](src/app/api/platforms/[id]/assets/[assetId]/route.ts) |
+| ปฏิเสธ secret ที่เคย publish ใน repo และบังคับความยาวขั้นต่ำ | [session.ts](src/lib/auth/session.ts) |
+| บังคับเปลี่ยนรหัสผ่านเริ่มต้นก่อนเข้าใช้งาน (ตรวจจาก DB ไม่ใช่ cookie) | [middleware.ts](src/middleware.ts) · [apiAuth.ts](src/lib/auth/apiAuth.ts) |
 
 หน้า `/admin/security` แสดง **สถานะจริง** ที่อ่านจากฐานข้อมูลและ config ปัจจุบัน
 
@@ -363,6 +375,7 @@ tests/                          Vitest (27 tests)
 | `/admin/apps` | ✅ | Tenant Apps / Sites / โดเมน / ธีม |
 | `/admin/users` | GOD | ผู้ใช้ทั้งระบบ |
 | `/admin/security` | GOD | สถานะความปลอดภัย |
+| `/account/password` | ✅ | เปลี่ยนรหัสผ่าน (บังคับสำหรับบัญชีที่ยังใช้รหัสเริ่มต้น) |
 | `/site/[appSlug]` | STAFF+ | Console ของหน่วยงาน |
 | `/site/[appSlug]/users` | ADMIN | ผู้ใช้ในหน่วยงาน |
 | `/studio` | ✅ | DesignStudio IDE |
@@ -495,6 +508,7 @@ master theme (Platform)  →  theme ของ Site (apps.theme_config)  →  ten
 | `npm run build` | Production build (standalone) |
 | `npm run start` | รัน production build |
 | `npm run sites` / `sites:dev` / `sites:list` | ตัวรัน multi-site |
+| `npm run secrets` | สร้าง `.env` พร้อม secret แบบสุ่ม (`-- --rotate` เพื่อหมุนค่าใหม่) |
 | `npm run lint` / `lint:fix` | ESLint 9 |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` / `test:watch` | Vitest |
@@ -580,9 +594,23 @@ CI ที่ [.github/workflows/ci.yml](.github/workflows/ci.yml) รัน migr
 
 ยังไม่ได้ login หรือ cookie หมดอายุ (session อายุ 8 ชั่วโมง) — เข้าที่ `/login` ใหม่
 
-### `AUTH_SECRET must be set to at least 32 characters in production`
+### compose ขึ้น `AUTH_SECRET is required` หรือ `PLATFORM_JWT_SECRET is required`
 
-ตั้ง `AUTH_SECRET` ใน `.env` — สร้างด้วย `openssl rand -base64 48`
+รัน `npm run secrets` เพื่อสร้าง `.env` ให้ (ตั้ง permission 600 ให้อัตโนมัติ)
+
+### `AUTH_SECRET is set to a publicly known placeholder value`
+
+ค่าที่ใช้อยู่เป็นค่าที่เคยถูก publish ใน repo นี้ ใครก็ปลอม session ได้ —
+รัน `npm run secrets -- --rotate` เพื่อเปลี่ยนเป็นค่าสุ่มใหม่
+
+### เข้าหน้าไหนก็เด้งไป `/account/password`
+
+บัญชียังใช้รหัสผ่านเริ่มต้นที่ระบบตั้งให้ ตั้งรหัสของตัวเองแล้วจะใช้งานได้ตามปกติ
+
+### ไฟล์ที่อัปโหลดหายหลัง `docker compose up`
+
+ตรวจว่า volume `lowcode_tenant_storage` ถูก mount อยู่:
+`docker inspect lowcode_studio_mother --format '{{range .Mounts}}{{.Name}} {{.Destination}}{{println}}{{end}}'`
 
 ### `CORE_DATABASE_URL is not configured`
 

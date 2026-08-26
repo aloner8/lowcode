@@ -143,6 +143,19 @@ export async function changePasswordAction(
     return { error: 'ไม่สามารถเปลี่ยนรหัสผ่านได้' };
   }
 
+  // The session cookie is stateless, so it still carries mustChangePassword:
+  // re-issue it or the middleware would keep redirecting back here.
+  const refreshed = await signSession({
+    sub: user.id,
+    username: user.username ?? '',
+    email: user.email,
+    fullName: user.fullName ?? '',
+    role: user.globalRole,
+    mustChangePassword: false,
+  });
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE, refreshed, sessionCookieOptions);
+
   await recordPlatformAudit({
     action: 'CHANGE_PASSWORD',
     entityType: 'USER',

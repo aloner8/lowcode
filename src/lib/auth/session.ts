@@ -13,6 +13,19 @@ export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 8; // 8 hours
 
 const DEV_FALLBACK_SECRET = 'lowcode-dev-only-insecure-session-secret';
 
+/**
+ * Secrets that have been published in this repository or its compose file.
+ * Anyone can read them, so a deployment using one is not protected at all —
+ * they are refused outright rather than merely warned about.
+ */
+const KNOWN_WEAK_SECRETS = new Set([
+  DEV_FALLBACK_SECRET,
+  'lowcode-compose-development-secret-change-me',
+  'change-me-to-a-long-random-string-at-least-32-chars',
+  'dev-secret-at-least-32-characters-long-xxxx',
+  'local-dev-secret-please-change-me-0123456789abcdef',
+]);
+
 export interface SessionPayload {
   sub: string;
   username: string;
@@ -28,9 +41,23 @@ let warnedAboutFallbackSecret = false;
 
 function getSecret(): string {
   const secret = process.env.AUTH_SECRET;
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (secret && KNOWN_WEAK_SECRETS.has(secret)) {
+    const message =
+      'AUTH_SECRET is set to a publicly known placeholder value. '
+      + 'Generate a real one with: openssl rand -base64 48';
+    if (isProduction) throw new Error(message);
+    if (!warnedAboutFallbackSecret) {
+      warnedAboutFallbackSecret = true;
+      console.warn(`[auth] ${message}`);
+    }
+    return secret;
+  }
+
   if (secret && secret.length >= 32) return secret;
 
-  if (process.env.NODE_ENV === 'production') {
+  if (isProduction) {
     throw new Error('AUTH_SECRET must be set to at least 32 characters in production');
   }
   if (secret && secret.length > 0) {
