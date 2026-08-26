@@ -523,6 +523,11 @@ CI ที่ [.github/workflows/ci.yml](.github/workflows/ci.yml) รัน migr
 | [HTMLStudio.MD](docs/HTMLStudio.MD) | HTML/SVG/Theme authoring |
 | [EditMenuComponent.MD](docs/EditMenuComponent.MD) | สัญญาข้อมูล EditMenuComponent |
 | [Walkthrough.MD](docs/Walkthrough.MD) | สรุปผลงานรายเฟส |
+| [BACKEND_YANG_MAPPING.md](docs/BACKEND_YANG_MAPPING.md) | การแมประบบหลังบ้านจาก YII |
+| [ComponentWorkShop.MD](docs/ComponentWorkShop.MD) | Component Workshop ใน Studio |
+| [PropertyPageShareComponent.MD](docs/PropertyPageShareComponent.MD) | Property Page ของ Shared Component |
+| [GenPageFromImage.MD](docs/GenPageFromImage.MD) | สร้างหน้าเว็บจากรูปภาพ |
+| [RouteForReact.MD](docs/RouteForReact.MD) | การแปลง Route จาก YII มาเป็น React |
 
 ---
 
