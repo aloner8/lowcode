@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Box, ArrowUpRight, TrendingUp, Sparkles } from 'lucide-react';
+import { ArrowUpRight, TrendingUp } from 'lucide-react';
 
 export interface CardComponentProps {
   title?: string;

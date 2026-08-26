@@ -5,8 +5,7 @@ import { useParams } from 'next/navigation';
 import { fetchAppRuntimeData, AppRuntimeData } from '@/lib/engine/AppRuntimeFetcher';
 import { DynamicPageRenderer } from '@/components/engine/DynamicPageRenderer';
 import { WorkflowInterpreter } from '@/lib/engine/WorkflowInterpreter';
-import { getTenantDbClient } from '@/lib/supabase/tenantClient';
-import { Server, Database, Layers, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Server, Database, RefreshCw, CheckCircle2 } from 'lucide-react';
 import type { ComponentNode } from '@/types';
 
 export default function ChildAppRuntimePage() {
@@ -15,6 +14,7 @@ export default function ChildAppRuntimePage() {
 
   const [runtimeData, setRuntimeData] = useState<AppRuntimeData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string>('');
   const [lastAction, setLastAction] = useState<string | null>(null);
   const [selectedContent, setSelectedContent] = useState<ComponentNode[] | null>(null);
   const [selectedMenuLabel, setSelectedMenuLabel] = useState<string>('');
@@ -22,19 +22,34 @@ export default function ChildAppRuntimePage() {
   useEffect(() => {
     async function loadData() {
       setLoading(true);
-      const data = await fetchAppRuntimeData(appSlug);
-      setRuntimeData(data);
-      setLoading(false);
+      setLoadError('');
+      try {
+        setRuntimeData(await fetchAppRuntimeData(appSlug));
+      } catch (error) {
+        setLoadError(error instanceof Error ? error.message : 'ไม่สามารถโหลด Runtime ได้');
+        setRuntimeData(null);
+      } finally {
+        setLoading(false);
+      }
     }
     loadData();
   }, [appSlug]);
 
-  if (loading || !runtimeData) {
+  if (loading) {
     return (
       <div className="min-vh-100 d-flex flex-column align-items-center justify-content-center bg-light">
         <RefreshCw size={32} className="text-primary spin mb-2" />
         <h5 className="fw-bold text-dark">Loading App Dynamic Player...</h5>
         <p className="text-muted small">Fetching Layout JSON, Theme Tokens & Workflow AST from DB</p>
+      </div>
+    );
+  }
+
+  if (!runtimeData) {
+    return (
+      <div className="min-vh-100 d-flex flex-column align-items-center justify-content-center bg-light text-center px-3">
+        <h5 className="fw-bold text-dark mb-2">ยังไม่พร้อมให้บริการ</h5>
+        <p className="text-muted small mb-0">{loadError}</p>
       </div>
     );
   }
@@ -96,27 +111,49 @@ export default function ChildAppRuntimePage() {
       }
       return;
     }
+    // Form submissions persist into this site's own tenant database. The table
+    // must be listed in the platform's public insert allow-list, otherwise the
+    // API refuses the write.
+    if (actionId === 'submit' || actionId.endsWith('.submit')) {
+      const table = payload?.table || payload?.dataSource?.table;
+      if (!table) {
+        setLastAction('ฟอร์มนี้ยังไม่ได้ผูกตารางปลายทาง (dataSource.table)');
+        return;
+      }
+      try {
+        const response = await fetch(
+          `/api/runtime/${encodeURIComponent(appSlug)}/records/${encodeURIComponent(table)}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload?.values ?? payload),
+          },
+        );
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'บันทึกข้อมูลไม่สำเร็จ');
+        setLastAction(`บันทึกข้อมูลลงตาราง ${table} เรียบร้อยแล้ว`);
+      } catch (error) {
+        setLastAction(error instanceof Error ? error.message : 'บันทึกข้อมูลไม่สำเร็จ');
+      }
+      return;
+    }
+
     setLastAction(`Event '${actionId}' triggered with data: ${JSON.stringify(payload)}`);
 
-    // Execute workflow if available
     if (workflowTree) {
       const interpreter = new WorkflowInterpreter(workflowTree);
       await interpreter.executeTrigger(actionId, {
         payload,
         appId: appConfig.id,
-        showAlert: (msg) => alert(`[Tenant App Alert]\n${msg}`),
+        showAlert: (msg) => setLastAction(msg),
       });
-    } else {
-      // Direct Tenant DB interaction demo
-      const tenantClient = getTenantDbClient(appConfig.tenantDbName);
-      console.log(`[Tenant DB Client Connected] DB: ${appConfig.tenantDbName}`, tenantClient);
-      alert(`[Tenant DB Action Executed]\nSaved to Tenant Database: '${appConfig.tenantDbName}'\nPayload: ${JSON.stringify(payload, null, 2)}`);
     }
   };
 
   return (
     <div className="min-vh-100 bg-light d-flex flex-column">
-      {/* Top Banner indicating Tenant Dynamic Player status */}
+      {/* Runtime diagnostics — development only: never expose tenant DB names publicly. */}
+      {process.env.NODE_ENV !== 'production' && (
       <div className="bg-dark text-white py-2 px-3 shadow-sm border-bottom">
         <div className="container-fluid d-flex justify-content-between align-items-center flex-wrap gap-2">
           <div className="d-flex align-items-center gap-3">
@@ -134,6 +171,7 @@ export default function ChildAppRuntimePage() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Action Event Toast */}
       {lastAction && (

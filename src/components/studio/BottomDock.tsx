@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { ComponentNode, AppConfig } from '@/types';
-import { Terminal, Code2, Database, Activity, ChevronUp, ChevronDown, X, Copy, Check } from 'lucide-react';
+import { Terminal, Code2, Database, Activity, ChevronUp, ChevronDown, Copy, Check } from 'lucide-react';
 
 interface BottomDockProps {
   appInfo: AppConfig;

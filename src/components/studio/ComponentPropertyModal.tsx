@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { ComponentNode } from '@/types';
-import { Sliders, Trash2, ArrowUp, ArrowDown, Copy, X, Check, Zap, Settings, Sparkles } from 'lucide-react';
+import { Sliders, Trash2, ArrowUp, ArrowDown, Copy, X, Check, Zap, Sparkles } from 'lucide-react';
 import { ComponentDataSource, DataSourcePropertyEditor } from './DataSourcePropertyEditor';
 import { StudioHtmlEditor } from './StudioHtmlEditor';
 import { HtmlStudioShell } from '@/components/html-studio';
@@ -228,7 +228,7 @@ export const ComponentPropertyModal: React.FC<ComponentPropertyModalProps> = ({
                           try {
                             const parsed = JSON.parse(e.target.value);
                             handlePropChange(propKey, parsed);
-                          } catch (err) {
+                          } catch {
                             // ignore syntax error while typing
                           }
                         }}

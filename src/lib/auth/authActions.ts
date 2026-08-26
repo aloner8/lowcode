@@ -1,149 +1,155 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { UserProfile, GlobalRole } from '@/types';
+import { getCoreDb } from '@/lib/db/coreDb';
+import { recordPlatformAudit } from '@/lib/engine/AuditLogService';
+import { SESSION_COOKIE, sessionCookieOptions, signSession, verifySession } from '@/lib/auth/session';
+import { GlobalRole, UserProfile } from '@/types';
 
-// Demo Mock Users for local dev fallback when Supabase Auth instance is offline
-const MOCK_USERS: (UserProfile & { password: string })[] = [
-  {
-    id: '11111111-1111-1111-1111-111111111111',
-    username: 'admin',
-    email: 'admin@platform.com',
-    fullName: 'Super Admin',
-    globalRole: 'SUPER_ADMIN',
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    password: '1qaz@WSX',
-  },
-  {
-    id: '22222222-2222-2222-2222-222222222222',
-    username: 'aloner',
-    email: 'aloner@platform.com',
-    fullName: 'Aloner Developer',
-    globalRole: 'DEVELOPER',
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    password: '1qaz@WSX',
-  },
-];
+interface PlatformUserRow {
+  id: string;
+  username: string;
+  email: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  global_role: GlobalRole;
+  is_active: boolean;
+  must_change_password: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
 
-export async function loginAction(formData: FormData) {
-  const identifier = formData.get('identifier')?.toString()?.trim() || '';
-  const password = formData.get('password')?.toString() || '';
+function toProfile(row: PlatformUserRow): UserProfile {
+  return {
+    id: row.id,
+    username: row.username,
+    email: row.email,
+    fullName: row.full_name ?? row.username,
+    avatarUrl: row.avatar_url ?? undefined,
+    globalRole: row.global_role,
+    isActive: row.is_active,
+    mustChangePassword: row.must_change_password,
+    createdAt: row.created_at.toISOString(),
+    updatedAt: row.updated_at.toISOString(),
+  };
+}
+
+export async function loginAction(_prevState: unknown, formData: FormData): Promise<{ error?: string }> {
+  const identifier = formData.get('identifier')?.toString().trim() ?? '';
+  const password = formData.get('password')?.toString() ?? '';
 
   if (!identifier || !password) {
     return { error: 'กรุณากรอกชื่อผู้ใช้/อีเมล และรหัสผ่าน' };
   }
 
+  let profile: UserProfile;
   try {
-    const supabase = await createClient();
-
-    // Determine if input is email or username
-    const isEmail = identifier.includes('@');
-    const emailToUse = isEmail ? identifier : `${identifier}@platform.com`;
-
-    // Attempt Supabase Auth login
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: emailToUse,
-      password: password,
-    });
-
-    if (!error && data.user) {
-      redirect('/admin');
-    }
-
-    // Fallback: Test against mock users if Supabase local/demo is not active
-    const matchedUser = MOCK_USERS.find(
-      (u) =>
-        (u.email.toLowerCase() === identifier.toLowerCase() ||
-          u.username?.toLowerCase() === identifier.toLowerCase()) &&
-        u.password === password
+    const result = await getCoreDb().query<PlatformUserRow>(
+      `SELECT id, username, email, full_name, avatar_url, global_role,
+              is_active, must_change_password, created_at, updated_at
+       FROM public.verify_platform_credentials($1, $2)`,
+      [identifier, password],
     );
 
-    if (matchedUser) {
-      const { cookies } = await import('next/headers');
-      const cookieStore = await cookies();
-      cookieStore.set('platform_mock_session', JSON.stringify(matchedUser), {
-        path: '/',
-        httpOnly: true,
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-      });
-
-      redirect('/admin');
+    if (!result.rowCount) {
+      return { error: 'อีเมล/ชื่อผู้ใช้ หรือรหัสผ่านไม่ถูกต้อง' };
     }
-
-    return { error: 'อีเมล/ชื่อผู้ใช้ หรือรหัสผ่านไม่ถูกต้อง' };
-  } catch (err: any) {
-    // NextJS redirect throws a internal error that should be rethrown
-    if (err?.digest?.startsWith('NEXT_REDIRECT')) {
-      throw err;
-    }
-    return { error: err.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ' };
+    profile = toProfile(result.rows[0]);
+  } catch (error) {
+    console.error('[auth] login failed', error);
+    return { error: 'ไม่สามารถตรวจสอบผู้ใช้ได้ กรุณาตรวจสอบการเชื่อมต่อฐานข้อมูล' };
   }
+
+  const token = await signSession({
+    sub: profile.id,
+    username: profile.username ?? '',
+    email: profile.email,
+    fullName: profile.fullName ?? '',
+    role: profile.globalRole,
+    mustChangePassword: profile.mustChangePassword ?? false,
+  });
+
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE, token, sessionCookieOptions);
+
+  await recordPlatformAudit({
+    action: 'LOGIN',
+    entityType: 'USER',
+    entityId: profile.id,
+    performedBy: profile.username ?? profile.email,
+    changesSummary: `ผู้ใช้ ${profile.username ?? profile.email} เข้าสู่ระบบ`,
+  });
+
+  redirect('/admin');
 }
 
-export async function logoutAction() {
-  try {
-    const supabase = await createClient();
-    await supabase.auth.signOut();
-  } catch {
-    // Ignore error
-  }
-
-  const { cookies } = await import('next/headers');
+export async function logoutAction(): Promise<void> {
   const cookieStore = await cookies();
-  cookieStore.delete('platform_mock_session');
-
+  cookieStore.delete(SESSION_COOKIE);
   redirect('/login');
 }
 
+/**
+ * Returns the signed-in platform user, or null.
+ *
+ * The session cookie carries identity claims, but role and active-state are
+ * re-read from the database so a revoked or demoted account loses access
+ * without waiting for the cookie to expire.
+ */
 export async function getCurrentUser(): Promise<UserProfile | null> {
+  const cookieStore = await cookies();
+  const session = await verifySession(cookieStore.get(SESSION_COOKIE)?.value);
+  if (!session) return null;
+
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const result = await getCoreDb().query<PlatformUserRow>(
+      `SELECT id, username, email, full_name, avatar_url, global_role,
+              is_active, must_change_password, created_at, updated_at
+       FROM public.platform_users WHERE id = $1 AND is_active = TRUE`,
+      [session.sub],
+    );
+    if (!result.rowCount) return null;
+    return toProfile(result.rows[0]);
+  } catch (error) {
+    console.error('[auth] unable to load current user', error);
+    return null;
+  }
+}
 
-    if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+export async function changePasswordAction(
+  _prevState: unknown,
+  formData: FormData,
+): Promise<{ error?: string; success?: string }> {
+  const currentPassword = formData.get('currentPassword')?.toString() ?? '';
+  const newPassword = formData.get('newPassword')?.toString() ?? '';
+  const confirmPassword = formData.get('confirmPassword')?.toString() ?? '';
 
-      if (profile) {
-        return {
-          id: profile.id,
-          username: profile.username || user.email?.split('@')[0],
-          email: profile.email || user.email || '',
-          fullName: profile.full_name || '',
-          avatarUrl: profile.avatar_url,
-          globalRole: (profile.global_role as GlobalRole) || 'DEVELOPER',
-          isActive: profile.is_active ?? true,
-          createdAt: profile.created_at,
-          updatedAt: profile.updated_at,
-        };
-      }
-    }
-  } catch {
-    // Ignore Supabase error, try mock fallback
+  const user = await getCurrentUser();
+  if (!user) return { error: 'กรุณาเข้าสู่ระบบใหม่' };
+  if (newPassword.length < 8) return { error: 'รหัสผ่านใหม่ต้องยาวอย่างน้อย 8 ตัวอักษร' };
+  if (newPassword !== confirmPassword) return { error: 'รหัสผ่านใหม่และการยืนยันไม่ตรงกัน' };
+
+  try {
+    const verified = await getCoreDb().query(
+      'SELECT id FROM public.verify_platform_credentials($1, $2)',
+      [user.email, currentPassword],
+    );
+    if (!verified.rowCount) return { error: 'รหัสผ่านเดิมไม่ถูกต้อง' };
+
+    await getCoreDb().query('SELECT public.set_platform_user_password($1, $2)', [user.id, newPassword]);
+  } catch (error) {
+    console.error('[auth] unable to change password', error);
+    return { error: 'ไม่สามารถเปลี่ยนรหัสผ่านได้' };
   }
 
-  // Mock session fallback for local dev mode
-  try {
-    const { cookies } = await import('next/headers');
-    const cookieStore = await cookies();
-    const mockCookie = cookieStore.get('platform_mock_session');
-    if (mockCookie?.value) {
-      const parsed = JSON.parse(mockCookie.value);
-      return parsed;
-    }
-  } catch {
-    // Return null if invalid
-  }
+  await recordPlatformAudit({
+    action: 'CHANGE_PASSWORD',
+    entityType: 'USER',
+    entityId: user.id,
+    performedBy: user.username ?? user.email,
+    changesSummary: `ผู้ใช้ ${user.username ?? user.email} เปลี่ยนรหัสผ่าน`,
+  });
 
-  return null;
+  return { success: 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว' };
 }

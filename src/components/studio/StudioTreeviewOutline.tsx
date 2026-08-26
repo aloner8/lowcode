@@ -8,7 +8,6 @@ import {
   FileText,
   Database,
   Table,
-  Palette,
   ChevronDown,
   ChevronRight,
   Layers,
@@ -19,7 +18,6 @@ import {
   Server,
   Plus,
   Search,
-  CheckCircle2,
   ExternalLink,
   Sparkles,
   Compass,
@@ -616,6 +614,7 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
           </div>
           {tenantDatabaseOpen && <div className="ms-3 ps-2 border-start pt-1">
             <div className="font-monospace text-primary text-truncate px-1 mb-1" style={{ fontSize: '0.68rem' }}>{appInfo.tenantDbName}</div>
+            <button type="button" className="btn btn-sm border-0 w-100 d-flex align-items-center gap-1 px-1 py-1 text-primary text-start fw-semibold" style={{ fontSize: '0.66rem' }} onClick={() => onSelectRawTable('__schema__')}><Sparkles size={11} className="text-warning" /><span className="text-truncate">Schema Explorer (Auto Generate)</span></button>
             {[
               { id: 'raw', label: 'Raw Tables', icon: Table, count: rawTables.length, color: 'text-info' },
               { id: 'procedures', label: 'Procedures', icon: Zap, count: databaseProcedures.length, color: 'text-danger' },

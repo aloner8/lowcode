@@ -29,7 +29,6 @@ import {
   Braces,
   CheckSquare,
   Code,
-  Code2,
   Copy,
   Eye,
   FileDown,
@@ -37,7 +36,6 @@ import {
   Heading1,
   Heading2,
   Heading3,
-  Heading4,
   Highlighter,
   Image as ImageIcon,
   Italic,
@@ -56,7 +54,6 @@ import {
   Underline as UnderlineIcon,
   Undo2,
   Upload,
-  X,
   Plus,
 } from 'lucide-react';
 
@@ -100,11 +97,10 @@ export const HtmlEditorComponent: React.FC<HtmlEditorProps> = ({
   // Modal States
   const [imageUrl, setImageUrl] = useState<string>('');
   const [imageAlt, setImageAlt] = useState<string>('');
-  const [imageAlign, setImageAlign] = useState<'left' | 'center' | 'right'>('center');
-
-  const [docFile, setDocFile] = useState<File | null>(null);
   const [docUrl, setDocUrl] = useState<string>('');
   const [docName, setDocName] = useState<string>('');
+  // Only the setter is used; the file object itself is read straight from the input.
+  const [, setDocFile] = useState<File | null>(null);
   const [docSize, setDocSize] = useState<string>('');
   const [docType, setDocType] = useState<string>('DOC');
 

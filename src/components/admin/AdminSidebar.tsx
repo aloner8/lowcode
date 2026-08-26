@@ -16,8 +16,6 @@ import {
   LogOut,
   Sparkles,
   ExternalLink,
-  ChevronLeft,
-  ChevronRight,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
@@ -35,9 +33,9 @@ export default function AdminSidebar({ user }: AdminSidebarProps) {
     { label: 'Overview', href: '/admin', icon: LayoutDashboard },
     { label: 'Platforms', href: '/admin/platforms', icon: Layers, badge: 'Blueprint' },
     { label: 'Users & Roles', href: '/admin/users', icon: Users, badge: 'Platform' },
-    { label: 'Tenant Apps', href: '/admin/apps', icon: Box },
+    { label: 'Tenant Apps & Sites', href: '/admin/apps', icon: Box },
     { label: 'Security & RLS', href: '/admin/security', icon: Shield },
-    { label: 'Audit Logs', href: '/admin/audit-logs', icon: FileText },
+    { label: 'Audit Logs', href: '/audit-logs', icon: FileText },
   ];
 
   const studioItems = [

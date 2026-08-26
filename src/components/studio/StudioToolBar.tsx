@@ -41,7 +41,7 @@ export const StudioToolBar: React.FC<StudioToolBarProps> = ({
   onSave,
   onDownloadJson,
   isPreviewMode,
-  setIsPreviewMode,
+  setIsPreviewMode: _setIsPreviewMode,
   viewportMode,
   setViewportMode,
   showGrid,

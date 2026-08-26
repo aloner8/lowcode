@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { DynamicPageRenderer } from '@/components/engine/DynamicPageRenderer';
 import { ComponentNode, ThemeConfig } from '@/types';
-import { Play, Code, Palette, CheckCircle2 } from 'lucide-react';
+import { Code, Palette } from 'lucide-react';
 
 export default function RendererDemoPage() {
   const [activeTheme, setActiveTheme] = useState<ThemeConfig>({

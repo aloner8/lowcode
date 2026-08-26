@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { getCoreDb } from '@/lib/db/coreDb';
 import { dockerAvailable, dockerRequest } from '@/lib/docker/dockerEngine';
+import { requirePlatformSession } from '@/lib/auth/apiAuth';
+import { recordPlatformAudit } from '@/lib/engine/AuditLogService';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -42,6 +44,9 @@ function statusPayload(row: RuntimeRow, dockerConnected: boolean) {
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
+  const auth = await requirePlatformSession(id, 'APP_VIEWER');
+  if (auth instanceof NextResponse) return auth;
+
   const result = await getCoreDb().query<RuntimeRow>(selectRuntime, [id]);
   if (!result.rowCount) return NextResponse.json({ error: 'Platform not found' }, { status: 404 });
   return NextResponse.json({ runtime: statusPayload(result.rows[0], await dockerAvailable()) });
@@ -49,6 +54,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
+  const auth = await requirePlatformSession(id, 'APP_OWNER', 'DEVELOPER');
+  if (auth instanceof NextResponse) return auth;
+
   const result = await getCoreDb().query<RuntimeRow>(selectRuntime, [id]);
   if (!result.rowCount) return NextResponse.json({ error: 'Platform not found' }, { status: 404 });
   const platform = result.rows[0];
@@ -105,6 +113,15 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       runtime_snapshot=$6::jsonb, runtime_port=$7, runtime_surfaces=$8::jsonb, runtime_error=NULL WHERE id=$1`,
       [id, `/platform-runtime/${platform.platform_slug}`, image, containerBase, revision, JSON.stringify(snapshot), port, JSON.stringify(surfaces)]);
     const updated = await getCoreDb().query<RuntimeRow>(selectRuntime, [id]);
+    await recordPlatformAudit({
+      platformId: id,
+      entityType: 'RUNTIME',
+      entityId: id,
+      action: 'BUILD_RUNTIME',
+      performedBy: auth.actor,
+      changesSummary: `Build runtime revision ${revision} (image ${image})`,
+      snapshotAfter: { revision, image, surfaces },
+    });
     return NextResponse.json({ runtime: statusPayload(updated.rows[0], true) });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Runtime build failed';

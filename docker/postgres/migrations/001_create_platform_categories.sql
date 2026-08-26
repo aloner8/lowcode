@@ -54,7 +54,8 @@ VALUES
     ('E_COMMERCE', 'E-Commerce', 'Electronic Commerce', TRUE),
     ('INVENTORY', 'Inventory', 'Inventory Management', TRUE),
     ('FINANCE', 'Finance', 'Finance and Accounting', TRUE),
-    ('LOGISTICS', 'Logistics', 'Logistics Management', TRUE)
+    ('LOGISTICS', 'Logistics', 'Logistics Management', TRUE),
+    ('CMS', 'CMS', 'Content Management System', TRUE)
 ON CONFLICT (category_code) DO UPDATE
 SET
     category_name = EXCLUDED.category_name,

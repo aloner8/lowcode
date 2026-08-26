@@ -1,193 +1,195 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import UserTable from '@/components/admin/UserTable';
 import UserFormModal from '@/components/admin/UserFormModal';
 import AppMemberModal from '@/components/admin/AppMemberModal';
-import { UserProfile, AppConfig, AppRole } from '@/types';
-import { Users, UserPlus, Search, ShieldAlert, Sparkles } from 'lucide-react';
+import { UserProfile, PlatformConfig, AppRole } from '@/types';
+import { Users, UserPlus, Search, ShieldAlert, RefreshCw } from 'lucide-react';
 
 export default function UserManagementPage() {
-  const [users, setUsers] = useState<UserProfile[]>([
-    {
-      id: '11111111-1111-1111-1111-111111111111',
-      username: 'admin',
-      email: 'admin@platform.com',
-      fullName: 'Super Admin',
-      globalRole: 'SUPER_ADMIN',
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: '22222222-2222-2222-2222-222222222222',
-      username: 'aloner',
-      email: 'aloner@platform.com',
-      fullName: 'Aloner Developer',
-      globalRole: 'DEVELOPER',
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-  ]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [platforms, setPlatforms] = useState<PlatformConfig[]>([]);
+  const [memberships, setMemberships] = useState<Record<string, AppRole>>({});
 
-  const mockApps: AppConfig[] = [
-    {
-      id: 'a0000000-0000-0000-0000-000000000001',
-      appSlug: 'demo-client-a',
-      appName: 'Demo Client App A',
-      port: 3001,
-      subdomain: 'client-a.localhost',
-      tenantDbName: 'app_db_client_a',
-      themeConfig: {
-        preset: 'corporate-emerald',
-        mode: 'light',
-        primaryColor: '#198754',
-        borderRadius: '0.5rem',
-        fontFamily: 'Inter, sans-serif',
-      },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-  ];
-
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
-  const [isAppModalOpen, setIsAppModalOpen] = useState(false);
+
+  const [isUserModalOpen, setUserModalOpen] = useState(false);
+  const [isAccessModalOpen, setAccessModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
 
-  const filteredUsers = users.filter(
-    (u) =>
-      u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [usersResponse, platformsResponse] = await Promise.all([
+        fetch('/api/users', { cache: 'no-store' }),
+        fetch('/api/platforms', { cache: 'no-store' }),
+      ]);
+      const usersPayload = await usersResponse.json();
+      if (!usersResponse.ok) throw new Error(usersPayload.error || 'ไม่สามารถอ่านรายชื่อผู้ใช้ได้');
+      setUsers(usersPayload.users as UserProfile[]);
 
-  const handleCreateNewUser = () => {
-    setSelectedUser(null);
-    setIsUserModalOpen(true);
-  };
+      const platformsPayload = await platformsResponse.json();
+      if (platformsResponse.ok) setPlatforms(platformsPayload.platforms as PlatformConfig[]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูลได้');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const handleEditUser = (user: UserProfile) => {
-    setSelectedUser(user);
-    setIsUserModalOpen(true);
-  };
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
 
-  const handleManageAppAccess = (user: UserProfile) => {
-    setSelectedUser(user);
-    setIsAppModalOpen(true);
-  };
-
-  const handleSaveUser = (userData: Partial<UserProfile> & { password?: string }) => {
-    if (selectedUser) {
-      // Edit existing user
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === selectedUser.id
-            ? {
-                ...u,
-                ...userData,
-                updatedAt: new Date().toISOString(),
-              }
-            : u
-        )
-      );
-    } else {
-      // Add new user
-      const newUser: UserProfile = {
-        id: `u-${Date.now()}`,
-        username: userData.username || 'newuser',
-        email: userData.email || 'user@platform.com',
-        fullName: userData.fullName || 'New Platform Developer',
-        globalRole: userData.globalRole || 'DEVELOPER',
-        isActive: userData.isActive ?? true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setUsers((prev) => [...prev, newUser]);
+  const handleSaveUser = async (payload: Partial<UserProfile> & { password?: string }) => {
+    setSaving(true);
+    setError('');
+    try {
+      const isEdit = Boolean(payload.id);
+      const response = await fetch(isEdit ? `/api/users/${payload.id}` : '/api/users', {
+        method: isEdit ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'บันทึกผู้ใช้ไม่สำเร็จ');
+      setUserModalOpen(false);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'บันทึกผู้ใช้ไม่สำเร็จ');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleSaveAccess = (userId: string, appPermissions: Record<string, AppRole | null>) => {
-    alert(`บันทึกสิทธิ์การเข้าถึง App ใน Studio เรียบร้อยแล้วสำหรับ User ID: ${userId}`);
+  const handleOpenAccess = async (user: UserProfile) => {
+    setSelectedUser(user);
+    setMemberships({});
+    setAccessModalOpen(true);
+    try {
+      const response = await fetch(`/api/users/${user.id}/memberships`, { cache: 'no-store' });
+      const payload = await response.json();
+      if (response.ok) {
+        const map: Record<string, AppRole> = {};
+        for (const row of payload.memberships as Array<{ platformId: string; platformRole: AppRole }>) {
+          map[row.platformId] = row.platformRole;
+        }
+        setMemberships(map);
+      }
+    } catch {
+      // Modal still opens; grants simply start empty.
+    }
   };
+
+  const handleSaveAccess = async (userId: string, permissions: Record<string, AppRole | null>) => {
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/users/${userId}/memberships`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberships: permissions }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'บันทึกสิทธิ์ไม่สำเร็จ');
+      setAccessModalOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'บันทึกสิทธิ์ไม่สำเร็จ');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filteredUsers = users.filter((user) => {
+    const needle = searchTerm.toLowerCase();
+    return (
+      (user.username ?? '').toLowerCase().includes(needle) ||
+      user.email.toLowerCase().includes(needle) ||
+      (user.fullName ?? '').toLowerCase().includes(needle)
+    );
+  });
+
+  const pendingPasswordCount = users.filter((user) => user.mustChangePassword).length;
 
   return (
     <div className="container-fluid p-0">
-      {/* Header Bar */}
-      <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
+      <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
         <div>
-          <h4 className="fw-bold mb-0.5 text-dark d-flex align-items-center gap-2 text-nowrap">
-            <Users className="text-primary" size={20} />
-            Platform Users & Roles
+          <h4 className="fw-bold mb-1 text-dark d-flex align-items-center gap-2">
+            <Users className="text-primary" size={24} /> ผู้ใช้และสิทธิ์ (Users &amp; Roles)
           </h4>
-          <p className="text-secondary small mb-0 text-nowrap" style={{ fontSize: '0.8rem' }}>
-            Manage platform admins, developers (e.g. aloner), and Studio access rights
+          <p className="text-secondary small mb-0">
+            บัญชีทั้งหมดถูกเก็บใน <code>public.platform_users</code> และตรวจรหัสผ่านด้วย pgcrypto
           </p>
         </div>
-
-        <button
-          onClick={handleCreateNewUser}
-          className="btn btn-primary btn-sm d-flex align-items-center gap-1.5 px-3 py-1.5 rounded-2 shadow-sm fw-medium text-nowrap"
-          style={{ fontSize: '0.8rem' }}
-        >
-          <UserPlus size={16} />
-          <span>+ Add New User</span>
-        </button>
-      </div>
-
-      {/* Info Notice Banner */}
-      <div className="alert alert-info border-0 bg-info bg-opacity-10 text-info-emphasis rounded-3 d-flex align-items-center gap-2 mb-3 p-2.5 small">
-        <Sparkles size={16} className="text-info flex-shrink-0" />
-        <div className="extra-small text-nowrap">
-          <strong>Platform RBAC:</strong> <code>SUPER_ADMIN</code> (admin) has full platform access while <code>DEVELOPER</code> (aloner) is scoped to assigned Studio tenant apps.
+        <div className="d-flex gap-2">
+          <button className="btn btn-outline-secondary btn-sm" onClick={() => void loadData()} disabled={loading}>
+            <RefreshCw size={15} className={`me-1 ${loading ? 'spin' : ''}`} /> Refresh
+          </button>
+          <button
+            className="btn btn-primary btn-sm fw-semibold"
+            onClick={() => { setSelectedUser(null); setUserModalOpen(true); }}
+          >
+            <UserPlus size={15} className="me-1" /> เพิ่มผู้ใช้
+          </button>
         </div>
       </div>
 
+      {error && <div className="alert alert-danger border-0 rounded-3 small">{error}</div>}
 
-      {/* Filter and Table Panel */}
-      <div className="card border-0 shadow-sm rounded-3 bg-white mb-4">
-        <div className="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
-          <div className="input-group" style={{ maxWidth: '320px' }}>
-            <span className="input-group-text bg-light border-end-0">
-              <Search size={16} className="text-secondary" />
-            </span>
+      {pendingPasswordCount > 0 && (
+        <div className="alert alert-warning border-0 rounded-3 small d-flex align-items-center gap-2">
+          <ShieldAlert size={16} />
+          มีผู้ใช้ {pendingPasswordCount} คนที่ยังไม่ได้เปลี่ยนรหัสผ่านเริ่มต้น
+        </div>
+      )}
+
+      <div className="card border-0 shadow-sm rounded-3 mb-3">
+        <div className="card-body p-3">
+          <div className="input-group">
+            <span className="input-group-text bg-white border-end-0"><Search size={16} className="text-secondary" /></span>
             <input
-              type="text"
-              className="form-control bg-light border-start-0 small"
-              placeholder="ค้นหาชื่อ, username หรือ อีเมล..."
+              className="form-control border-start-0"
+              placeholder="ค้นหาจากชื่อผู้ใช้ อีเมล หรือชื่อ-นามสกุล"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              aria-label="ค้นหาผู้ใช้"
             />
           </div>
-          <div className="text-muted extra-small">
-            แสดง {filteredUsers.length} จาก {users.length} รายการ
-          </div>
-        </div>
-        <div className="card-body p-0">
-          <UserTable
-            users={filteredUsers}
-            onEditUser={handleEditUser}
-            onManageAppAccess={handleManageAppAccess}
-          />
         </div>
       </div>
 
-      {/* User Add/Edit Modal */}
+      {loading ? (
+        <div className="text-center py-5 text-muted">
+          <div className="spinner-border spinner-border-sm me-2" /> กำลังโหลด…
+        </div>
+      ) : (
+        <UserTable
+          users={filteredUsers}
+          onEditUser={(user) => { setSelectedUser(user); setUserModalOpen(true); }}
+          onManageAppAccess={(user) => void handleOpenAccess(user)}
+        />
+      )}
+
       <UserFormModal
         isOpen={isUserModalOpen}
-        onClose={() => setIsUserModalOpen(false)}
-        onSave={handleSaveUser}
+        onClose={() => setUserModalOpen(false)}
+        onSave={(payload) => void handleSaveUser(payload)}
         userToEdit={selectedUser}
       />
 
-      {/* App Access Membership Modal */}
       <AppMemberModal
-        isOpen={isAppModalOpen}
-        onClose={() => setIsAppModalOpen(false)}
+        isOpen={isAccessModalOpen}
+        onClose={() => setAccessModalOpen(false)}
         user={selectedUser}
-        apps={mockApps}
-        onSaveAccess={handleSaveAccess}
+        platforms={platforms}
+        initialRoles={memberships}
+        isSaving={saving}
+        onSaveAccess={(userId, permissions) => void handleSaveAccess(userId, permissions)}
       />
     </div>
   );

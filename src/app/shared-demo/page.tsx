@@ -4,18 +4,16 @@ import React, { useState } from 'react';
 import {
   ThemeEngine,
   THEME_PRESETS,
-  FieldInputComponent,
   FormComponent,
   TableDataComponent,
   GalleryComponent,
   FileManagerComponent,
-  DynamicHtmlComponent,
   HtmlEditorComponent,
   NavMenuComponent,
   SlideMenuComponent,
 } from '@/components/shared';
 import { ThemeConfig, ThemePreset } from '@/types';
-import { Palette, CheckCircle, Eye } from 'lucide-react';
+import { Palette, CheckCircle } from 'lucide-react';
 
 export default function SharedDemoPage() {
   const [currentTheme, setCurrentTheme] = useState<ThemeConfig>({

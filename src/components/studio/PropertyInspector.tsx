@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { ComponentNode } from '@/types';
-import { Settings, Trash2, ArrowUp, ArrowDown, Copy, Sliders } from 'lucide-react';
+import { Trash2, ArrowUp, ArrowDown, Copy, Sliders } from 'lucide-react';
 
 interface PropertyInspectorProps {
   selectedNode: ComponentNode | null;
@@ -159,7 +159,7 @@ export const PropertyInspector: React.FC<PropertyInspectorProps> = ({
                       try {
                         const parsed = JSON.parse(e.target.value);
                         handlePropChange(propKey, parsed);
-                      } catch (err) {
+                      } catch {
                         // ignore syntax error while typing
                       }
                     }}

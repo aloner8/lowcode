@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { getCoreDb } from '@/lib/db/coreDb';
+import { requireApiSession } from '@/lib/auth/apiAuth';
+import { recordPlatformAudit } from '@/lib/engine/AuditLogService';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -37,6 +39,9 @@ function createCategoryCode(name: string): string {
 }
 
 export async function GET() {
+  const auth = await requireApiSession('VIEWER');
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const result = await getCoreDb().query<CategoryRow>(`
       SELECT id, category_code, category_name, description, is_active
@@ -56,6 +61,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireApiSession('SUPER_ADMIN');
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const body = (await request.json()) as { categoryName?: unknown };
     const categoryName = typeof body.categoryName === 'string' ? body.categoryName.trim() : '';
@@ -94,7 +102,15 @@ export async function POST(request: Request) {
       [createCategoryCode(categoryName), categoryName],
     );
 
-    return NextResponse.json({ category: toCategory(result.rows[0]) }, { status: 201 });
+    const category = toCategory(result.rows[0]);
+    await recordPlatformAudit({
+      entityType: 'PLATFORM',
+      action: 'UPDATE_PLATFORM',
+      performedBy: auth.actor,
+      changesSummary: `เพิ่ม Platform Category "${category.categoryName}"`,
+      snapshotAfter: category as unknown as Record<string, unknown>,
+    });
+    return NextResponse.json({ category }, { status: 201 });
   } catch (error) {
     console.error('Unable to create platform category', error);
     return NextResponse.json(

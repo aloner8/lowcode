@@ -38,12 +38,62 @@ export interface ThemeConfig {
   customVariables?: Record<string, string>;
 }
 
+/** CreatePlatform.MD §4 — decides which pages, modules and flows a blueprint gets. */
+export type FirstPublicPageMode = 'PUBLIC_HOME' | 'PUBLIC_HOME_WITH_LOGIN' | 'LOGIN_PAGE';
+
+export type PlatformModuleCode =
+  | 'PAGES'
+  | 'AUTH'
+  | 'FLOW'
+  | 'STYLE'
+  | 'FORM'
+  | 'SERVICE'
+  | 'EVENT'
+  | 'REPORT';
+
+export interface PlatformModule {
+  id: string;
+  platformId: string;
+  moduleCode: PlatformModuleCode;
+  moduleName: string;
+  moduleOrder: number;
+  isEnabled: boolean;
+  config: Record<string, any>;
+}
+
+export interface PlatformPage {
+  id: string;
+  platformId: string;
+  pageSlug: string;
+  title: string;
+  accessLevel: 'PUBLIC' | 'PRIVATE';
+  isEntryPage: boolean;
+  componentTree: ComponentNode[];
+  pageConfig: Record<string, any>;
+}
+
+export type PlatformFlowType = 'ENTERPRISE' | 'SEQUENCE' | 'APP_MANIFEST' | 'PAGE';
+
+export interface PlatformWorkflow {
+  id: string;
+  platformId: string;
+  flowCode: string;
+  flowName: string;
+  flowType: PlatformFlowType;
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
+  config: Record<string, any>;
+  updatedAt?: string;
+}
+
 export interface PlatformConfig {
   id: string; // UUID
   platformSlug: string; // e.g. "platform-erp"
   platformName: string; // e.g. "PlatformERP Solution"
   description?: string;
   category?: string; // e.g. "ERP", "CRM", "POS"
+  categoryId?: string;
+  firstPublicPage?: FirstPublicPageMode;
   masterThemeConfig: ThemeConfig;
   isPublished?: boolean;
   createdAt: string;
@@ -127,10 +177,40 @@ export interface WorkflowTree {
   updatedAt: string;
 }
 
+export type AuditLogEntityType = 'PLATFORM' | 'APP' | 'PAGE' | 'FLOW' | 'THEME' | 'USER' | 'DATABASE' | 'RUNTIME';
+
+export type AuditLogAction =
+  | 'CREATE_PLATFORM'
+  | 'UPDATE_PLATFORM'
+  | 'DELETE_PLATFORM'
+  | 'CREATE_APP'
+  | 'UPDATE_APP'
+  | 'DELETE_APP'
+  | 'UPDATE_PAGE'
+  | 'UPDATE_THEME'
+  | 'UPDATE_FLOW'
+  | 'DELETE_PAGE'
+  | 'PROVISION_MODULE'
+  | 'PUBLISH_DATABASE'
+  | 'BUILD_RUNTIME'
+  | 'RECORD_INSERT'
+  | 'RECORD_UPDATE'
+  | 'RECORD_DELETE'
+  | 'UPLOAD_ASSET'
+  | 'DELETE_ASSET'
+  | 'CREATE_USER'
+  | 'UPDATE_USER'
+  | 'DELETE_USER'
+  | 'CHANGE_PASSWORD'
+  | 'LOGIN';
+
 export interface AuditLog {
   id: string;
-  appId: string;
-  action: 'CREATE_APP' | 'UPDATE_PAGE' | 'UPDATE_THEME' | 'UPDATE_FLOW' | 'DELETE_PAGE';
+  platformId?: string;
+  platformName?: string;
+  entityType: AuditLogEntityType;
+  entityId?: string;
+  action: AuditLogAction;
   performedBy: string;
   changesSummary: string;
   snapshotBefore?: Record<string, any>;
@@ -150,6 +230,8 @@ export interface UserProfile {
   avatarUrl?: string;
   globalRole: GlobalRole;
   isActive: boolean;
+  mustChangePassword?: boolean;
+  lastLoginAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -278,4 +360,43 @@ export interface DbTableDefinition {
   tableName: string;
   columns: DbColumnDefinition[];
   rowCount?: number;
+}
+
+// ==========================================
+// Tenant Data Access (Collection CRUD)
+// ==========================================
+
+export interface TenantRecordPage {
+  table: string;
+  columns: string[];
+  rows: Record<string, unknown>[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface TenantTableColumn {
+  columnName: string;
+  dataType: string;
+  isNullable: boolean;
+  isPrimaryKey: boolean;
+  defaultValue?: string | null;
+}
+
+export interface TenantTableSchema {
+  tableName: string;
+  columns: TenantTableColumn[];
+  rowCount: number;
+}
+
+export interface PlatformAsset {
+  id: string;
+  platformId: string;
+  fileName: string;
+  contentType: string;
+  byteSize: number;
+  checksum: string;
+  url: string;
+  uploadedBy: string;
+  createdAt: string;
 }

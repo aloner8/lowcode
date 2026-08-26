@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { UserProfile } from '@/types';
-import { Shield, ExternalLink } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 
 interface AdminTopbarProps {

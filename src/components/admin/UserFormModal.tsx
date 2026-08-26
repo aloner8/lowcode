@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { UserProfile, GlobalRole } from '@/types';
-import { X, UserPlus, Save } from 'lucide-react';
+import { UserPlus, Save } from 'lucide-react';
 
 interface UserFormModalProps {
   isOpen: boolean;
@@ -36,7 +36,7 @@ export default function UserFormModal({
       setUsername('');
       setEmail('');
       setFullName('');
-      setPassword('1qaz@WSX');
+      setPassword('');
       setGlobalRole('DEVELOPER');
       setIsActive(true);
     }

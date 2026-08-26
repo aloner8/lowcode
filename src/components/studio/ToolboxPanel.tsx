@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { COMPONENT_PALETTE, ComponentPaletteItem } from '@/lib/engine/ComponentRegistry';
-import { Plus, Search, ChevronDown, ChevronRight, Sparkles, Box, Layout, MousePointer } from 'lucide-react';
+import { Search, ChevronDown, ChevronRight, Sparkles, Box, MousePointer } from 'lucide-react';
 
 interface ToolboxPanelProps {
   onAddComponent: (item: ComponentPaletteItem) => void;

@@ -18,7 +18,7 @@ import { ComponentPaletteItem } from '@/lib/engine/ComponentRegistry';
 import { HistoryStackManager } from '@/lib/engine/HistoryStackService';
 import { createAdminPageTemplate } from '@/lib/studio/adminMenuTemplate';
 import type { StudioCollectionDefinition, StudioFormDefinition } from '@/lib/studio/backendFormDefinitions';
-import { FileText, Workflow, Database, RefreshCw } from 'lucide-react';
+import { FileText, Database, RefreshCw } from 'lucide-react';
 import { HtmlStudioShell } from '@/components/html-studio';
 import type { HtmlStudioDocument, StudioNode } from '@/lib/html-studio';
 
@@ -533,6 +533,12 @@ export default function StudioPage() {
     setSelectedNodeId(newNode.id);
   };
 
+  // Add a ready-made node (e.g. generated from a tenant table) to the canvas.
+  const handleAddComponentNode = (newNode: ComponentNode) => {
+    updateNodesWithHistory([...nodes, newNode], `Add ${newNode.type}`);
+    setSelectedNodeId(newNode.id);
+  };
+
   // Update properties of selected component
   const handleUpdateNodeProps = (nodeId: string, updatedProps: Record<string, any>) => {
     const updated = nodes.map((n) => (n.id === nodeId ? { ...n, props: updatedProps } : n));
@@ -618,10 +624,36 @@ export default function StudioPage() {
     downloadAnchor.remove();
   };
 
-  // Save Master App WorkFlow Manifest
-  const handleSaveManifest = (manifest: AppWorkFlowManifest) => {
-    setSaveStatus('App WorkFlow Manifest Saved!');
-    setTimeout(() => setSaveStatus(null), 3000);
+  // Persist the App WorkFlow Manifest into public.platform_workflows.
+  const handleSaveManifest = async (manifest: AppWorkFlowManifest) => {
+    if (!platformId) {
+      setSaveStatus('เลือก Platform ก่อนบันทึก Manifest');
+      setTimeout(() => setSaveStatus(null), 3000);
+      return;
+    }
+    setSaveStatus('Saving App WorkFlow Manifest...');
+    try {
+      const response = await fetch(`/api/platforms/${platformId}/workflows`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          flowCode: 'APP_MANIFEST',
+          flowName: `${manifest.appName} Manifest v${manifest.version}`,
+          flowType: 'APP_MANIFEST',
+          nodes: [],
+          edges: [],
+          config: manifest,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Unable to save manifest');
+      setSaveStatus('App WorkFlow Manifest saved to database');
+    } catch (error) {
+      setStudioError(error instanceof Error ? error.message : 'Unable to save manifest');
+      setSaveStatus('Save manifest failed');
+    } finally {
+      setTimeout(() => setSaveStatus(null), 4000);
+    }
   };
 
   // Viewport width styling
@@ -702,7 +734,15 @@ export default function StudioPage() {
 
           {/* Center Stage: App WorkFlow Designer OR Form Designer Canvas */}
           <div className="flex-grow-1 min-w-0" style={{ minWidth: 0 }}>
-            {selectedRawTable && platformId ? (
+            {selectedRawTable === '__schema__' && platformId ? (
+              <div className="h-100 overflow-auto p-3">
+                <DbSchemaExplorer
+                  platformId={platformId}
+                  tenantDbName={appInfo.tenantDbName}
+                  onGenerateComponent={(node) => { handleAddComponentNode(node); setSelectedRawTable(null); }}
+                />
+              </div>
+            ) : selectedRawTable && platformId ? (
               <RawTableWorkspace platformId={platformId} databaseName={appInfo.tenantDbName} tableName={selectedRawTable} onClose={() => setSelectedRawTable(null)} />
             ) : selectedPageFlow && platformId ? (
               <PageFlowDesigner
@@ -714,7 +754,7 @@ export default function StudioPage() {
                 pages={studioPages}
               />
             ) : activePage === 'app_workflow' ? (
-              <AppWorkflowDesigner appInfo={appInfo} onSaveManifest={handleSaveManifest} />
+              <AppWorkflowDesigner appInfo={appInfo} onSaveManifest={(manifest) => void handleSaveManifest(manifest)} />
             ) : (
               <div className="card shadow-sm border-0 rounded-3 bg-white d-flex flex-column h-100 overflow-hidden">
                 {/* Form Designer Tabbed Header */}

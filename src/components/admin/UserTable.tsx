@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { UserProfile } from '@/types';
-import { ShieldCheck, Code, Eye, Edit3, Key, Lock, CheckCircle, XCircle } from 'lucide-react';
+import { ShieldCheck, Code, Eye, Edit3, Lock, CheckCircle, XCircle } from 'lucide-react';
 
 interface UserTableProps {
   users: UserProfile[];

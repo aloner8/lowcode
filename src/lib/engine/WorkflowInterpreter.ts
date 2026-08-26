@@ -1,4 +1,4 @@
-import { WorkflowTree, WorkflowNode, WorkflowEdge } from '@/types';
+import { WorkflowTree, WorkflowNode } from '@/types';
 
 export interface ExecutionContext {
   payload?: any;
