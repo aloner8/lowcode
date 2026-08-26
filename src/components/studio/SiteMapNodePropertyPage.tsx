@@ -1,42 +1,26 @@
 'use client';
-
-import React, { useState } from 'react';
-import { Braces, FileText, Link2, Puzzle, Settings, Workflow, Zap } from 'lucide-react';
-import type { AppRoute } from '@/types';
-
+import React, { useEffect, useState } from 'react';
+import { Braces, FileText, Link2, Pencil, Puzzle, Settings, Workflow } from 'lucide-react';
+import type { AppRoute, StudioServiceDefinition } from '@/types';
 type TabId = 'properties' | 'page' | 'events' | 'services' | 'apis';
+interface PageOption { id: string; name: string }
+interface Props { route: AppRoute; pageName?: string; onClose: () => void; onOpenPage?: () => void; onOpenFlow: () => void; service?: StudioServiceDefinition; availablePages?: PageOption[]; onUpdateService?: (service: StudioServiceDefinition) => Promise<void> }
 
-interface Props {
-  route: AppRoute;
-  pageName?: string;
-  onClose: () => void;
-  onOpenPage?: () => void;
-  onOpenFlow: () => void;
-}
-
-export const SiteMapNodePropertyPage: React.FC<Props> = ({ route, pageName, onClose, onOpenPage, onOpenFlow }) => {
-  const [activeTab, setActiveTab] = useState<TabId>('properties');
-  const tabs = [
-    { id: 'properties' as const, label: 'Properties', icon: Settings },
-    { id: 'page' as const, label: route.targetType === 'form' ? 'Form' : 'Page', icon: FileText },
-    { id: 'events' as const, label: 'Events', icon: Workflow },
-    { id: 'services' as const, label: 'Services', icon: Puzzle },
-    { id: 'apis' as const, label: 'APIs', icon: Braces },
-  ];
-  return <div className="card border-0 shadow-sm h-100">
-    <div className="card-header bg-dark text-white d-flex justify-content-between align-items-center p-3">
-      <div><div className="small text-info fw-bold text-uppercase">{route.targetType} · Site Map Node</div><h5 className="mb-0">{route.label}</h5><code className="text-warning">{route.path}</code></div>
-      <button className="btn btn-sm btn-outline-light" onClick={onClose}>Close</button>
-    </div>
+const FlowBox = ({ children, tone = 'light' }: { children: React.ReactNode; tone?: 'light' | 'primary' | 'success' | 'danger' }) => <div className={`border rounded-3 px-3 py-2 text-center fw-semibold ${tone === 'light' ? 'bg-white' : `bg-${tone} text-white`}`}>{children}</div>;
+export const SiteMapNodePropertyPage: React.FC<Props> = ({ route, pageName, onClose, onOpenPage, onOpenFlow, service, availablePages = [], onUpdateService }) => {
+  const [activeTab, setActiveTab] = useState<TabId>('properties'); const [loginPageId, setLoginPageId] = useState(service?.bundle?.loginPageId || ''); const [adminPageId, setAdminPageId] = useState(service?.bundle?.adminPageId || ''); const [saving, setSaving] = useState(false);
+  useEffect(() => { setLoginPageId(service?.bundle?.loginPageId || ''); setAdminPageId(service?.bundle?.adminPageId || ''); }, [service]);
+  const tabs = [{ id: 'properties' as const, label: 'Properties', icon: Settings }, { id: 'page' as const, label: 'Pages', icon: FileText }, { id: 'events' as const, label: 'Events', icon: Workflow }, { id: 'services' as const, label: 'Services', icon: Puzzle }, { id: 'apis' as const, label: 'APIs', icon: Braces }];
+  const savePages = async () => { if (!service?.bundle || !onUpdateService) return; setSaving(true); try { await onUpdateService({ ...service, bundle: { ...service.bundle, loginPageId, adminPageId } }); } finally { setSaving(false); } };
+  const loginSteps = ['Submit Login Form', 'Find Active User', 'Verify Password', 'Load Permissions', 'Issue JWT', `Open Success Page: ${adminPageId || 'Not assigned'}`];
+  return <div className="card border-0 shadow-sm h-100"><div className="card-header bg-dark text-white d-flex justify-content-between align-items-center p-3"><div><div className="small text-info fw-bold text-uppercase">{route.targetType} · Site Map Node</div><h5 className="mb-0">{route.label}</h5><code className="text-warning">{route.path}</code></div><button className="btn btn-sm btn-outline-light" onClick={onClose}>Close</button></div>
     <div className="nav nav-tabs bg-light px-3 pt-2">{tabs.map((tab) => <button key={tab.id} className={`nav-link d-flex align-items-center gap-1 ${activeTab === tab.id ? 'active fw-bold' : ''}`} onClick={() => setActiveTab(tab.id)}><tab.icon size={13}/>{tab.label}</button>)}</div>
     <div className="card-body overflow-auto p-4">
-      {activeTab === 'properties' && <div className="row g-3">
-        {[['Node ID', route.id], ['Node Type', route.targetType], ['Label', route.label], ['Path', route.path], ['Target ID', route.targetId || 'Not assigned'], ['Container', route.containerName], ['Permission', route.permission || 'Public / inherited']].map(([label, value]) => <div className="col-md-6" key={label}><label className="form-label small fw-bold text-secondary">{label}</label><div className="form-control bg-light font-monospace small">{value}</div></div>)}
-      </div>}
-      {activeTab === 'page' && <div><h5>{route.targetType === 'form' ? 'Form Target' : 'Page Target'}</h5><p className="text-muted">{pageName || route.targetId || 'Node นี้ยังไม่ได้ผูก target'}</p><button className="btn btn-primary" disabled={!onOpenPage} onClick={onOpenPage}><FileText size={14} className="me-1"/>Open {route.targetType === 'form' ? 'Form' : 'Page'} Designer</button></div>}
-      {activeTab === 'events' && <div><h5>Node Events</h5><p className="text-muted">Workflow เช่น OnLoad, Click และ Navigate ถูกจัดการในแท็บนี้</p><button className="btn btn-warning" onClick={onOpenFlow}><Zap size={14} className="me-1"/>Open Event Flow</button></div>}
-      {activeTab === 'services' && <div><h5>Assigned Services</h5><p className="text-muted">ยังไม่มี Service binding สำหรับ Node นี้</p><button className="btn btn-outline-primary" onClick={onOpenFlow}><Link2 size={14} className="me-1"/>Add Service Binding</button></div>}
-      {activeTab === 'apis' && <div><h5>API Bindings</h5><p className="text-muted">ยังไม่มี API call สำหรับ Node นี้</p><button className="btn btn-outline-info" onClick={onOpenFlow}><Braces size={14} className="me-1"/>Add API Call</button></div>}
-    </div>
-  </div>;
+      {activeTab === 'properties' && <div className="row g-3">{[['Node ID', route.id], ['Node Type', route.targetType], ['Label', route.label], ['Path', route.path], ['Target ID', route.targetId || 'Not assigned'], ['Container', route.containerName], ['Permission', route.permission || 'Public / inherited']].map(([label, value]) => <div className="col-md-6" key={label}><label className="form-label small fw-bold text-secondary">{label}</label><div className="form-control bg-light font-monospace small">{value}</div></div>)}</div>}
+      {activeTab === 'page' && service?.bundle && <div><h5>Auth Page Properties</h5><p className="text-muted">Select pages used by this service. Site Map child nodes follow these properties.</p><div className="row g-3">{[['Login Page', loginPageId, setLoginPageId], ['Success / Admin Page', adminPageId, setAdminPageId]].map(([label, value, setter]) => <div className="col-md-6" key={String(label)}><label className="form-label fw-semibold">{String(label)}</label><select className="form-select" value={String(value)} onChange={(event) => (setter as React.Dispatch<React.SetStateAction<string>>)(event.target.value)}><option value="">Not assigned</option>{availablePages.map((page) => <option key={page.id} value={page.id}>{page.name}</option>)}</select></div>)}</div><button className="btn btn-primary mt-3" disabled={saving} onClick={() => void savePages()}>{saving ? 'Saving...' : 'Save Page Properties'}</button></div>}
+      {activeTab === 'page' && !service?.bundle && <div><h5>Page Target</h5><p>{pageName || route.targetId || 'Not assigned'}</p><button className="btn btn-primary" disabled={!onOpenPage} onClick={onOpenPage}>Open Designer</button></div>}
+      {activeTab === 'events' && <div><h5>{service?.bundle ? 'Auth Event Flowchart' : 'Node Events'}</h5>{service?.bundle && <div className="border rounded-3 bg-light p-3 mb-3"><div className="small fw-bold text-primary mb-2">LOGIN FLOW</div><div className="d-flex flex-column" style={{ maxWidth: 650 }}>{loginSteps.map((label, index) => <React.Fragment key={label}><FlowBox tone={index === 0 ? 'primary' : index === loginSteps.length - 1 ? 'success' : 'light'}>{label}</FlowBox>{index < loginSteps.length - 1 && <div className="text-center text-warning fs-5 lh-1">↓</div>}</React.Fragment>)}</div><div className="small fw-bold text-danger mt-4 mb-2">LOGOUT FLOW</div><div className="d-flex align-items-center flex-wrap gap-2"><FlowBox tone="danger">Click Logout</FlowBox><b className="text-danger">→</b><FlowBox>Clear JWT</FlowBox><b className="text-danger">→</b><FlowBox tone="primary">Open Login Page: {loginPageId || 'Not assigned'}</FlowBox></div></div>}<button className="btn btn-warning" onClick={onOpenFlow}><Pencil size={14} className="me-1"/>Edit Flow</button></div>}
+      {activeTab === 'services' && <div><h5>Assigned Service</h5><p>{service ? `${service.name} · ${service.provider.toUpperCase()} · Mother logic` : 'No binding'}</p><button className="btn btn-outline-primary" onClick={onOpenFlow}><Link2 size={14} className="me-1"/>Edit Service Flow</button></div>}
+      {activeTab === 'apis' && <div><h5>API Bindings</h5><p>API calls are configured in the flow editor.</p><button className="btn btn-outline-info" onClick={onOpenFlow}>Edit API Flow</button></div>}
+    </div></div>;
 };

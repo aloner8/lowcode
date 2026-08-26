@@ -11,6 +11,7 @@ import { SiteMapNodePropertyPage } from '@/components/studio/SiteMapNodeProperty
 import { AppWorkflowDesigner } from '@/components/studio/AppWorkflowDesigner';
 import { DbSchemaExplorer } from '@/components/studio/DbSchemaExplorer';
 import { PageManagerModal } from '@/components/studio/PageManagerModal';
+import { SiteMapNodeManagerModal, type SiteMapTargetOption } from '@/components/studio/SiteMapNodeManagerModal';
 import { BottomDock } from '@/components/studio/BottomDock';
 import { ThemeCustomizerPanel } from '@/components/studio/ThemeCustomizerPanel';
 import { ComponentWorkshop } from '@/components/studio/ComponentWorkshop';
@@ -19,7 +20,7 @@ import type { PageSettingsValue } from '@/components/studio/PageSettingsWorkspac
 import type { GenPageFromImageRequest } from '@/components/studio/GenPageFromImageWizard';
 import { GenAppComponentFromImageWizard, type GenAppComponentFromImageRequest } from '@/components/studio/GenAppComponentFromImageWizard';
 import { DynamicPageRenderer } from '@/components/engine/DynamicPageRenderer';
-import { ComponentNode, AppConfig, AppRoute, AppWorkFlowManifest } from '@/types';
+import { ComponentNode, AppConfig, AppRoute, AppWorkFlowManifest, StudioServiceDefinition } from '@/types';
 import { ComponentPaletteItem } from '@/lib/engine/ComponentRegistry';
 import { HistoryStackManager } from '@/lib/engine/HistoryStackService';
 import { createAdminPageTemplate } from '@/lib/studio/adminMenuTemplate';
@@ -121,6 +122,8 @@ export default function StudioPage() {
   const [zoomLevel, setZoomLevel] = useState<number>(100);
   const [isPageManagerOpen, setIsPageManagerOpen] = useState<boolean>(false);
   const [pageManagerContainer, setPageManagerContainer] = useState<string | null>(null);
+  const [isSiteMapNodeManagerOpen, setIsSiteMapNodeManagerOpen] = useState(false);
+  const [siteMapNodeContainer, setSiteMapNodeContainer] = useState<string | null>(null);
 
   // Active App Configuration & Layout AST
   const [appInfo, setAppInfo] = useState<AppConfig>({
@@ -198,6 +201,7 @@ export default function StudioPage() {
   const [studioRoutes, setStudioRoutes] = useState<AppRoute[]>([]);
   const [studioForms, setStudioForms] = useState<StudioFormDefinition[]>([]);
   const [studioCollections, setStudioCollections] = useState<StudioCollectionDefinition[]>([]);
+  const [studioServices, setStudioServices] = useState<StudioServiceDefinition[]>([]);
   const [showAppComponentImageWizard, setShowAppComponentImageWizard] = useState(false);
   const [activeFormId, setActiveFormId] = useState<string | null>(null);
   const [activeFormMode, setActiveFormMode] = useState<'insert' | 'update' | 'readOnly'>('insert');
@@ -224,6 +228,18 @@ export default function StudioPage() {
   const activeCollectionDefinition = activeCollectionView ? studioCollections.find((collection) => collection.id === activeCollectionView.collectionId) : undefined;
   const activeCollectionComponent = activeCollectionDefinition?.components.find((component) => component.id === activeCollectionView?.viewId);
   const collectionStudioDocument = useMemo(() => activeCollectionView && activeCollectionComponent ? createPageStudioDocument({ id: `${activeCollectionComponent.id}-${activeCollectionView.variant}`, name: activeCollectionComponent.label, title: `${activeCollectionComponent.label} · ${activeCollectionView.variant}` }, activeCollectionComponent.variantComponentTrees?.[activeCollectionView.variant] || activeCollectionComponent.componentTree) : null, [activeCollectionView, activeCollectionComponent]);
+  const siteMapContainers = useMemo(() => Array.from(new Set([`${appInfo.appSlug}-frontend`, `${appInfo.appSlug}-backend`, ...studioPages.map((page) => page.containerName), ...studioRoutes.map((route) => route.containerName)].filter((name): name is string => Boolean(name)))), [appInfo.appSlug, studioPages, studioRoutes]);
+  const siteMapTargets = useMemo<SiteMapTargetOption[]>(() => {
+    const result: SiteMapTargetOption[] = [
+      ...studioPages.map((page) => ({ id: page.id, label: page.title || page.name, type: 'page' as const, suggestedPath: page.routePath || (page.isDefaultPage ? '/' : `/${page.id}`) })),
+      ...studioForms.map((form) => ({ id: form.id, label: form.name || form.id, type: 'form' as const })),
+      ...studioCollections.map((collection) => ({ id: collection.id, label: collection.name || collection.id, type: 'collection' as const })),
+      ...studioCollections.flatMap((collection) => collection.components.map((component) => ({ id: component.id, label: `${component.label} · ${collection.name}`, type: 'component' as const }))),
+      ...studioServices.map((service) => ({ id: service.id, label: service.name, type: 'service' as const, suggestedPath: `/services/${service.id.replace(/^service\./, '').replace(/\./g, '-')}` })),
+      ...studioRoutes.filter((route) => route.targetType === 'api').map((route) => ({ id: route.targetId || route.id, label: route.label, type: 'api' as const, suggestedPath: route.path })),
+    ];
+    return result.filter((target, index) => result.findIndex((item) => item.type === target.type && item.id === target.id) === index);
+  }, [studioCollections, studioForms, studioPages, studioRoutes, studioServices]);
 
   useEffect(() => {
     if (!isPageDirty) return;
@@ -297,6 +313,7 @@ export default function StudioPage() {
             studioForms: StudioFormDefinition[];
             studioCollections: StudioCollectionDefinition[];
             studioRoutes: AppRoute[];
+            studioServices: StudioServiceDefinition[];
             studioInitialized: boolean;
           };
           error?: string;
@@ -323,6 +340,7 @@ export default function StudioPage() {
         }
         setStudioForms(Array.isArray(platform.studioForms) ? platform.studioForms : []);
         setStudioCollections(Array.isArray(platform.studioCollections) ? platform.studioCollections : []);
+        setStudioServices(Array.isArray(platform.studioServices) ? platform.studioServices : []);
         let loadedRoutes = Array.isArray(platform.studioRoutes) ? platform.studioRoutes : [];
         const materializedPageIds = new Set(loadedRoutes.filter((route) => route.targetType === 'page' && route.targetId).map((route) => route.targetId));
         const needsNodeMigration = platform.studioPages.some((page) => !page.siteMapMaterialized && !materializedPageIds.has(page.id)) || loadedRoutes.some((route) => !route.id || !route.targetType);
@@ -633,6 +651,51 @@ export default function StudioPage() {
     }
   };
 
+  const handleCreateSiteMapNode = async (input: { containerName: string; nodeType: AppRoute['targetType']; targetId: string; label: string; path: string; isStartPoint: boolean }) => {
+    if (!platformId) throw new Error('Platform is not available');
+    const response = await fetch(`/api/platforms/${platformId}/site-map`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create-node', ...input }),
+    });
+    const data = await response.json() as { routes?: AppRoute[]; node?: AppRoute; error?: string };
+    if (!response.ok) throw new Error(data.error || 'Add Site Map node failed');
+    setStudioRoutes(data.routes || []);
+    if (data.node?.id) setSelectedSiteMapRouteId(data.node.id);
+    setSaveStatus(`Added Site Map node: ${input.label}`);
+    setTimeout(() => setSaveStatus(null), 3000);
+  };
+
+  const handleProvisionAuthBundle = async () => {
+    if (!platformId) throw new Error('Platform is not available');
+    setSaveStatus('Provisioning JWT Auth bundle...'); setStudioError(null);
+    try {
+      const response = await fetch(`/api/platforms/${platformId}/studio`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'provision-jwt-auth-bundle' }) });
+      const data = await response.json() as { pages?: StudioPageDefinition[]; collections?: StudioCollectionDefinition[]; routes?: AppRoute[]; services?: StudioServiceDefinition[]; error?: string };
+      if (!response.ok) throw new Error(data.error || 'Unable to provision Auth bundle');
+      if (data.pages) setStudioPages(data.pages); if (data.collections) setStudioCollections(data.collections); if (data.routes) setStudioRoutes(data.routes); if (data.services) setStudioServices(data.services);
+      setSaveStatus('JWT Auth bundle is ready: Login, Users, Roles, Permissions and Flow');
+      setTimeout(() => setSaveStatus(null), 4000);
+    } catch (error) { const message = error instanceof Error ? error.message : 'Unable to provision Auth bundle'; setStudioError(message); setSaveStatus(null); window.alert(message); }
+  };
+
+  const handleUpdateStudioService = async (service: StudioServiceDefinition) => {
+    if (!platformId) throw new Error('Platform is not available');
+    const nextServices = studioServices.map((item) => item.id === service.id ? service : item);
+    const logoutButton: ComponentNode = { id: 'auth.logout.button', type: 'DynamicHtmlComponent', label: 'Logout Button', props: { componentRole: 'LinkButton', content: '<button type="button" class="btn btn-outline-danger" data-auth-action="logout">Logout</button>', action: { type: 'logout', serviceId: service.id, clear: ['accessToken', 'refreshToken'], navigateToPageProperty: 'loginPageId' } } };
+    const nextPages = studioPages.map((page) => ({ ...page, componentTree: page.id === service.bundle?.adminPageId ? [...(page.componentTree || []).filter((node) => node.id !== logoutButton.id), logoutButton] : (page.componentTree || []).filter((node) => node.id !== logoutButton.id) }));
+    const response = await fetch(`/api/platforms/${platformId}/studio`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studioLayout: nodes, studioPages: nextPages, studioServices: nextServices }) });
+    const data = await response.json() as { platform?: { studioPages?: StudioPageDefinition[]; studioServices?: StudioServiceDefinition[] }; error?: string };
+    if (!response.ok) throw new Error(data.error || 'Unable to save Service properties');
+    if (service.bundle?.flowPath) {
+      const flowResponse = await fetch(`/api/platforms/${platformId}/page-flows?route=${encodeURIComponent(service.bundle.flowPath)}`, { cache: 'no-store' });
+      const flowData = await flowResponse.json() as { flow?: { routePath: string; routeLabel: string; templateType: string; nodes: Array<{ id: string; data?: Record<string, unknown> }>; edges: unknown[] } };
+      if (flowData.flow) await fetch(`/api/platforms/${platformId}/page-flows`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...flowData.flow, nodes: flowData.flow.nodes.map((node) => node.id === 'login.success' ? { ...node, data: { ...(node.data || {}), targetPageId: service.bundle?.adminPageId || null } } : node) }) });
+      await fetch(`/api/platforms/${platformId}/page-flows`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ routePath: '/logout', routeLabel: 'JWT Logout', templateType: 'public_page', nodes: [{ id: 'logout.click', type: 'trigger', data: { label: 'Click Logout', nodeType: 'trigger', actionType: 'click', componentId: logoutButton.id } }, { id: 'logout.clear', type: 'action', data: { label: 'Clear JWT', nodeType: 'action', actionType: 'service', serviceId: service.id } }, { id: 'logout.login', type: 'action', data: { label: 'Open Login Page', nodeType: 'action', actionType: 'navigate', targetPageId: service.bundle.loginPageId || null } }], edges: [{ id: 'logout.e1', source: 'logout.click', target: 'logout.clear' }, { id: 'logout.e2', source: 'logout.clear', target: 'logout.login' }] }) });
+    }
+    setStudioPages(data.platform?.studioPages || nextPages);
+    setStudioServices(data.platform?.studioServices || nextServices);
+    setSaveStatus(`Saved ${service.name} page properties`); setTimeout(() => setSaveStatus(null), 3000);
+  };
+
   const handleInitializeStudio = async () => {
     if (!platformId || isInitializing) return;
     setIsInitializing(true);
@@ -861,6 +924,7 @@ export default function StudioPage() {
                 onAddComponent={handleAddComponent}
                 pages={studioPages}
                 routes={studioRoutes}
+                services={studioServices}
                 onRoutesChanged={setStudioRoutes}
                 onSelectSiteMapNode={(routeId) => { setSelectedSiteMapRouteId(routeId); setSelectedPageFlow(null); setSelectedRawTable(null); }}
                 onDeleteSiteMapNode={handleDeleteSiteMapNode}
@@ -878,6 +942,8 @@ export default function StudioPage() {
                 onSelectPageFlow={(route) => setSelectedPageFlow(route)}
                 onSelectRawTable={(tableName) => { setSelectedPageFlow(null); setSelectedRawTable(tableName); }}
                 onOpenPageManager={(containerName) => { setPageManagerContainer(containerName || null); setIsPageManagerOpen(true); }}
+                onOpenSiteMapNodeManager={(containerName) => { setSiteMapNodeContainer(containerName || null); setIsSiteMapNodeManagerOpen(true); }}
+                onProvisionAuthBundle={handleProvisionAuthBundle}
                 collapsed={isExplorerCollapsed}
                 onToggleCollapsed={() => setIsExplorerCollapsed((current) => !current)}
               />
@@ -889,10 +955,13 @@ export default function StudioPage() {
             {selectedSiteMapRoute ? (
               <SiteMapNodePropertyPage
                 route={selectedSiteMapRoute}
+                service={selectedSiteMapRoute.targetType === 'service' ? studioServices.find((service) => service.id === selectedSiteMapRoute.targetId) : undefined}
+                availablePages={studioPages.map((page) => ({ id: page.id, name: page.name }))}
+                onUpdateService={handleUpdateStudioService}
                 pageName={selectedSiteMapRoute.targetType === 'page' ? studioPages.find((page) => page.id === selectedSiteMapRoute.targetId)?.name : selectedSiteMapRoute.targetType === 'form' ? studioForms.find((form) => form.id === selectedSiteMapRoute.targetId)?.name : selectedSiteMapRoute.targetType === 'collection' ? studioCollections.find((collection) => collection.id === selectedSiteMapRoute.targetId)?.name : undefined}
                 onClose={() => setSelectedSiteMapRouteId(null)}
                 onOpenPage={selectedSiteMapRoute.targetType === 'page' && selectedSiteMapRoute.targetId ? () => { setSelectedSiteMapRouteId(null); handleSelectDesignPage(selectedSiteMapRoute.targetId!); } : selectedSiteMapRoute.targetType === 'form' && selectedSiteMapRoute.targetId ? () => { setSelectedSiteMapRouteId(null); handleSelectDesignForm(selectedSiteMapRoute.targetId!, 'insert'); } : selectedSiteMapRoute.targetType === 'collection' && selectedSiteMapRoute.targetId ? () => { const collection = studioCollections.find((item) => item.id === selectedSiteMapRoute.targetId); const view = collection?.components.find((item) => item.recommended) || collection?.components[0]; if (collection && view) { setSelectedSiteMapRouteId(null); handleSelectCollectionView(collection.id, view.id); } } : undefined}
-                onOpenFlow={() => { setSelectedSiteMapRouteId(null); setSelectedPageFlow({ path: `${selectedSiteMapRoute.containerName}:${selectedSiteMapRoute.path}`, label: `${selectedSiteMapRoute.containerName} / ${selectedSiteMapRoute.label}`, type: selectedSiteMapRoute.targetType === 'form' ? 'form_crud' : 'public_page' }); }}
+                onOpenFlow={() => { const service = selectedSiteMapRoute.targetType === 'service' ? studioServices.find((item) => item.id === selectedSiteMapRoute.targetId) : undefined; setSelectedSiteMapRouteId(null); setSelectedPageFlow({ path: service?.bundle?.flowPath || `${selectedSiteMapRoute.containerName}:${selectedSiteMapRoute.path}`, label: `${selectedSiteMapRoute.containerName} / ${selectedSiteMapRoute.label}`, type: service ? 'form_crud' : selectedSiteMapRoute.targetType === 'form' ? 'form_crud' : 'public_page' }); }}
               />
             ) : pageSettingsId && studioPages.find((page) => page.id === pageSettingsId) ? (
               <PageSettingsWorkspace
@@ -1036,6 +1105,15 @@ export default function StudioPage() {
         onSetDefaultPage={handleSetDefaultManagedPage}
         routeCount={studioRoutes.length}
         onDeleteAllNodes={handleDeleteAllSiteMapNodes}
+      />
+
+      <SiteMapNodeManagerModal
+        isOpen={isSiteMapNodeManagerOpen}
+        onClose={() => setIsSiteMapNodeManagerOpen(false)}
+        containers={siteMapContainers}
+        initialContainerName={siteMapNodeContainer || `${appInfo.appSlug}-${activeSurface}`}
+        targets={siteMapTargets}
+        onCreate={handleCreateSiteMapNode}
       />
 
       {/* 6. Visual Studio Bottom Output & Diagnostic Dock */}

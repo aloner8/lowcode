@@ -58,6 +58,12 @@ export default function ChildAppRuntimePage() {
     if (!route) return;
     if (route.targetType === 'page' && route.targetId) {
       const page = runtimeData.pages?.find((item) => item.id === route.targetId);
+      const authService = runtimeData.services?.find((item) => item.id === 'service.auth.jwt');
+      if (page && route.targetId === authService?.bundle?.adminPageId && !window.sessionStorage.getItem(`auth:${appSlug}:accessToken`)) {
+        const loginPage = runtimeData.pages?.find((item) => item.id === authService.bundle?.loginPageId);
+        if (loginPage?.componentTree?.length) { setSelectedContent(loginPage.componentTree); setSelectedMenuLabel(loginPage.title || 'Login'); setContentOutletMode('page'); window.history.replaceState({}, '', `/app/${appSlug}/login`); }
+        return;
+      }
       if (page?.componentTree?.length) { setSelectedContent(page.componentTree); setSelectedMenuLabel(route.label); setContentOutletMode('page'); }
     } else if (route.targetType === 'form' && route.targetId) {
       const form = runtimeData.forms?.find((item) => item.id === route.targetId);
@@ -82,6 +88,33 @@ export default function ChildAppRuntimePage() {
   const { appConfig, pageLayout, workflowTree } = runtimeData;
 
   const handleActionTrigger = async (actionId: string, payload: any): Promise<void> => {
+    if (actionId === 'auth.login.submit') {
+      try {
+        setLastAction('Checking credentials...');
+        const response = await fetch(`/api/runtime/${encodeURIComponent(appSlug)}/auth/login`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload || {}),
+        });
+        const result = await response.json() as { token?: string; successPageId?: string; error?: string };
+        if (!response.ok || !result.token) throw new Error(result.error || 'Login failed');
+        window.sessionStorage.setItem(`auth:${appSlug}:accessToken`, result.token);
+        const page = runtimeData.pages?.find((item) => item.id === result.successPageId);
+        if (!page?.componentTree?.length) throw new Error(`Success Page '${result.successPageId}' not found`);
+        setSelectedContent(page.componentTree); setSelectedMenuLabel(page.title || 'Admin'); setContentOutletMode('page'); setLastAction(null);
+        const route = runtimeData.routes?.find((item) => item.targetType === 'page' && item.targetId === page.id);
+        window.history.pushState({}, '', `/app/${appSlug}${route?.path || '/admin'}`);
+      } catch (error) { setLastAction(error instanceof Error ? error.message : 'Login failed'); }
+      return;
+    }
+    if (actionId === 'logout') {
+      window.sessionStorage.removeItem(`auth:${appSlug}:accessToken`);
+      const service = runtimeData.services?.find((item) => item.id === 'service.auth.jwt');
+      const page = runtimeData.pages?.find((item) => item.id === service?.bundle?.loginPageId);
+      if (page?.componentTree?.length) {
+        setSelectedContent(page.componentTree); setSelectedMenuLabel(page.title || 'Login'); setContentOutletMode('page'); setLastAction(null);
+        window.history.pushState({}, '', `/app/${appSlug}/login`);
+      }
+      return;
+    }
     if (actionId === 'menu.select') {
       const selectedMenu = resolveCanonicalMenuItem(payload || {});
       const action = selectedMenu.action;

@@ -24,6 +24,7 @@ services:
       - ./docker/postgres/migrations/006_create_platform_design_configs.sql:/docker-entrypoint-initdb.d/006_create_platform_design_configs.sql:ro
       - ./docker/postgres/migrations/007_create_studio_forms.sql:/docker-entrypoint-initdb.d/007_create_studio_forms.sql:ro
       - ./docker/postgres/migrations/008_create_platform_routes.sql:/docker-entrypoint-initdb.d/008_create_platform_routes.sql:ro
+      - ./docker/postgres/migrations/009_create_studio_services.sql:/docker-entrypoint-initdb.d/009_create_studio_services.sql:ro
     healthcheck:
       test:
         [
@@ -81,6 +82,7 @@ services:
       DOCKER_SOCKET_PATH: /var/run/docker.sock
       PLATFORM_RUNTIME_NETWORK: lowcode_network
       PLATFORM_RUNTIME_BASE_IMAGE: lowcode-app:latest
+      PLATFORM_JWT_SECRET: ${PLATFORM_JWT_SECRET:-lowcode-local-jwt-secret-change-me}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:

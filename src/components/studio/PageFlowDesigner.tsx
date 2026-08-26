@@ -82,6 +82,13 @@ export const PageFlowDesigner: React.FC<PageFlowDesignerProps> = ({ platformId, 
     setSelectedNode({ ...selectedNode, data: { ...selectedNode.data, pageId, pageTitle: page?.title || pageId } });
     setStatus('Node configuration changed — click Save Flow');
   };
+  const updateSelectedNodeData = (changes: Record<string, unknown>) => {
+    if (!selectedNode || !draft) return;
+    const data = { ...selectedNode.data, ...changes };
+    const nodes = draft.nodes.map((node) => node.id === selectedNode.id ? { ...node, data } : node);
+    setDraft({ ...draft, nodes }); setFlow((current) => current ? { ...current, nodes } : current); setSelectedNode({ ...selectedNode, data });
+    setStatus('Node configuration changed — click Save Flow');
+  };
   const save = async () => {
     if (!flow || !draft) return;
     setStatus('Saving...');
@@ -113,6 +120,9 @@ export const PageFlowDesigner: React.FC<PageFlowDesignerProps> = ({ platformId, 
     {selectedNode && <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style={{ zIndex: 2200, background: 'rgba(15,23,42,.55)', backdropFilter: 'blur(3px)' }} onMouseDown={() => setSelectedNode(null)}>
       <div className="card border-0 shadow-lg rounded-4" style={{ width: 'min(92vw, 520px)' }} onMouseDown={event => event.stopPropagation()}><div className="card-body p-4">
         <div className="d-flex justify-content-between align-items-start mb-3"><div><div className="text-primary small fw-bold">FLOW NODE CONFIGURATION</div><h5 className="fw-bold mb-0">{String(selectedNode.data.label || 'Node')}</h5></div><button className="btn-close" onClick={() => setSelectedNode(null)} /></div>
+        <label className="form-label fw-semibold">Node Label</label><input className="form-control mb-3" value={String(selectedNode.data.label || '')} onChange={(event) => updateSelectedNodeData({ label: event.target.value })}/>
+        {selectedNode.type === 'action' && <><label className="form-label fw-semibold">Action Type</label><select className="form-select mb-3" value={String(selectedNode.data.actionType || '')} onChange={(event) => updateSelectedNodeData({ actionType: event.target.value })}><option value="">Select action...</option><option value="service">Service</option><option value="navigate">Navigate Page</option><option value="apiCall">API Call</option><option value="databaseMutation">Database Mutation</option><option value="showAlert">Show Alert</option></select></>}
+        {selectedNode.data.actionType === 'navigate' && <><label className="form-label fw-semibold">Target Page</label><select className="form-select mb-3" value={String(selectedNode.data.targetPageId || '')} onChange={(event) => updateSelectedNodeData({ targetPageId: event.target.value })}><option value="">Not assigned</option>{pages.map((page) => <option key={page.id} value={page.id}>{page.title} ({page.id}.page)</option>)}</select></>}
         {(selectedNode.id === 'read_config' || selectedNode.id === 'form_event') ? <><label className="form-label fw-semibold">Related Page Layout</label><select className="form-select" value={String(selectedNode.data.pageId || '')} onChange={event => updateNodePage(event.target.value)}>
           {pages.map(page => <option key={page.id} value={page.id}>{page.title} ({page.id}.page)</option>)}
         </select><div className="alert alert-info py-2 small mt-3 mb-0">Node นี้จะอ่าน config และ component tree จาก Page Layout ที่เลือก</div></> : <div className="text-secondary small">Node นี้ไม่มี Page Layout binding โดยตรง</div>}

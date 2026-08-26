@@ -9,11 +9,12 @@ export interface DynamicHtmlProps {
   contentId?: string;
   appSlug?: string;
   refreshIntervalMs?: number;
+  onAction?: (actionId: string) => void;
 }
 
 const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char] || char));
 
-export const DynamicHtmlComponent: React.FC<DynamicHtmlProps> = ({ content, className = '', data = {}, contentId, appSlug, refreshIntervalMs = 0 }) => {
+export const DynamicHtmlComponent: React.FC<DynamicHtmlProps> = ({ content, className = '', data = {}, contentId, appSlug, refreshIntervalMs = 0, onAction }) => {
   const [remote, setRemote] = useState<{ html?: string; data?: Record<string, any> } | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -41,6 +42,10 @@ export const DynamicHtmlComponent: React.FC<DynamicHtmlProps> = ({ content, clas
   return (
     <div
       className={`dynamic-html-container ${className}`}
+      onClick={(event) => {
+        const target = (event.target as HTMLElement).closest<HTMLElement>('[data-auth-action]');
+        if (target?.dataset.authAction && onAction) onAction(target.dataset.authAction);
+      }}
       dangerouslySetInnerHTML={{ __html: renderedContent }}
     />
   );

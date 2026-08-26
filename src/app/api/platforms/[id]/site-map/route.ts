@@ -15,7 +15,20 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  const body = await request.json() as { routes?: AppRoute[]; action?: string };
+  const body = await request.json() as { routes?: AppRoute[]; action?: string; containerName?: string; nodeType?: AppRoute['targetType']; targetId?: string; label?: string; path?: string; isStartPoint?: boolean };
+  if (body.action === 'create-node') {
+    if (!body.containerName || !body.nodeType || !body.targetId || !body.label || !body.path) return NextResponse.json({ error: 'containerName, nodeType, targetId, label and path are required' }, { status: 400 });
+    const result = await getCoreDb().query<{ studio_routes: AppRoute[] }>('SELECT studio_routes FROM public.platforms WHERE id=$1', [id]);
+    if (!result.rowCount) return NextResponse.json({ error: 'Platform not found' }, { status: 404 });
+    let routes = Array.isArray(result.rows[0].studio_routes) ? result.rows[0].studio_routes : [];
+    if (routes.some((route) => route.containerName === body.containerName && route.path === body.path)) return NextResponse.json({ error: `Path '${body.path}' already exists in this container` }, { status: 409 });
+    if (body.isStartPoint) routes = routes.map((route) => route.containerName === body.containerName ? { ...route, isDefault: false, metadata: { ...route.metadata, isStartPoint: false } } : route);
+    const safeId = `${body.nodeType}.${body.targetId}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const node: AppRoute = { id: `route.node.${safeId}.${Date.now()}`, platformId: id, containerName: body.containerName, path: body.path.startsWith('/') ? body.path : `/${body.path}`, label: body.label, targetType: body.nodeType, targetId: body.targetId, isDefault: Boolean(body.isStartPoint), metadata: { nodeType: body.nodeType, isStartPoint: Boolean(body.isStartPoint), createdFrom: 'site-map-node-manager' } };
+    routes = [...routes, node];
+    await getCoreDb().query(`UPDATE public.platforms SET studio_routes=$2::jsonb, content_updated_at=NOW(), runtime_status=CASE WHEN runtime_built_at IS NULL THEN 'not_created' ELSE 'stale' END WHERE id=$1`, [id, JSON.stringify(routes)]);
+    return NextResponse.json({ routes, node }, { status: 201 });
+  }
   if (body.action === 'materialize-legacy-nodes') {
     const result = await getCoreDb().query<{ platform_slug: string; studio_routes: AppRoute[]; studio_pages: Array<{ id: string; name?: string; title?: string; containerName?: string; routePath?: string; isDefaultPage?: boolean; siteMapMaterialized?: boolean }> }>('SELECT platform_slug, studio_routes, studio_pages FROM public.platforms WHERE id=$1', [id]);
     if (!result.rowCount) return NextResponse.json({ error: 'Platform not found' }, { status: 404 });

@@ -73,6 +73,34 @@ export interface AppConfig {
   updatedAt: string;
 }
 
+export interface StudioServiceDefinition {
+  id: string;
+  name: string;
+  kind: 'auth';
+  provider: 'jwt';
+  scope: 'container';
+  enabled: boolean;
+  implementation: { owner: 'mother'; version: number; module: string };
+  config: {
+    algorithm: 'HS256';
+    issuer: string;
+    audience: string;
+    accessTokenTtlSeconds: number;
+    refreshTokenTtlSeconds: number;
+    secretEnvKey: string;
+  };
+  containerBindings: Array<{ containerName: string; enabled: boolean; configOverrides?: Partial<StudioServiceDefinition['config']> }>;
+  bundle?: { status: 'not_provisioned' | 'ready'; loginPageId: string; adminPageId: string; userCollectionId: string; permissionCollectionId: string; roleCollectionId: string; flowPath: string };
+}
+
+export const createDefaultJwtAuthService = (platformSlug: string): StudioServiceDefinition => ({
+  id: 'service.auth.jwt', name: 'Auth (JWT)', kind: 'auth', provider: 'jwt', scope: 'container', enabled: true,
+  implementation: { owner: 'mother', version: 1, module: 'auth/jwt' },
+  config: { algorithm: 'HS256', issuer: platformSlug, audience: `${platformSlug}-containers`, accessTokenTtlSeconds: 900, refreshTokenTtlSeconds: 604800, secretEnvKey: 'PLATFORM_JWT_SECRET' },
+  containerBindings: [],
+  bundle: { status: 'not_provisioned', loginPageId: 'auth.login', adminPageId: 'auth.admin', userCollectionId: 'auth.user.collection', permissionCollectionId: 'auth.permission.collection', roleCollectionId: 'auth.role.collection', flowPath: '/login' },
+});
+
 export interface ComponentNode {
   id: string; // Immutable component instance ID within a page
   type: ComponentType;
@@ -168,7 +196,7 @@ export interface AppMembership {
   updatedAt: string;
 }
 
-export type AppRouteTargetType = 'page' | 'form' | 'collection' | 'legacy' | 'external';
+export type AppRouteTargetType = 'page' | 'form' | 'collection' | 'component' | 'service' | 'api' | 'start-point' | 'legacy' | 'external';
 
 export interface AppRouteMigrationMetadata {
   sourceSystemId: string;

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { AppConfig, AppRoute, ComponentNode } from '@/types';
+import { AppConfig, AppRoute, ComponentNode, StudioServiceDefinition } from '@/types';
 import { COMPONENT_PALETTE, ComponentPaletteItem } from '@/lib/engine/ComponentRegistry';
 import {
   Folder,
@@ -49,6 +49,7 @@ import {
   Boxes,
   PanelLeftClose,
   PanelLeftOpen,
+  LogOut,
 } from 'lucide-react';
 import Link from 'next/link';
 import type { StudioCollectionDefinition, StudioFormDefinition } from '@/lib/studio/backendFormDefinitions';
@@ -59,8 +60,9 @@ interface StudioTreeviewOutlineProps {
   activePage: string;
   setActivePage: (page: string) => void;
   onAddComponent: (item: ComponentPaletteItem) => void;
-  pages: Array<{ id: string; name: string; containerName?: string; routePath?: string; isDefaultPage?: boolean; componentTree?: ComponentNode[] }>;
+  pages: Array<{ id: string; name: string; containerName?: string; routePath?: string; isDefaultPage?: boolean; siteMapMaterialized?: boolean; componentTree?: ComponentNode[] }>;
   routes?: AppRoute[];
+  services: StudioServiceDefinition[];
   forms: StudioFormDefinition[];
   activeFormId: string | null;
   onSelectForm: (formId: string, mode: 'insert' | 'update' | 'readOnly') => void;
@@ -75,6 +77,8 @@ interface StudioTreeviewOutlineProps {
   onSelectPageFlow: (route: { path: string; label: string; type: 'public_page' | 'form_crud' }) => void;
   onSelectRawTable: (tableName: string) => void;
   onOpenPageManager: (containerName?: string) => void;
+  onOpenSiteMapNodeManager: (containerName?: string) => void;
+  onProvisionAuthBundle: () => Promise<void>;
   onRoutesChanged?: (routes: AppRoute[]) => void;
   onSelectSiteMapNode?: (routeId: string) => void;
   onDeleteSiteMapNode?: (route: AppRoute) => Promise<void>;
@@ -135,6 +139,7 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
   onAddComponent,
   pages,
   routes = [],
+  services,
   forms,
   activeFormId,
   onSelectForm,
@@ -149,6 +154,8 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
   onSelectPageFlow,
   onSelectRawTable,
   onOpenPageManager,
+  onOpenSiteMapNodeManager,
+  onProvisionAuthBundle,
   onRoutesChanged,
   onSelectSiteMapNode,
   onDeleteSiteMapNode,
@@ -167,6 +174,8 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
   const [openCollectionComponentInstances, setOpenCollectionComponentInstances] = useState<Record<string, boolean>>({});
   const [openSiteContainers, setOpenSiteContainers] = useState<Record<string, boolean>>({});
   const [openSiteRoutes, setOpenSiteRoutes] = useState<Record<string, boolean>>({ '/': true });
+  const [resourcesOpen, setResourcesOpen] = useState(true);
+  const [openResourceGroups, setOpenResourceGroups] = useState<Record<string, boolean>>({ pages: true, components: false, services: false });
   const [openRouteGroups, setOpenRouteGroups] = useState<Record<string, boolean>>({ '/:events': true, '/:pages': true });
   const [routeFlows, setRouteFlows] = useState<Array<{ routePath: string; nodes: Array<{ id: string; type?: string; data?: Record<string, unknown> }> }>>([]);
   const [showAutoTools, setShowAutoTools] = useState(false);
@@ -225,7 +234,7 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
     { path: '/services', label: 'Services Catalogue', type: 'public_page' },
     { path: '/contact', label: 'Contact Us Form', type: 'form_crud' },
   ];
-  const platformSiteRoutes = useMemo<Array<{ id?: string; path: string; label: string; type: 'public_page' | 'form_crud'; nodeType: AppRoute['targetType']; outlinePath: Array<{ id: string; label: string }>; page: StudioTreeviewOutlineProps['pages'][number] & { containerName: string } }>>(() => {
+  const platformSiteRoutes = useMemo<Array<{ id?: string; path: string; label: string; type: 'public_page' | 'form_crud'; nodeType: AppRoute['targetType']; isStartPoint: boolean; outlinePath: Array<{ id: string; label: string }>; page: StudioTreeviewOutlineProps['pages'][number] & { containerName: string } }>>(() => {
     if (routes.length) {
       const generated = routes.map((route) => {
       const linkedPage = route.targetType === 'page' && route.targetId ? pages.find((page) => page.id === route.targetId) : undefined;
@@ -233,23 +242,24 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
       const storedOutline = Array.isArray(route.metadata?.outlinePath) ? route.metadata.outlinePath : [];
       const inferredModule = route.legacyPaths?.[0]?.split('?')[0].split('/').filter(Boolean)[0];
       const outlinePath = storedOutline.length ? storedOutline : (inferredModule ? [{ id: `module:${inferredModule}`, label: inferredModule.toUpperCase() }] : []);
-      return { id: route.id, path: route.path, label: route.label, type: (route.targetType === 'form' ? 'form_crud' : 'public_page') as 'public_page' | 'form_crud', nodeType: route.targetType, outlinePath, page: { ...page, containerName: route.containerName } };
+      return { id: route.id, path: route.path, label: route.label, type: (route.targetType === 'form' ? 'form_crud' : 'public_page') as 'public_page' | 'form_crud', nodeType: route.targetType, isStartPoint: Boolean(route.isDefault || route.metadata?.isStartPoint), outlinePath, page: { ...page, containerName: route.containerName } };
       });
       const linkedPageIds = new Set(routes.filter((route) => route.targetType === 'page' && route.targetId).map((route) => route.targetId));
-      const unlinkedPages = pages.filter((page) => !linkedPageIds.has(page.id)).map((page) => {
+      const unlinkedPages = pages.filter((page) => !linkedPageIds.has(page.id) && !page.siteMapMaterialized).map((page) => {
         const inferredSurface = /admin|backend/i.test(`${page.id} ${page.name}`) ? 'backend' : 'frontend';
         const containerName = page.containerName?.trim() || `${appInfo.appSlug}-${inferredSurface}`;
-        return { id: `route.page.${page.id}`, path: page.routePath || (page.isDefaultPage ? '/' : `/${page.id}`), label: page.name.replace(/\s*\([^)]*\)\s*$/, '') || page.id, type: 'public_page' as const, nodeType: 'page' as const, outlinePath: [], page: { ...page, containerName } };
+        return { id: `route.page.${page.id}`, path: page.routePath || (page.isDefaultPage ? '/' : `/${page.id}`), label: page.name.replace(/\s*\([^)]*\)\s*$/, '') || page.id, type: 'public_page' as const, nodeType: 'page' as const, isStartPoint: Boolean(page.isDefaultPage), outlinePath: [], page: { ...page, containerName } };
       });
       return [...generated, ...unlinkedPages];
     }
+    if (pages.some((page) => page.siteMapMaterialized)) return [];
     const seenContainers = new Set<string>();
     return pages.map((page) => {
       const inferredSurface = /admin|backend/i.test(`${page.id} ${page.name}`) ? 'backend' : 'frontend';
       const containerName = page.containerName?.trim() || `${appInfo.appSlug}-${inferredSurface}`;
       const isFirstInContainer = !seenContainers.has(containerName);
       seenContainers.add(containerName);
-      return { path: page.routePath || (page.isDefaultPage || isFirstInContainer ? '/' : `/${page.id}`), label: page.name.replace(/\s*\([^)]*\)\s*$/, '') || page.id, type: 'public_page' as const, nodeType: 'page' as const, outlinePath: [], page: { ...page, containerName } };
+      return { path: page.routePath || (page.isDefaultPage || isFirstInContainer ? '/' : `/${page.id}`), label: page.name.replace(/\s*\([^)]*\)\s*$/, '') || page.id, type: 'public_page' as const, nodeType: 'page' as const, isStartPoint: Boolean(page.isDefaultPage || isFirstInContainer), outlinePath: [], page: { ...page, containerName } };
     });
   }, [appInfo.appSlug, pages, routes]);
   const siteRoutesByContainer = useMemo(() => platformSiteRoutes.reduce<Record<string, typeof platformSiteRoutes>>((result, route) => {
@@ -288,6 +298,12 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
     pages.forEach((page) => page.componentTree?.forEach((node) => visit(page, node)));
     return inventory;
   }, [pages]);
+  const unboundResourcePages = useMemo(() => {
+    const linked = new Set(routes.filter((route) => route.targetType === 'page' && route.targetId).map((route) => route.targetId));
+    return pages.filter((page) => !linked.has(page.id));
+  }, [pages, routes]);
+  const componentResources = useMemo(() => Object.values(componentInventoryByType).flat(), [componentInventoryByType]);
+  const serviceResources = useMemo(() => services, [services]);
 
   const setStudioDragData = (event: React.DragEvent, payload: Record<string, unknown>) => {
     event.dataTransfer.effectAllowed = 'copy';
@@ -501,12 +517,18 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
         {/* Site Map is the navigation root. Page Layouts exist only as route resources. */}
         <div className="mb-2">
           <div className="d-flex align-items-center justify-content-between px-2 py-1.5 rounded-2 bg-danger bg-opacity-10 text-danger fw-bold border border-danger border-opacity-10">
-            <div className="d-flex align-items-center gap-2"><MapPin size={16}/><span>SITE MAP</span></div><div className="d-flex align-items-center gap-1"><button type="button" className="btn btn-sm border-0 rounded-1 d-inline-flex align-items-center gap-1 px-2 py-0 text-warning bg-white" style={{ fontSize: '.62rem', minHeight: 20 }} onClick={() => setShowAutoTools(true)} title="Site Map Auto Tools"><Sparkles size={12}/><span className="d-none d-xl-inline">Auto</span></button><MenuAddButton label="site route" onClick={() => onOpenPageManager()}/><span className="badge bg-danger text-white">ROOT</span></div>
+            <div className="d-flex align-items-center gap-2"><MapPin size={16}/><span>SITE MAP</span></div><div className="d-flex align-items-center gap-1"><button type="button" className="btn btn-sm border-0 rounded-1 d-inline-flex align-items-center gap-1 px-2 py-0 text-warning bg-white" style={{ fontSize: '.62rem', minHeight: 20 }} onClick={() => setShowAutoTools(true)} title="Site Map Auto Tools"><Sparkles size={12}/><span className="d-none d-xl-inline">Auto</span></button><MenuAddButton label="site route" onClick={() => onOpenSiteMapNodeManager()}/><span className="badge bg-danger text-white">ROOT</span></div>
           </div>
           <div className="ms-2 ps-2 border-start mt-1">{Object.entries(siteRoutesByContainer).map(([containerName, containerRoutes]) => { const containerOpen = openSiteContainers[containerName] !== false; return <div key={containerName} className="mb-1">
-            <div className="d-flex align-items-center bg-light rounded-1"><button type="button" className="btn btn-sm border-0 flex-grow-1 d-flex align-items-center gap-1 text-start px-1 py-1 text-dark fw-bold" onClick={() => setOpenSiteContainers((current) => ({ ...current, [containerName]: !containerOpen }))}>{containerOpen ? <ChevronDown size={11}/> : <ChevronRight size={11}/>}<Box size={12} className="text-primary"/><span className="text-truncate">{containerName}</span><span className="badge bg-primary bg-opacity-10 text-primary ms-auto">{containerRoutes.length} Routes</span></button><MenuAddButton label={`route to ${containerName}`} onClick={() => onOpenPageManager(containerName)}/></div>
-            {containerOpen && <div className="ms-3 ps-2 border-start">{containerRoutes.map((route, routeIndex) => { const routeKey = `${containerName}:${route.path}`; const flowRoutePath = routeKey; const routeOpen = openSiteRoutes[routeKey] === true; const group = (name: string) => `${routeKey}:${name}`; const outlinePath = route.outlinePath || []; const previousOutline = routeIndex > 0 ? (containerRoutes[routeIndex - 1].outlinePath || []) : []; const newOutline = outlinePath.filter((item, depth) => previousOutline[depth]?.id !== item.id); return <React.Fragment key={routeKey}>{newOutline.map((item) => { const depth = outlinePath.findIndex((entry) => entry.id === item.id); return <div key={`${routeKey}:outline:${item.id}`} className="d-flex align-items-center gap-1 py-1 text-primary fw-bold" style={{ marginLeft: depth * 14, fontSize: '.68rem' }}><ChevronDown size={10}/><Folder size={11} className="text-warning fill-warning"/><span className="text-truncate">{item.label}</span></div>; })}<div className="mb-1" style={{ marginLeft: outlinePath.length * 14 }}>
-            <div className="d-flex align-items-center w-100 overflow-hidden gap-1"><button type="button" className="btn btn-sm border-0 d-flex align-items-center gap-1 text-start px-1 py-1 text-dark fw-semibold overflow-hidden" style={{ minWidth: 0 }} onClick={() => route.id && onSelectSiteMapNode?.(route.id)}>{route.nodeType === 'page' ? <FileText size={12} className="text-primary flex-shrink-0"/> : route.nodeType === 'form' ? <Files size={12} className="text-success flex-shrink-0"/> : route.nodeType === 'collection' ? <Database size={12} className="text-warning flex-shrink-0"/> : route.nodeType === 'external' ? <ExternalLink size={12} className="text-info flex-shrink-0"/> : <Compass size={12} className="text-danger flex-shrink-0"/>}<span className="text-truncate">{route.label}</span></button><button type="button" className="btn btn-sm btn-danger p-1 flex-shrink-0 d-inline-flex align-items-center justify-content-center" style={{ width: 22, height: 22 }} title={`Delete ${route.label}`} aria-label={`Delete ${route.label}`} disabled={!route.id} onClick={(event) => { event.stopPropagation(); if (route.id && window.confirm(`ลบ Node '${route.label}' (${route.path}) ใช่หรือไม่?`)) void onDeleteSiteMapNode?.({ id: route.id, platformId: platformId || '', containerName, path: route.path, label: route.label, targetType: route.nodeType }); }}><Trash2 size={12}/></button><span className="badge bg-light text-secondary text-uppercase flex-shrink-0" style={{ fontSize: '.48rem' }}>{route.nodeType}</span><code className="ms-auto text-truncate" style={{ fontSize: '.58rem', maxWidth: 72 }}>{route.path}</code></div>
+            <div className="d-flex align-items-center bg-light rounded-1"><button type="button" className="btn btn-sm border-0 flex-grow-1 d-flex align-items-center gap-1 text-start px-1 py-1 text-dark fw-bold" onClick={() => setOpenSiteContainers((current) => ({ ...current, [containerName]: !containerOpen }))}>{containerOpen ? <ChevronDown size={11}/> : <ChevronRight size={11}/>}<Box size={12} className="text-primary"/><span className="text-truncate">{containerName}</span><span className="badge bg-primary bg-opacity-10 text-primary ms-auto">{containerRoutes.length} Routes</span></button><MenuAddButton label={`route to ${containerName}`} onClick={() => onOpenSiteMapNodeManager(containerName)}/></div>
+            {containerOpen && <div className="ms-3 ps-2 border-start">{containerRoutes.map((route, routeIndex) => { const routeKey = `${containerName}:${route.path}`; const storedRoute = routes.find((item) => item.id === route.id); const serviceDefinition = route.nodeType === 'service' ? services.find((service) => service.id === storedRoute?.targetId) : undefined; const serviceFlowPath = serviceDefinition?.bundle?.flowPath; const serviceFlow = serviceFlowPath ? routeFlows.find((flow) => flow.routePath === serviceFlowPath) : undefined; const servicePages = serviceDefinition?.bundle ? [serviceDefinition.bundle.loginPageId, serviceDefinition.bundle.adminPageId].map((id) => pages.find((page) => page.id === id)).filter((page): page is StudioTreeviewOutlineProps['pages'][number] => Boolean(page)) : []; const flowRoutePath = serviceFlowPath || routeKey; const routeOpen = openSiteRoutes[routeKey] === true; const group = (name: string) => `${routeKey}:${name}`; const outlinePath = route.outlinePath || []; const previousOutline = routeIndex > 0 ? (containerRoutes[routeIndex - 1].outlinePath || []) : []; const newOutline = outlinePath.filter((item, depth) => previousOutline[depth]?.id !== item.id); return <React.Fragment key={routeKey}>{newOutline.map((item) => { const depth = outlinePath.findIndex((entry) => entry.id === item.id); return <div key={`${routeKey}:outline:${item.id}`} className="d-flex align-items-center gap-1 py-1 text-primary fw-bold" style={{ marginLeft: depth * 14, fontSize: '.68rem' }}><ChevronDown size={10}/><Folder size={11} className="text-warning fill-warning"/><span className="text-truncate">{item.label}</span></div>; })}<div className="mb-1" style={{ marginLeft: outlinePath.length * 14 }}>
+            <div className="d-flex align-items-center w-100 overflow-hidden gap-1"><button type="button" className="btn btn-sm border-0 d-flex align-items-center gap-1 text-start px-1 py-1 text-dark fw-semibold overflow-hidden" style={{ minWidth: 0 }} onClick={() => route.id && onSelectSiteMapNode?.(route.id)}>{route.nodeType === 'page' ? <FileText size={12} className="text-primary flex-shrink-0"/> : route.nodeType === 'form' ? <Files size={12} className="text-success flex-shrink-0"/> : route.nodeType === 'collection' ? <Database size={12} className="text-warning flex-shrink-0"/> : route.nodeType === 'external' ? <ExternalLink size={12} className="text-info flex-shrink-0"/> : <Compass size={12} className="text-danger flex-shrink-0"/>}<span className="text-truncate">{route.label}</span></button><button type="button" className="btn btn-sm btn-danger p-1 flex-shrink-0 d-inline-flex align-items-center justify-content-center" style={{ width: 22, height: 22 }} title={`Delete ${route.label}`} aria-label={`Delete ${route.label}`} disabled={!route.id} onClick={(event) => { event.stopPropagation(); if (route.id && window.confirm(`ลบ Node '${route.label}' (${route.path}) ใช่หรือไม่?`)) void onDeleteSiteMapNode?.({ id: route.id, platformId: platformId || '', containerName, path: route.path, label: route.label, targetType: route.nodeType }); }}><Trash2 size={12}/></button><span className="badge bg-light text-secondary text-uppercase flex-shrink-0" style={{ fontSize: '.48rem' }}>{route.nodeType}</span>{route.isStartPoint && <span className="badge bg-warning text-dark flex-shrink-0" style={{ fontSize: '.45rem' }}>START</span>}<code className="ms-auto text-truncate" style={{ fontSize: '.58rem', maxWidth: 72 }}>{route.path}</code></div>
+            {serviceDefinition?.bundle && <div className="ms-3 ps-2 border-start py-1">
+              {servicePages.map((page, index) => <React.Fragment key={page.id}>
+                <button type="button" className="btn btn-sm border-0 w-100 d-flex align-items-center gap-1 text-start text-secondary py-1 px-1" style={{ fontSize: '.62rem' }} onClick={() => setActivePage(page.id)}><FileText size={10} className={index === 0 ? 'text-primary' : 'text-success'}/><span className="text-truncate">{index === 0 ? 'Login Page' : 'Admin Page'} · {page.name}</span><span className="badge bg-light text-secondary ms-auto">PAGE</span></button>
+                {index === 1 && <div className="ms-2 ps-2 border-start"><button type="button" className="btn btn-sm border-0 w-100 d-flex align-items-center gap-1 text-start text-danger py-1 px-1" style={{ fontSize: '.61rem' }} onClick={() => setActivePage(page.id)}><LogOut size={10}/>Logout Button<span className="badge bg-light text-danger ms-auto">LINK BUTTON</span></button></div>}
+              </React.Fragment>)}
+            </div>}
             {false && routeOpen && <div className="ms-3 ps-2 border-start">
               <div><div className="d-flex align-items-center justify-content-between py-1"><button className="btn btn-sm border-0 p-0 d-flex align-items-center gap-1 text-warning fw-semibold" style={{ fontSize: '.65rem' }} onClick={() => setOpenRouteGroups((current) => ({ ...current, [group('events')]: current[group('events')] === false }))}>{openRouteGroups[group('events')] !== false ? <ChevronDown size={9}/> : <ChevronRight size={9}/>}<Zap size={10}/> Events</button><MenuAddButton label="event flow" onClick={() => onSelectPageFlow({ path: flowRoutePath, label: `${containerName} / ${route.label}`, type: route.type })}/></div>
                 {openRouteGroups[group('events')] !== false && <div className="ms-3 ps-2 border-start"><button type="button" className="btn btn-sm border-0 w-100 text-start text-secondary py-1 px-1" style={{ fontSize: '.62rem' }} onClick={() => onSelectPageFlow({ path: flowRoutePath, label: `${containerName} / ${route.label}`, type: route.type })}><Workflow size={9} className="me-1 text-warning"/>OnLoad → OpenPage({route.page.id})</button></div>}
@@ -565,6 +587,21 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
             </div>
           </div>
         </div>}
+
+        {/* Project objects remain available here even when they are not bound to Site Map. */}
+        <div className="mb-2">
+          <button type="button" className="btn btn-sm w-100 d-flex align-items-center gap-2 px-2 py-1.5 bg-info bg-opacity-10 text-info border border-info border-opacity-25 fw-bold" onClick={() => setResourcesOpen((value) => !value)}>{resourcesOpen ? <ChevronDown size={13}/> : <ChevronRight size={13}/>}<Boxes size={15}/><span>RESOURCES</span><span className="badge bg-info text-white ms-auto">{unboundResourcePages.length + componentResources.length + serviceResources.length}</span></button>
+          {resourcesOpen && <div className="ms-3 ps-2 border-start mt-1">
+            {([{ id: 'pages', label: 'Pages', icon: FileText, count: unboundResourcePages.length }, { id: 'components', label: 'App Components', icon: Puzzle, count: componentResources.length }, { id: 'services', label: 'Services', icon: Server, count: serviceResources.length }] as const).map((group) => { const GroupIcon = group.icon; const isOpen = openResourceGroups[group.id] === true; return <div key={group.id} className="mb-1"><button type="button" className="btn btn-sm border-0 w-100 d-flex align-items-center gap-1 text-start py-1 px-1 fw-semibold text-secondary" onClick={() => setOpenResourceGroups((current) => ({ ...current, [group.id]: !isOpen }))}>{isOpen ? <ChevronDown size={10}/> : <ChevronRight size={10}/>}<GroupIcon size={11} className="text-info"/><span>{group.label}</span><span className="badge bg-light text-secondary ms-auto">{group.count}</span></button>
+              {isOpen && <div className="ms-3 ps-2 border-start">
+                {group.id === 'pages' && unboundResourcePages.map((page) => <button key={page.id} type="button" className="btn btn-sm border-0 w-100 d-flex align-items-center gap-1 text-start text-secondary py-1 px-1" onClick={() => setActivePage(page.id)}><FileText size={10} className="text-primary"/><span className="text-truncate">{page.name}</span><span className="badge bg-light text-muted ms-auto">UNBOUND</span></button>)}
+                {group.id === 'components' && componentResources.map((resource) => <button key={resource.id} type="button" className="btn btn-sm border-0 w-100 d-flex align-items-center gap-1 text-start text-secondary py-1 px-1" onClick={() => onSelectPageComponent(resource.pageId, resource.node.id)}><Box size={10} className="text-success"/><span className="text-truncate">{resource.displayName}</span><small className="text-muted ms-auto">{resource.node.type}</small></button>)}
+                {group.id === 'services' && serviceResources.map((service) => <div key={service.id} className="d-flex align-items-center gap-1 text-secondary py-1 px-1" title={`Logic: Mother · Secret: ${service.config.secretEnvKey}`}><Server size={10} className="text-warning"/><span className="text-truncate">{service.name}</span>{service.id === 'service.auth.jwt' && service.bundle?.status !== 'ready' ? <button type="button" className="btn btn-sm btn-outline-primary py-0 px-1 ms-auto" style={{ fontSize: '.55rem' }} onClick={() => void onProvisionAuthBundle()}>Setup Bundle</button> : <span className="badge bg-success bg-opacity-10 text-success ms-auto">READY</span>}</div>)}
+                {group.count === 0 && <div className="text-muted py-1 px-1" style={{ fontSize: '.6rem' }}>No resources</div>}
+              </div>}
+            </div>; })}
+          </div>}
+        </div>
         
         {/* ======================================================== */}
         {/* 0. Top-Level App WorkFlow (Master Manifest) */}
