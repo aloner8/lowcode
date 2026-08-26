@@ -69,6 +69,11 @@ export const DynamicNodeItem: React.FC<{
     onSelect: (item: any) => {
       if (node.props?.onSelect) node.props.onSelect(item);
       if (onActionTrigger) onActionTrigger('menu.select', item);
+      if (!isDesignMode && typeof item?.href === 'string' && item.href.trim()) {
+        const href = item.href.trim();
+        if (/^https?:\/\//i.test(href)) window.open(href, '_blank', 'noopener,noreferrer');
+        else window.location.assign(href);
+      }
     },
   };
 

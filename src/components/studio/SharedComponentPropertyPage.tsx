@@ -3,10 +3,12 @@
 import React, { useState } from 'react';
 import type { ComponentNode } from '@/types';
 import { getSharedComponentPropertyDefinition, type SharedComponentPropertyField } from '@/lib/studio/sharedComponentPropertyRegistry';
+import { SlideMenuRouteBuilder } from './SlideMenuRouteBuilder';
+import type { SlideMenuItem } from '@/components/shared/SlideMenuComponent';
 
-interface Props { component: ComponentNode; onChange: (component: ComponentNode) => void }
+interface Props { component: ComponentNode; onChange: (component: ComponentNode) => void; pages?: Array<{ id: string; name: string; routePath?: string }> }
 
-export const SharedComponentPropertyPage: React.FC<Props> = ({ component, onChange }) => {
+export const SharedComponentPropertyPage: React.FC<Props> = ({ component, onChange, pages }) => {
   const definition = getSharedComponentPropertyDefinition(component.type);
   const [jsonDrafts, setJsonDrafts] = useState<Record<string, string>>({});
   const update = (key: string, value: unknown) => onChange({ ...component, props: { ...component.props, [key]: value } });
@@ -18,6 +20,5 @@ export const SharedComponentPropertyPage: React.FC<Props> = ({ component, onChan
     if (property.editor === 'textarea') return <><label className="form-label small fw-semibold">{property.label}</label><textarea className="form-control form-control-sm font-monospace" rows={6} value={String(value)} placeholder={property.placeholder} onChange={(event) => update(property.key, event.target.value)}/></>;
     return <><label className="form-label small fw-semibold">{property.label}</label><input className="form-control form-control-sm" type={property.editor === 'number' ? 'number' : 'text'} value={String(value)} placeholder={property.placeholder} onChange={(event) => update(property.key, property.editor === 'number' ? Number(event.target.value) : event.target.value)}/></>;
   };
-  return <div className="p-4"><div className="mb-4"><h5 className="mb-1">{definition.title}</h5><p className="text-muted small mb-0">{definition.description}</p></div><div className="row g-3">{definition.groups.map((group) => <div className="col-xl-6" key={group.id}><div className="border rounded-3 p-3 h-100"><h6 className="border-bottom pb-2 mb-3">{group.label}</h6><div className="d-flex flex-column gap-3">{group.fields.map((property) => <div key={property.key}>{renderField(property)}{property.description && <div className="form-text">{property.description}</div>}</div>)}</div></div></div>)}</div></div>;
+  return <div className="p-4"><div className="mb-4"><h5 className="mb-1">{definition.title}</h5><p className="text-muted small mb-0">{definition.description}</p></div>{component.type === 'SlideMenuComponent' && component.props?.dataSourceMode !== 'collection' && <div className="border rounded-3 p-3 mb-3"><SlideMenuRouteBuilder items={(Array.isArray(component.props?.items) ? component.props.items : []) as SlideMenuItem[]} pages={pages} onChange={(items) => update('items',items)}/></div>}<div className="row g-3">{definition.groups.map((group) => <div className="col-xl-6" key={group.id}><div className="border rounded-3 p-3 h-100"><h6 className="border-bottom pb-2 mb-3">{group.label}</h6><div className="d-flex flex-column gap-3">{group.fields.filter((property) => !(component.type === 'SlideMenuComponent' && property.key === 'items')).map((property) => <div key={property.key}>{renderField(property)}{property.description && <div className="form-text">{property.description}</div>}</div>)}</div></div></div>)}</div></div>;
 };
-

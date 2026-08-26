@@ -841,6 +841,7 @@ export default function StudioPage() {
                 pageName={activeStudioPage?.name || activePage}
                 component={nodes.find((node) => node.id === workshopNodeId)!}
                 collections={studioCollections}
+                pages={studioPages}
                 onBack={() => { setWorkshopNodeId(null); setSelectedNodeId(null); }}
                 onSave={handleSaveWorkshopComponent}
               />

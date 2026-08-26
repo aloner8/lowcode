@@ -7,11 +7,14 @@ import type { StudioCollectionDefinition } from '@/lib/studio/backendFormDefinit
 import type { HtmlStudioDocument, StudioNode } from '@/lib/html-studio';
 import { HtmlStudioShell } from '@/components/html-studio';
 import { SharedComponentPropertyPage } from './SharedComponentPropertyPage';
+import { SlideMenuRouteBuilder } from './SlideMenuRouteBuilder';
+import type { SlideMenuItem } from '@/components/shared/SlideMenuComponent';
 
 interface ComponentWorkshopProps {
   pageName: string;
   component: ComponentNode;
   collections: StudioCollectionDefinition[];
+  pages?: Array<{ id: string; name: string; routePath?: string }>;
   onBack: () => void;
   onSave: (component: ComponentNode) => void;
 }
@@ -31,7 +34,7 @@ const toStudioNode = (component: ComponentNode): StudioNode => ({
   children: [],
 });
 
-export const ComponentWorkshop: React.FC<ComponentWorkshopProps> = ({ pageName, component, collections, onBack, onSave }) => {
+export const ComponentWorkshop: React.FC<ComponentWorkshopProps> = ({ pageName, component, collections, pages, onBack, onSave }) => {
   const [activeTab, setActiveTab] = useState<'properties' | 'html' | 'collection' | 'style' | 'events'>('properties');
   const [draft, setDraft] = useState<ComponentNode>(() => normalizeInstance(component));
   const [styleText, setStyleText] = useState(() => JSON.stringify(component.style || {}, null, 2));
@@ -55,7 +58,7 @@ export const ComponentWorkshop: React.FC<ComponentWorkshopProps> = ({ pageName, 
     try {
       const explicitCollectionIds = [next.props?.collectionId, next.props?.dataSource?.collectionId, ...(Array.isArray(next.props?.collectionIds) ? next.props.collectionIds : [])].filter((value): value is string => typeof value === 'string' && Boolean(value));
       if (new Set(explicitCollectionIds).size > 1) { window.alert('Component หนึ่งตัวอ้างได้เพียง 1 Collection กรุณาเลือก Collection เดียว'); return; }
-      const fixedItems = next.type === 'SlideMenuComponent' && next.props?.dataSourceMode !== 'collection' ? JSON.parse(fixedItemsText || '[]') : next.props?.items;
+      const fixedItems = next.props?.items;
       if (next.type === 'SlideMenuComponent' && next.props?.dataSourceMode !== 'collection' && !Array.isArray(fixedItems)) throw new Error('INVALID_ITEMS');
       onSave({ ...next, templateRef: next.templateRef || `component://${next.type}`, htmlId: next.htmlId || defaultHtmlId(next), style: JSON.parse(styleText || '{}'), props: { ...next.props, ...(fixedItems ? { items: fixedItems } : {}), events: JSON.parse(eventText || '[]') } });
     } catch { window.alert('Style หรือ Events JSON ไม่ถูกต้อง'); }
@@ -90,11 +93,11 @@ export const ComponentWorkshop: React.FC<ComponentWorkshopProps> = ({ pageName, 
     </div></div>
     <div className="d-flex border-bottom bg-light px-2 pt-2 gap-1">{tabs.map((tab) => <button key={tab.id} className={`btn btn-sm rounded-bottom-0 d-flex align-items-center gap-1 ${activeTab === tab.id ? 'btn-primary' : 'btn-outline-secondary'}`} onClick={() => setActiveTab(tab.id)}>{tab.icon}{tab.label}</button>)}</div>
     <div className="flex-grow-1 overflow-auto">
-      {activeTab === 'properties' && <SharedComponentPropertyPage component={draft} onChange={setDraft}/>}
+      {activeTab === 'properties' && <SharedComponentPropertyPage component={draft} onChange={setDraft} pages={pages}/>}
       {activeTab === 'html' && <HtmlStudioShell embedded document={{ ...document, root: document.root.map((node, index) => index === 0 ? { ...node, id: draft.id, componentRef: { ...node.componentRef!, id: draft.type }, attributes: { ...node.attributes, ...draft.props, id: draft.htmlId || defaultHtmlId(draft), 'data-component-instance-id': draft.id } } : node) }} onSave={(nextDocument) => { const next = { ...draft, props: { ...draft.props, workshopDocument: nextDocument } }; setDraft(next); commit(next); }}/>} 
       {activeTab === 'collection' && draft.type === 'SlideMenuComponent' && <div className="p-4"><h5>Slide Menu Data Source</h5><p className="text-muted small">เลือกแหล่งข้อมูลของเมนู โดย Component instance หนึ่งตัวเลือกได้เพียงหนึ่ง Collection และการเลือกใหม่จะแทนที่ของเดิม</p>
         <div className="btn-group mb-3"><button className={`btn btn-sm ${draft.props?.dataSourceMode !== 'collection' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setDraft({ ...draft, props: { ...draft.props, collectionIds: undefined, collectionId: undefined, collectionItems: undefined, dataSource: undefined, dataSourceMode: 'fixed-json' } })}>1. Fixed JSON</button><button className={`btn btn-sm ${draft.props?.dataSourceMode === 'collection' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setDraft({ ...draft, props: { ...draft.props, dataSourceMode: 'collection' } })}>2. Collections</button></div>
-        {draft.props?.dataSourceMode !== 'collection' ? <div><label className="form-label fw-semibold">Menu Items JSON</label><textarea className="form-control font-monospace" rows={16} value={fixedItemsText} onChange={(event) => setFixedItemsText(event.target.value)} onBlur={() => { try { const items = JSON.parse(fixedItemsText); if (!Array.isArray(items)) throw new Error(); setDraft({ ...draft, props: { ...draft.props, dataSourceMode: 'fixed-json', items } }); } catch { window.alert('Menu Items ต้องเป็น JSON Array ที่ถูกต้อง'); } }}/></div> : <div>
+        {draft.props?.dataSourceMode !== 'collection' ? <SlideMenuRouteBuilder items={(Array.isArray(draft.props?.items) ? draft.props.items : []) as SlideMenuItem[]} pages={pages} onChange={(items) => { setFixedItemsText(JSON.stringify(items, null, 2)); setDraft({ ...draft, props: { ...draft.props, dataSourceMode: 'fixed-json', items } }); }}/> : <div>
           <label className="form-label fw-semibold">Collection</label><select className="form-select mb-3" value={String(draft.props?.collectionId || '')} onChange={(event) => selectSlideMenuCollection(event.target.value)}><option value="">เลือก Collection</option>{collections.map((collection) => <option key={collection.id} value={collection.id}>{collection.name} ({collection.table})</option>)}</select>
           <div className="row g-2">{[['idField','ID Field'],['labelField','Label Field'],['hrefField','Link Field'],['parentIdField','Parent ID Field'],['typeField','Type Field'],['badgeField','Badge Field'],['permissionField','Permission Field']].map(([key, label]) => <div className="col-md-6" key={key}><label className="form-label small mb-1">{label}</label><input className="form-control form-control-sm font-monospace" value={String(draft.props?.collectionMapping?.[key] || '')} onChange={(event) => updateMapping(key, event.target.value)}/></div>)}</div>
           <div className="alert alert-info py-2 small mt-3 mb-2">Preview ใช้ sample records ของ Collection; runtime สามารถส่ง records ล่าสุดผ่าน <code>collectionData</code></div><label className="form-label small fw-semibold">Collection sample</label><pre className="bg-dark text-light rounded p-3 small overflow-auto" style={{ maxHeight: 220 }}>{JSON.stringify(draft.props?.collectionItems || [], null, 2)}</pre>
