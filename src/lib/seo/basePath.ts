@@ -18,8 +18,16 @@ const isInternalPath = (value: string) =>
   && !value.startsWith('/_next')
   && !value.startsWith('/api/');
 
-/** `''` on the site's own domain, `/app/<slug>` when served by the mother. */
+/** `''` on the site's own host, `/app/<slug>` when served by the mother. */
 export function siteBasePath(runtime: SiteRuntime, host?: string): string {
+  /*
+   * A site process serves exactly one site, whatever host the visitor typed —
+   * `localhost:33001` reaches it as readily as its own domain. Matching on the
+   * domain list alone prefixed every link with `/app/<slug>` there, and the
+   * whole menu 404'd on the site's own port.
+   */
+  if (process.env.SITE_SLUG?.trim() === runtime.appSlug) return '';
+
   const hostname = host?.split(':')[0].trim().toLowerCase() ?? '';
   if (!hostname) return `/app/${runtime.appSlug}`;
 

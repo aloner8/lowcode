@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { applyBasePath, siteBasePath, withBasePath } from '@/lib/seo/basePath';
 import type { SiteRuntime } from '@/lib/seo/siteSeo';
 
@@ -66,5 +66,25 @@ describe('applyBasePath', () => {
   it('returns the tree untouched when no prefix is needed', () => {
     const tree = [{ id: 'n', type: 'NavMenuComponent', props: { href: '/news' } }] as never;
     expect(applyBasePath(tree, '')).toBe(tree);
+  });
+});
+
+describe('siteBasePath inside a site process', () => {
+  const original = process.env.SITE_SLUG;
+  afterEach(() => {
+    if (original === undefined) delete process.env.SITE_SLUG;
+    else process.env.SITE_SLUG = original;
+  });
+
+  it('adds no prefix whatever host reached the site’s own process', () => {
+    process.env.SITE_SLUG = 'demo-muni';
+    expect(siteBasePath(runtime, 'localhost:33001')).toBe('');
+    expect(siteBasePath(runtime, '127.0.0.1:33001')).toBe('');
+    expect(siteBasePath(runtime, undefined)).toBe('');
+  });
+
+  it('still prefixes a different site served by that process’s host', () => {
+    process.env.SITE_SLUG = 'other-site';
+    expect(siteBasePath(runtime, 'localhost:33000')).toBe('/app/demo-muni');
   });
 });
