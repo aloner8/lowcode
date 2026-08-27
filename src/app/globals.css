@@ -1,7 +1,23 @@
 @import "bootstrap/dist/css/bootstrap.min.css";
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/*
+ * Tailwind 4 is configured in CSS rather than tailwind.config.ts.
+ * These map Tailwind utilities onto the same variables Bootstrap and the
+ * ThemeEngine already use, so one theme drives both frameworks.
+ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--bs-primary);
+  --color-secondary: var(--bs-secondary);
+  --color-success: var(--bs-success);
+  --color-danger: var(--bs-danger);
+  --color-warning: var(--bs-warning);
+  --color-info: var(--bs-info);
+  --radius-theme: var(--bs-border-radius);
+  --font-sans: var(--app-font-family);
+}
 
 /* Anuphan is loaded by next/font in the root layout and exposed as
    --font-anuphan. It is the single typeface for the whole product; a tenant

@@ -210,8 +210,8 @@ mark เป็นรูปทรงนามธรรม **ไม่ใช่ต
 
 | ชั้น | เทคโนโลยี |
 |---|---|
-| Framework | Next.js 15 (App Router, React 19, TypeScript strict) |
-| UI | Bootstrap 5 + React-Bootstrap + Tailwind CSS 3 + lucide-react |
+| Framework | Next.js 16 (App Router, React 19, TypeScript strict) |
+| UI | Bootstrap 5 + React-Bootstrap + Tailwind CSS 4 + lucide-react |
 | Visual Flow | React Flow (`@xyflow/react` 12) |
 | Rich Text | Tiptap 3 |
 | Database | PostgreSQL 17 (`pg` Pool) + pgcrypto |
