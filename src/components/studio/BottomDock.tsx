@@ -1,142 +1,146 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import Link from 'next/link';
+import { Code2, Database, ChevronUp, ChevronDown, Copy, Check, ScrollText, PanelBottom } from 'lucide-react';
 import { ComponentNode, AppConfig } from '@/types';
-import { Terminal, Code2, Database, Activity, ChevronUp, ChevronDown, Copy, Check } from 'lucide-react';
 
 interface BottomDockProps {
   appInfo: AppConfig;
   nodes: ComponentNode[];
 }
 
+type DockTab = 'summary' | 'json';
+
+/**
+ * Reference panel under the canvas.
+ *
+ * Two of the previous tabs printed invented content: an "Output Logs" tab of
+ * hard-coded build lines that no build ever produced, and an "Audit Log Trail"
+ * of two fabricated entries with fixed timestamps. Both read as real system
+ * output. They are replaced by figures derived from the page actually open, and
+ * a link to the real audit log.
+ */
 export const BottomDock: React.FC<BottomDockProps> = ({ appInfo, nodes }) => {
   const [isOpen, setIsOpen] = useState(true);
-  const [activeDockTab, setActiveDockTab] = useState<'output' | 'json' | 'db' | 'audit'>('output');
+  const [activeTab, setActiveTab] = useState<DockTab>('summary');
   const [copied, setCopied] = useState(false);
 
-  const copyJson = () => {
-    navigator.clipboard.writeText(JSON.stringify(nodes, null, 2));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const copyJson = async () => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(nodes, null, 2));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard access can be refused; the JSON is on screen to copy by hand.
+    }
   };
+
+  // Counts every node, not only the top level, so the figure matches the page.
+  const nodeCount = useMemo(() => {
+    const count = (list: ComponentNode[]): number =>
+      list.reduce((total, node) => total + 1 + count(node.children ?? []), 0);
+    return count(nodes);
+  }, [nodes]);
 
   if (!isOpen) {
     return (
-      <div
-        className="bg-dark text-white p-1 px-3 border-top border-secondary border-opacity-25 d-flex align-items-center justify-content-between cursor-pointer hover-bg-secondary select-none"
+      <button
+        type="button"
+        className="stu-chrome border-top d-flex align-items-center justify-content-between w-100 px-3 py-1 border-0"
         onClick={() => setIsOpen(true)}
-        style={{ fontSize: '0.75rem', background: '#1e1e1e' }}
+        aria-expanded={false}
       >
-        <div className="d-flex align-items-center gap-2">
-          <Terminal size={13} className="text-info" />
-          <span className="fw-semibold">VS Output & Diagnostics Dock</span>
-          <span className="badge bg-secondary bg-opacity-30 text-white-50 extra-small">Click to expand</span>
-        </div>
-        <ChevronUp size={14} className="text-white-50" />
-      </div>
+        <span className="d-flex align-items-center gap-2" style={{ fontSize: '0.78rem' }}>
+          <PanelBottom size={14} aria-hidden="true" /> รายละเอียดหน้าเว็บ
+        </span>
+        <ChevronUp size={15} aria-hidden="true" />
+      </button>
     );
   }
 
   return (
-    <div
-      className="bg-dark text-white border-top border-secondary border-opacity-25 d-flex flex-column"
-      style={{ background: '#1e1e1e', height: '220px', transition: 'all 0.2s ease' }}
-    >
-      {/* Dock Header & Tabs */}
-      <div className="px-3 py-1 bg-black bg-opacity-30 border-bottom border-secondary border-opacity-20 d-flex align-items-center justify-content-between">
-        <ul className="nav nav-pills flex-nowrap gap-1 mb-0">
-          <li className="nav-item">
-            <button
-              className={`nav-link py-0.5 px-2.5 extra-small border-0 rounded-1 d-flex align-items-center gap-1.5 ${
-                activeDockTab === 'output' ? 'bg-primary text-white fw-bold shadow-sm' : 'text-white-50 hover-bg-secondary'
-              }`}
-              onClick={() => setActiveDockTab('output')}
-              style={{ fontSize: '0.72rem' }}
-            >
-              <Terminal size={12} className={activeDockTab === 'output' ? 'text-white' : 'text-info'} />
-              <span>Output Logs</span>
-            </button>
-          </li>
-          <li className="nav-item">
-            <button
-              className={`nav-link py-0.5 px-2.5 extra-small border-0 rounded-1 d-flex align-items-center gap-1.5 ${
-                activeDockTab === 'json' ? 'bg-primary text-white fw-bold shadow-sm' : 'text-white-50 hover-bg-secondary'
-              }`}
-              onClick={() => setActiveDockTab('json')}
-              style={{ fontSize: '0.72rem' }}
-            >
-              <Code2 size={12} className={activeDockTab === 'json' ? 'text-white' : 'text-success'} />
-              <span>Live AST JSON</span>
-            </button>
-          </li>
-          <li className="nav-item">
-            <button
-              className={`nav-link py-0.5 px-2.5 extra-small border-0 rounded-1 d-flex align-items-center gap-1.5 ${
-                activeDockTab === 'db' ? 'bg-primary text-white fw-bold shadow-sm' : 'text-white-50 hover-bg-secondary'
-              }`}
-              onClick={() => setActiveDockTab('db')}
-              style={{ fontSize: '0.72rem' }}
-            >
-              <Database size={12} className={activeDockTab === 'db' ? 'text-white' : 'text-warning'} />
-              <span>Tenant DB Status</span>
-            </button>
-          </li>
-          <li className="nav-item">
-            <button
-              className={`nav-link py-0.5 px-2.5 extra-small border-0 rounded-1 d-flex align-items-center gap-1.5 ${
-                activeDockTab === 'audit' ? 'bg-primary text-white fw-bold shadow-sm' : 'text-white-50 hover-bg-secondary'
-              }`}
-              onClick={() => setActiveDockTab('audit')}
-              style={{ fontSize: '0.72rem' }}
-            >
-              <Activity size={12} className={activeDockTab === 'audit' ? 'text-white' : 'text-info'} />
-              <span>Audit Log Trail</span>
-            </button>
-          </li>
-        </ul>
+    <div className="stu-chrome border-top d-flex flex-column" style={{ height: '220px' }}>
+      <div className="px-3 py-1 border-bottom d-flex align-items-center justify-content-between" style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
+        <div className="d-flex gap-1" role="tablist" aria-label="รายละเอียดหน้าเว็บ">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'summary'}
+            className={`stu-dock-tab ${activeTab === 'summary' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('summary')}
+          >
+            <Database size={12} aria-hidden="true" /> ข้อมูลเว็บไซต์
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'json'}
+            className={`stu-dock-tab ${activeTab === 'json' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('json')}
+          >
+            <Code2 size={12} aria-hidden="true" /> โครงสร้างหน้า
+          </button>
+        </div>
 
         <div className="d-flex align-items-center gap-2">
-          {activeDockTab === 'json' && (
-            <button className="btn btn-sm btn-outline-light py-0 px-2 extra-small d-flex align-items-center gap-1" onClick={copyJson} style={{ fontSize: '0.68rem' }}>
-              {copied ? <Check size={11} className="text-success" /> : <Copy size={11} />}
-              <span>{copied ? 'Copied!' : 'Copy JSON'}</span>
+          {activeTab === 'json' && (
+            <button type="button" className="stu-dock-tab" onClick={() => void copyJson()}>
+              {copied ? <Check size={12} aria-hidden="true" /> : <Copy size={12} aria-hidden="true" />}
+              {copied ? 'คัดลอกแล้ว' : 'คัดลอก'}
             </button>
           )}
-          <button className="btn btn-sm btn-dark p-0.5 text-white-50 hover-text-white border-0" onClick={() => setIsOpen(false)}>
-            <ChevronDown size={14} />
+          <button
+            type="button"
+            className="stu-dock-tab"
+            onClick={() => setIsOpen(false)}
+            aria-label="ย่อแผงรายละเอียด"
+            aria-expanded
+          >
+            <ChevronDown size={14} aria-hidden="true" />
           </button>
         </div>
       </div>
 
-      {/* Dock Content Body */}
-      <div className="p-3 font-monospace overflow-auto flex-grow-1 extra-small text-light" style={{ fontSize: '0.74rem', lineHeight: '1.45' }}>
-        {activeDockTab === 'output' && (
-          <div>
-            <div className="text-success">[BUILD ENGINE] Visual Studio 2022 Low-Code Environment Ready.</div>
-            <div className="text-white-50">[TENANT RUNTIME] App: {appInfo.appName} ({appInfo.appSlug}) | Port: :{appInfo.port}</div>
-            <div className="text-info">[AST PARSER] 2 Component Nodes loaded successfully on Form Stage.</div>
-            <div className="text-white-50">[DB WATCHER] Connected to PostgreSQL Core DB Schema.</div>
-          </div>
+      <div className="p-3 overflow-auto flex-grow-1" style={{ fontSize: '0.8rem' }}>
+        {activeTab === 'summary' && (
+          <dl className="adm-facts" style={{ color: 'rgba(255,255,255,0.9)' }}>
+            <div>
+              <dt style={{ color: 'rgba(255,255,255,0.6)' }}>เว็บไซต์</dt>
+              <dd style={{ color: '#fff' }}>{appInfo.appName}</dd>
+            </div>
+            <div>
+              <dt style={{ color: 'rgba(255,255,255,0.6)' }}>ส่วนประกอบในหน้านี้</dt>
+              <dd style={{ color: '#fff' }}>{nodeCount} ชิ้น</dd>
+            </div>
+            <div>
+              <dt style={{ color: 'rgba(255,255,255,0.6)' }}>ที่อยู่เว็บ</dt>
+              <dd><code>{appInfo.subdomain}</code></dd>
+            </div>
+            <div>
+              <dt style={{ color: 'rgba(255,255,255,0.6)' }}>พอร์ต</dt>
+              <dd><code>{appInfo.port}</code></dd>
+            </div>
+            <div>
+              <dt style={{ color: 'rgba(255,255,255,0.6)' }}>ฐานข้อมูล</dt>
+              <dd><code>{appInfo.tenantDbName}</code></dd>
+            </div>
+            <div>
+              <dt style={{ color: 'rgba(255,255,255,0.6)' }}>ธีม</dt>
+              <dd><code>{appInfo.themeConfig?.preset ?? '—'}</code></dd>
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <Link href="/audit-logs" className="stu-dock-tab" style={{ paddingInline: 0 }}>
+                <ScrollText size={13} aria-hidden="true" /> ดูประวัติการเปลี่ยนแปลงทั้งหมด →
+              </Link>
+            </div>
+          </dl>
         )}
 
-        {activeDockTab === 'json' && (
-          <pre className="m-0 text-info font-monospace">{JSON.stringify(nodes, null, 2)}</pre>
-        )}
-
-        {activeDockTab === 'db' && (
-          <div>
-            <div className="text-warning mb-1">Database Connection Metrics:</div>
-            <div>Tenant Database: <code>{appInfo.tenantDbName}</code></div>
-            <div>Port Binding: <code>:{appInfo.port}</code> (Docker Internal Container)</div>
-            <div>Subdomain Mapping: <code>{appInfo.subdomain}</code></div>
-          </div>
-        )}
-
-        {activeDockTab === 'audit' && (
-          <div className="d-flex flex-column gap-1">
-            <div className="text-muted">13:29:45 - USER @admin updated theme to {appInfo.themeConfig.preset}</div>
-            <div className="text-muted">13:25:10 - USER @admin created tenant child app on port :{appInfo.port}</div>
-          </div>
+        {activeTab === 'json' && (
+          <pre className="m-0 font-monospace" style={{ fontSize: '0.74rem', color: '#cfe4ff' }}>
+            {JSON.stringify(nodes, null, 2)}
+          </pre>
         )}
       </div>
     </div>

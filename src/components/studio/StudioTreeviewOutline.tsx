@@ -475,7 +475,7 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
 
   if (collapsed) return <div className="card shadow-sm border-0 rounded-3 bg-white h-100 d-flex align-items-center pt-2">
     <button type="button" className="btn btn-sm btn-outline-primary border-0" onClick={onToggleCollapsed} title="Expand DevStudio Explorer"><PanelLeftOpen size={19}/></button>
-    <div className="text-primary fw-bold mt-2" style={{ writingMode: 'vertical-rl', fontSize: '.68rem', letterSpacing: '.08em' }}>DEVSTUDIO EXPLORER</div>
+    <div className="text-primary fw-bold mt-2" style={{ writingMode: 'vertical-rl', fontSize: '.68rem', letterSpacing: '.08em' }}>เครื่องมือออกแบบ</div>
   </div>;
 
   return (
@@ -514,8 +514,8 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
 
         {/* Site Map is the navigation root. Page Layouts exist only as route resources. */}
         <div className="mb-2">
-          <div className="d-flex align-items-center justify-content-between px-2 py-1.5 rounded-2 bg-danger bg-opacity-10 text-danger fw-bold border border-danger border-opacity-10">
-            <div className="d-flex align-items-center gap-2"><MapPin size={16}/><span>SITE MAP</span></div><div className="d-flex align-items-center gap-1"><button type="button" className="btn btn-sm border-0 rounded-1 d-inline-flex align-items-center gap-1 px-2 py-0 text-warning bg-white" style={{ fontSize: '.62rem', minHeight: 20 }} onClick={() => setShowAutoTools(true)} title="Site Map Auto Tools"><Sparkles size={12}/><span className="d-none d-xl-inline">Auto</span></button><MenuAddButton label="site route" onClick={() => onOpenSiteMapNodeManager()}/><span className="badge bg-danger text-white">ROOT</span></div>
+          <div className="d-flex align-items-center justify-content-between px-2 py-1.5 rounded-2 bg-primary bg-opacity-10 text-primary fw-bold border border-primary border-opacity-25">
+            <div className="d-flex align-items-center gap-2"><MapPin size={16}/><span>ผังเว็บไซต์</span></div><div className="d-flex align-items-center gap-1"><button type="button" className="btn btn-sm border-0 rounded-1 d-inline-flex align-items-center gap-1 px-2 py-0 text-warning bg-white" style={{ fontSize: '.62rem', minHeight: 20 }} onClick={() => setShowAutoTools(true)} title="Site Map Auto Tools"><Sparkles size={12}/><span className="d-none d-xl-inline">Auto</span></button><MenuAddButton label="site route" onClick={() => onOpenSiteMapNodeManager()}/><span className="adm-chip is-info">หลัก</span></div>
           </div>
           <div className="ms-2 ps-2 border-start mt-1">{Object.entries(siteRoutesByContainer).map(([containerName, containerRoutes]) => { const containerOpen = openSiteContainers[containerName] !== false; return <div key={containerName} className="mb-1">
             <div className="d-flex align-items-center bg-light rounded-1"><button type="button" className="btn btn-sm border-0 flex-grow-1 d-flex align-items-center gap-1 text-start px-1 py-1 text-dark fw-bold" onClick={() => setOpenSiteContainers((current) => ({ ...current, [containerName]: !containerOpen }))}>{containerOpen ? <ChevronDown size={11}/> : <ChevronRight size={11}/>}<Box size={12} className="text-primary"/><span className="text-truncate">{containerName}</span><span className="badge bg-primary bg-opacity-10 text-primary ms-auto">{containerRoutes.length} Routes</span></button><MenuAddButton label={`route to ${containerName}`} onClick={() => onOpenSiteMapNodeManager(containerName)}/></div>
@@ -588,7 +588,7 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
 
         {/* Project objects remain available here even when they are not bound to Site Map. */}
         <div className="mb-2">
-          <button type="button" className="btn btn-sm w-100 d-flex align-items-center gap-2 px-2 py-1.5 bg-info bg-opacity-10 text-info border border-info border-opacity-25 fw-bold" onClick={() => setResourcesOpen((value) => !value)}>{resourcesOpen ? <ChevronDown size={13}/> : <ChevronRight size={13}/>}<Boxes size={15}/><span>RESOURCES</span><span className="badge bg-info text-white ms-auto">{unboundResourcePages.length + componentResources.length + serviceResources.length}</span></button>
+          <button type="button" className="btn btn-sm w-100 d-flex align-items-center gap-2 px-2 py-1.5 bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 fw-bold" onClick={() => setResourcesOpen((value) => !value)}>{resourcesOpen ? <ChevronDown size={13}/> : <ChevronRight size={13}/>}<Boxes size={15}/><span>ทรัพยากร</span><span className="badge bg-primary text-white ms-auto">{unboundResourcePages.length + componentResources.length + serviceResources.length}</span></button>
           {resourcesOpen && <div className="ms-3 ps-2 border-start mt-1">
             {([{ id: 'pages', label: 'Pages', icon: FileText, count: unboundResourcePages.length }, { id: 'components', label: 'App Components', icon: Puzzle, count: componentResources.length }, { id: 'services', label: 'Services', icon: Server, count: serviceResources.length }] as const).map((group) => { const GroupIcon = group.icon; const isOpen = openResourceGroups[group.id] === true; return <div key={group.id} className="mb-1"><button type="button" className="btn btn-sm border-0 w-100 d-flex align-items-center gap-1 text-start py-1 px-1 fw-semibold text-secondary" onClick={() => setOpenResourceGroups((current) => ({ ...current, [group.id]: !isOpen }))}>{isOpen ? <ChevronDown size={10}/> : <ChevronRight size={10}/>}<GroupIcon size={11} className="text-info"/><span>{group.label}</span><span className="badge bg-light text-secondary ms-auto">{group.count}</span></button>
               {isOpen && <div className="ms-3 ps-2 border-start">
@@ -609,13 +609,13 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
             className={`d-flex align-items-center justify-content-between px-2 py-1.5 rounded-2 cursor-pointer transition ${
               activePage === 'app_workflow'
                 ? 'bg-primary text-white shadow-sm fw-bold'
-                : 'bg-dark text-white hover-bg-secondary'
+                : 'stu-chrome'
             }`}
             onClick={() => setActivePage('app_workflow')}
           >
             <div className="d-flex align-items-center gap-2">
               <Workflow size={16} className={activePage === 'app_workflow' ? 'text-white' : 'text-warning'} />
-              <span>App WorkFlow (App Manifest)</span>
+              <span>ลำดับงานของเว็บไซต์</span>
             </div>
             <span className="badge bg-warning text-dark extra-small" style={{ fontSize: '0.58rem' }}>
               Master ROOT
@@ -787,9 +787,9 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
         {/* 2. Tenant Database - shared data layer for the whole Web */}
         {/* ======================================================== */}
         <div className="mb-2">
-          <div className="d-flex align-items-center justify-content-between px-2 py-1 rounded-1 bg-dark text-white cursor-pointer" onClick={() => setTenantDatabaseOpen((value) => !value)}>
-            <div className="d-flex align-items-center gap-1.5 fw-bold">{tenantDatabaseOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}<Database size={15} className="text-info" /><span>Tenant Database</span></div>
-            <div className="d-flex align-items-center gap-1"><MenuAddButton label="database item" /><span className="badge bg-info text-dark" style={{ fontSize: '0.58rem' }}>WEB DATA</span></div>
+          <div className="d-flex align-items-center justify-content-between px-2 py-1 rounded-1 stu-chrome cursor-pointer" onClick={() => setTenantDatabaseOpen((value) => !value)}>
+            <div className="d-flex align-items-center gap-1.5 fw-bold">{tenantDatabaseOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}<Database size={15} /><span>ฐานข้อมูลของเว็บไซต์</span></div>
+            <div className="d-flex align-items-center gap-1"><MenuAddButton label="database item" /><span className="adm-chip is-info">ข้อมูล</span></div>
           </div>
           {tenantDatabaseOpen && <div className="ms-3 ps-2 border-start pt-1">
             <div className="font-monospace text-primary text-truncate px-1 mb-1" style={{ fontSize: '0.68rem' }}>{appInfo.tenantDbName}</div>
@@ -863,12 +863,12 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
               <MapPin size={15} className="text-danger" />
               <span>Site Map & Flow</span>
             </div>
-            <div className="d-flex align-items-center gap-1"><MenuAddButton label="route" /><span className="badge bg-danger bg-opacity-10 text-danger extra-small" style={{ fontSize: '0.58rem' }}>Routes & Logic</span></div>
+            <div className="d-flex align-items-center gap-1"><MenuAddButton label="route" /><span className="badge bg-primary bg-opacity-10 text-primary extra-small" style={{ fontSize: '0.58rem' }}>เส้นทาง</span></div>
           </div>
 
           {openSections.siteMapFlow && (
             <div className="ms-3 ps-2 border-start border-light pt-1">
-              <div className="text-muted extra-small fw-semibold mb-1">SITE MAP HIERARCHY</div>
+              <div className="text-muted extra-small fw-semibold mb-1">โครงสร้างผังเว็บไซต์</div>
               {siteRoutes.map((r) => (
                 <div key={r.path} className="d-flex align-items-center justify-content-between px-2 py-1 text-secondary extra-small rounded-1 cursor-pointer hover-bg-light" onClick={() => onSelectPageFlow(r)}>
                   <span>{r.label} (<code>{r.path}</code>)</span>
@@ -1012,7 +1012,7 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
       </div>
       {databaseSettingPage && <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3" style={{ zIndex: 2200, background: 'rgba(15,23,42,.62)', backdropFilter: 'blur(3px)' }} onMouseDown={(event) => { if (event.currentTarget === event.target) setDatabaseSettingPage(null); }}>
         <div className="card border-0 shadow-lg rounded-4 overflow-hidden" style={{ width: 'min(95vw, 920px)', minHeight: 540, maxHeight: '88vh' }}>
-          <div className="card-header border-0 text-white p-3" style={{ background: 'linear-gradient(120deg,#111827,#334155)' }}>
+          <div className="card-header border-0 text-white p-3" style={{ background: 'linear-gradient(120deg,#0B1F3A,#0C58A9)' }}>
             <div className="d-flex align-items-center justify-content-between"><div><div className="small text-info fw-bold d-flex align-items-center gap-1"><Settings size={14} /> TENANT DATABASE SETTINGS</div><h5 className="mb-0 fw-bold font-monospace">{appInfo.tenantDbName}</h5></div><button type="button" className="btn btn-sm btn-outline-light border-0" onClick={() => setDatabaseSettingPage(null)} aria-label="Close"><X size={18} /></button></div>
           </div>
           <div className="card-body p-0 d-flex overflow-hidden">
@@ -1045,7 +1045,7 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
       </div>}
       {selectedRawTable && <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3" style={{ zIndex: 2200, background: 'rgba(15,23,42,.62)', backdropFilter: 'blur(3px)' }} onMouseDown={(event) => { if (event.currentTarget === event.target) setSelectedRawTable(null); }}>
         <div className="card border-0 shadow-lg rounded-4 overflow-hidden" style={{ width: 'min(96vw, 1100px)', height: 'min(90vh, 760px)' }}>
-          <div className="card-header border-0 text-white px-3 py-2" style={{ background: 'linear-gradient(120deg,#111827,#0f4c5c)' }}>
+          <div className="card-header border-0 text-white px-3 py-2" style={{ background: 'linear-gradient(120deg,#0B1F3A,#083A6E)' }}>
             <div className="d-flex align-items-center justify-content-between gap-3">
               <div><div className="small text-info fw-bold d-flex align-items-center gap-1"><Table size={14} /> RAW TABLE DETAIL</div><div className="d-flex align-items-baseline gap-2"><h5 className="mb-0 fw-bold font-monospace">{selectedRawTable}</h5><span className="small opacity-75 font-monospace">{appInfo.tenantDbName}</span></div></div>
               <button type="button" className="btn btn-sm btn-outline-light border-0" onClick={() => setSelectedRawTable(null)} aria-label="Close"><X size={18} /></button>

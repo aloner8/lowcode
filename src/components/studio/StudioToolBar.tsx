@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Save, Play, RotateCcw, RotateCw, Download, Monitor, Tablet, Smartphone, Grid, FileText, Box, RefreshCw, CheckCircle2, AlertTriangle, X } from 'lucide-react';
+import { Save, Play, RotateCcw, RotateCw, Download, Monitor, Tablet, Smartphone, Grid, FileText, Box, RefreshCw, CheckCircle2, AlertTriangle } from 'lucide-react';
+import AdminModal from '@/components/admin/AdminModal';
 import { AppConfig } from '@/types';
 
 interface StudioToolBarProps {
@@ -96,180 +97,209 @@ export const StudioToolBar: React.FC<StudioToolBarProps> = ({
     } finally { setRuntimeLoading(false); }
   };
 
+  const viewports = [
+    { id: 'desktop' as const, label: 'จอคอมพิวเตอร์', short: 'คอม', icon: Monitor },
+    { id: 'tablet' as const, label: 'แท็บเล็ต', short: 'แท็บเล็ต', icon: Tablet },
+    { id: 'mobile' as const, label: 'มือถือ', short: 'มือถือ', icon: Smartphone },
+  ];
+
   return (
     <div
-      className={`${compactTop ? 'bg-transparent border-0 p-0 shadow-none' : 'bg-white border-bottom p-1.5 px-3 shadow-sm'} d-flex align-items-center justify-content-between text-nowrap select-none w-100`}
-      style={{ fontSize: '0.78rem' }}
+      className={`${compactTop ? 'bg-transparent border-0 p-0 shadow-none' : 'bg-white border-bottom p-2 px-3'} d-flex align-items-center justify-content-between gap-2 text-nowrap w-100`}
     >
       <div className="d-flex align-items-center gap-2 flex-wrap">
-        <div className="d-flex align-items-center gap-1 border rounded-2 px-2 py-1 bg-light">
-          <Box size={13} className={activeSurface === 'backend' ? 'text-warning' : 'text-primary'} />
-          <span className="text-muted extra-small">App</span>
-          <select className="form-select form-select-sm border-0 bg-transparent py-0 ps-1 pe-4 fw-bold" style={{ width: 112, fontSize: '0.72rem' }} value={activeSurface} onChange={(event) => setActiveSurface(event.target.value as 'frontend' | 'backend')}>
-            <option value="frontend">Frontend</option><option value="backend">Backend</option>
-          </select>
-        </div>
-        <span className="text-secondary opacity-25">|</span>
-        {/* Save & Download */}
-        <div className="btn-group btn-group-sm">
-          <button
-            className="btn btn-sm btn-primary d-flex align-items-center gap-1 px-2.5 py-1 extra-small fw-semibold shadow-sm"
-            onClick={onSave}
-            title="Save Page Layout (Ctrl+S)"
-          >
-            <Save size={13} />
-            <span>Save</span>
-          </button>
-          <button
-            className="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1 px-2 py-1 extra-small"
-            onClick={onDownloadJson}
-            title="Export JSON AST"
-          >
-            <Download size={13} />
-          </button>
-        </div>
-
-        <span className="text-secondary opacity-25">|</span>
-
-        {/* Undo / Redo */}
-        <div className="btn-group btn-group-sm">
-          <button
-            className={`btn btn-sm p-1 ${canUndo ? 'btn-light text-primary fw-bold' : 'btn-light text-muted opacity-40'}`}
-            onClick={onUndo}
-            disabled={!canUndo}
-            title="Undo (Ctrl+Z)"
-          >
-            <RotateCcw size={13} />
-          </button>
-          <button
-            className={`btn btn-sm p-1 ${canRedo ? 'btn-light text-primary fw-bold' : 'btn-light text-muted opacity-40'}`}
-            onClick={onRedo}
-            disabled={!canRedo}
-            title="Redo (Ctrl+Y)"
-          >
-            <RotateCw size={13} />
-          </button>
-        </div>
-
-        <span className="text-secondary opacity-25">|</span>
-
-        {/* Live Run Preview Button */}
-        <button
-          className={`btn btn-sm d-flex align-items-center gap-1.5 px-3 py-1 extra-small fw-bold text-nowrap rounded-2 ${
-            isPreviewMode
-              ? 'btn-success text-white shadow-sm'
-              : 'btn-outline-success border-success text-success'
-          }`}
-          onClick={inspectRuntime}
-        >
-          <Play size={13} className="fill-current" />
-          <span>Live Run App</span>
-        </button>
-
-        {!compactTop && <>
-        <span className="text-secondary opacity-25">|</span>
-
-        {/* Device Viewport Selector */}
-        <div className="btn-group btn-group-sm bg-light p-0.5 rounded-2 border">
-          <button
-            className={`btn btn-sm py-0.5 px-2 text-dark extra-small border-0 ${viewportMode === 'desktop' ? 'bg-white shadow-sm fw-bold' : 'text-secondary'}`}
-            onClick={() => setViewportMode('desktop')}
-            title="Desktop Viewport (100%)"
-          >
-            <Monitor size={13} className="me-1" /> Desktop
-          </button>
-          <button
-            className={`btn btn-sm py-0.5 px-2 text-dark extra-small border-0 ${viewportMode === 'tablet' ? 'bg-white shadow-sm fw-bold' : 'text-secondary'}`}
-            onClick={() => setViewportMode('tablet')}
-            title="Tablet Viewport (768px)"
-          >
-            <Tablet size={13} className="me-1" /> Tablet
-          </button>
-          <button
-            className={`btn btn-sm py-0.5 px-2 text-dark extra-small border-0 ${viewportMode === 'mobile' ? 'bg-white shadow-sm fw-bold' : 'text-secondary'}`}
-            onClick={() => setViewportMode('mobile')}
-            title="Mobile Viewport (375px)"
-          >
-            <Smartphone size={13} className="me-1" /> Mobile
-          </button>
-        </div>
-
-        <span className="text-secondary opacity-25">|</span>
-
-        {/* Visual Grid Toggle */}
-        <button
-          className={`btn btn-sm py-1 px-2 extra-small border-0 rounded-2 ${
-            showGrid ? 'btn-primary bg-primary bg-opacity-10 text-primary fw-semibold' : 'btn-light text-secondary'
-          }`}
-          onClick={() => setShowGrid(!showGrid)}
-          title="Toggle Visual Dotted Designer Grid"
-        >
-          <Grid size={13} className="me-1" /> Grid Guide
-        </button>
-
-        <span className="text-secondary opacity-25">|</span>
-
-        {/* Zoom Controls */}
         <div className="d-flex align-items-center gap-1">
+          <Box size={14} style={{ color: 'var(--gov-muted)' }} aria-hidden="true" />
+          <label htmlFor="stu-surface" className="visually-hidden">ส่วนที่กำลังออกแบบ</label>
           <select
-            className="form-select form-select-sm extra-small bg-light border-0 py-0.5 text-dark font-monospace"
-            value={zoomLevel}
-            onChange={(e) => setZoomLevel(Number(e.target.value))}
-            style={{ width: '75px', fontSize: '0.72rem' }}
+            id="stu-surface"
+            className="adm-select"
+            style={{ width: '8.5rem', minHeight: '2.15rem', fontSize: '0.8rem' }}
+            value={activeSurface}
+            onChange={(event) => setActiveSurface(event.target.value as 'frontend' | 'backend')}
           >
-            {zoomLevels.map((z) => (
-              <option key={z} value={z}>
-                {z}%
-              </option>
-            ))}
+            <option value="frontend">หน้าเว็บสาธารณะ</option>
+            <option value="backend">หน้าจัดการ</option>
           </select>
         </div>
-        </>}
+
+        <div className="d-flex align-items-center gap-1">
+          <button type="button" className="adm-btn is-sm" onClick={onSave} title="บันทึกหน้าเว็บ (Ctrl+S)">
+            <Save size={14} aria-hidden="true" /> บันทึก
+          </button>
+          <button
+            type="button"
+            className="adm-btn is-quiet is-sm"
+            onClick={onDownloadJson}
+            title="ส่งออกโครงสร้างหน้าเป็นไฟล์ JSON"
+            aria-label="ส่งออกโครงสร้างหน้าเป็นไฟล์ JSON"
+          >
+            <Download size={14} aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="d-flex align-items-center gap-1">
+          <button
+            type="button" className="adm-btn is-quiet is-sm" onClick={onUndo} disabled={!canUndo}
+            title="ย้อนกลับ (Ctrl+Z)" aria-label="ย้อนกลับ"
+          >
+            <RotateCcw size={14} aria-hidden="true" />
+          </button>
+          <button
+            type="button" className="adm-btn is-quiet is-sm" onClick={onRedo} disabled={!canRedo}
+            title="ทำซ้ำ (Ctrl+Y)" aria-label="ทำซ้ำ"
+          >
+            <RotateCw size={14} aria-hidden="true" />
+          </button>
+        </div>
+
+        <button
+          type="button"
+          className={`adm-btn is-sm ${isPreviewMode ? '' : 'is-quiet'}`}
+          onClick={inspectRuntime}
+          title="สร้างและเปิดเว็บไซต์จริงเพื่อทดสอบ"
+        >
+          <Play size={14} aria-hidden="true" /> ทดลองรันจริง
+        </button>
+
+        {!compactTop && (
+          <>
+            <div className="d-flex align-items-center gap-1" role="group" aria-label="ขนาดหน้าจอที่แสดง">
+              {viewports.map((viewport) => (
+                <button
+                  key={viewport.id}
+                  type="button"
+                  className={`adm-btn is-sm ${viewportMode === viewport.id ? '' : 'is-quiet'}`}
+                  onClick={() => setViewportMode(viewport.id)}
+                  title={viewport.label}
+                  aria-pressed={viewportMode === viewport.id}
+                >
+                  <viewport.icon size={14} aria-hidden="true" />
+                  <span className="d-none d-xl-inline">{viewport.short}</span>
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              className={`adm-btn is-sm ${showGrid ? '' : 'is-quiet'}`}
+              onClick={() => setShowGrid(!showGrid)}
+              aria-pressed={showGrid}
+              title="แสดงเส้นตารางช่วยจัดวาง"
+            >
+              <Grid size={14} aria-hidden="true" />
+              <span className="d-none d-xl-inline">เส้นตาราง</span>
+            </button>
+
+            <div className="d-flex align-items-center gap-1">
+              <label htmlFor="stu-zoom" className="visually-hidden">ระดับการย่อขยาย</label>
+              <select
+                id="stu-zoom"
+                className="adm-select font-monospace"
+                style={{ width: '5.5rem', minHeight: '2.15rem', fontSize: '0.8rem' }}
+                value={zoomLevel}
+                onChange={(event) => setZoomLevel(Number(event.target.value))}
+              >
+                {zoomLevels.map((level) => (
+                  <option key={level} value={level}>{level}%</option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Right side active page / solution context */}
-      {!compactTop && <div className="d-none d-lg-flex align-items-center gap-2">
-        <button
-          className="btn btn-sm btn-outline-primary py-0.5 px-2.5 extra-small fw-semibold d-flex align-items-center gap-1.5"
-          onClick={onOpenPageManager}
-        >
-          <FileText size={13} />
-          <span>Page: <code>{activePageSlug}.page</code></span>
-        </button>
-        <span className="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2 py-1 extra-small">
-          App: {appInfo.appName}
-        </span>
-      </div>}
-      {runtimeModalOpen && <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3" style={{ zIndex: 2300, background: 'rgba(15,23,42,.65)', backdropFilter: 'blur(4px)' }}>
-        <div className="card border-0 shadow-lg rounded-4 overflow-hidden" style={{ width: 'min(94vw,680px)' }}>
-          <div className="card-header bg-dark text-white border-0 p-3 d-flex justify-content-between align-items-start">
-            <div><div className="small text-success fw-bold d-flex gap-1 align-items-center"><Box size={14} /> PLATFORM DOCKER RUNTIME</div><h5 className="fw-bold mb-0">Live Run: {appInfo.appName}</h5></div>
-            <button className="btn btn-sm btn-outline-light border-0" onClick={() => setRuntimeModalOpen(false)}><X size={18} /></button>
-          </div>
-          <div className="card-body p-4">
-            {runtimeLoading && <div className="text-center py-4"><RefreshCw size={28} className="spin text-primary mb-2" /><div className="fw-semibold">กำลังตรวจสอบและจัดเตรียม Docker...</div></div>}
-            {!runtimeLoading && runtimeError && <div className="alert alert-danger d-flex gap-2"><AlertTriangle size={20} className="flex-shrink-0" /><span>{runtimeError}</span></div>}
-            {!runtimeLoading && runtimeStatus && <>
-              <div className={`alert d-flex gap-2 ${!runtimeStatus.dockerConnected ? 'alert-danger' : runtimeStatus.stale ? 'alert-warning' : runtimeStatus.exists ? 'alert-success' : 'alert-info'}`}>
-                {runtimeStatus.exists && !runtimeStatus.stale ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
-                <div><strong>{!runtimeStatus.dockerConnected ? 'Docker Engine ไม่พร้อม' : runtimeStatus.stale ? 'Source เปลี่ยนหลัง Build ล่าสุด' : runtimeStatus.exists ? 'Docker Runtime พร้อมรัน' : 'ยังไม่มี Docker Runtime'}</strong><div className="small">{runtimeStatus.stale ? 'ต้อง Generate image ใหม่ก่อน Live Run' : runtimeStatus.exists ? 'Image และ snapshot ตรงกับ Page/DB revision ปัจจุบัน' : 'กด Generate & Run เพื่อสร้างครั้งแรก'}</div></div>
-              </div>
-              <div className="row g-2 small">
-                <div className="col-12"><div className="bg-light rounded-3 p-2"><span className="text-muted">Runtime path</span><code className="d-block">{runtimeStatus.runtimePath}</code></div></div>
-                <div className="col-md-6"><div className="bg-light rounded-3 p-2 h-100"><span className="text-muted">Docker image</span><code className="d-block text-break">{runtimeStatus.image || 'not generated'}</code></div></div>
-                <div className="col-md-6"><div className="bg-light rounded-3 p-2 h-100"><span className="text-muted">Container</span><code className="d-block text-break">{runtimeStatus.containerName || 'not created'}</code></div></div>
-                <div className="col-md-6"><div className="bg-light rounded-3 p-2 h-100"><span className="text-muted">Build revision</span><code className="d-block">{runtimeStatus.buildRevision || '-'}</code></div></div>
-                <div className="col-md-6"><div className="bg-light rounded-3 p-2 h-100"><span className="text-muted">Published port</span><code className="d-block">{runtimeStatus.port || '-'}</code></div></div>
-                {Object.entries(runtimeStatus.surfaces || {}).map(([surface, info]) => <div className="col-md-6" key={surface}><div className={`rounded-3 p-2 h-100 border ${surface === activeSurface ? 'border-primary bg-primary bg-opacity-10' : 'bg-light'}`}><span className="text-muted text-capitalize">{surface} runtime</span><code className="d-block">:{info.port || '-'} · {info.containerName}</code></div></div>)}
-              </div>
-            </>}
-          </div>
-          <div className="card-footer bg-white border-top p-3 d-flex justify-content-between gap-2">
-            <button className="btn btn-outline-secondary" onClick={() => setRuntimeModalOpen(false)}>Cancel</button>
-            <button className="btn btn-success d-flex align-items-center gap-2" disabled={runtimeLoading || !runtimeStatus?.dockerConnected} onClick={buildAndRun}><Play size={15} />{runtimeStatus?.exists ? 'Generate New Image & Run' : 'Generate Docker & Run'}</button>
-          </div>
+      {!compactTop && (
+        <div className="d-none d-xl-flex align-items-center gap-2">
+          <button type="button" className="adm-btn is-quiet is-sm" onClick={onOpenPageManager}>
+            <FileText size={14} aria-hidden="true" />
+            หน้า: <code>{activePageSlug}</code>
+          </button>
+          <span className="adm-chip is-info">{appInfo.appName}</span>
         </div>
-      </div>}
+      )}
+
+      <AdminModal
+        isOpen={runtimeModalOpen}
+        wide
+        title="ทดลองรันเว็บไซต์จริง"
+        subtitle={appInfo.appName}
+        onClose={() => setRuntimeModalOpen(false)}
+        footer={
+          <>
+            <button type="button" className="adm-btn is-quiet" onClick={() => setRuntimeModalOpen(false)}>
+              ปิด
+            </button>
+            <button
+              type="button"
+              className="adm-btn"
+              disabled={runtimeLoading || !runtimeStatus?.dockerConnected}
+              onClick={buildAndRun}
+            >
+              <Play size={15} aria-hidden="true" />
+              {runtimeStatus?.exists ? 'สร้างใหม่แล้วเปิด' : 'สร้างและเปิด'}
+            </button>
+          </>
+        }
+      >
+        {runtimeLoading && (
+          <div className="adm-empty">
+            <RefreshCw size={26} className="adm-spin mb-2" aria-hidden="true" />
+            <p className="adm-empty-title">กำลังตรวจสอบและจัดเตรียม…</p>
+            <p className="adm-empty-text">ขั้นตอนนี้อาจใช้เวลาสักครู่</p>
+          </div>
+        )}
+
+        {!runtimeLoading && runtimeError && (
+          <div className="adm-alert is-danger" role="alert">
+            <AlertTriangle size={17} className="flex-shrink-0 mt-1" aria-hidden="true" />
+            <span>{runtimeError}</span>
+          </div>
+        )}
+
+        {!runtimeLoading && runtimeStatus && (
+          <>
+            <div
+              className={`adm-alert mb-3 ${
+                !runtimeStatus.dockerConnected ? 'is-danger'
+                  : runtimeStatus.stale ? 'is-warn'
+                  : runtimeStatus.exists ? 'is-info' : 'is-info'
+              }`}
+            >
+              {runtimeStatus.exists && !runtimeStatus.stale
+                ? <CheckCircle2 size={17} className="flex-shrink-0 mt-1" aria-hidden="true" />
+                : <AlertTriangle size={17} className="flex-shrink-0 mt-1" aria-hidden="true" />}
+              <span>
+                <strong>
+                  {!runtimeStatus.dockerConnected ? 'ระบบเบื้องหลังยังไม่พร้อม'
+                    : runtimeStatus.stale ? 'มีการแก้ไขหลังสร้างครั้งล่าสุด'
+                    : runtimeStatus.exists ? 'พร้อมเปิดทดสอบ'
+                    : 'ยังไม่เคยสร้าง'}
+                </strong>
+                <span className="d-block">
+                  {runtimeStatus.stale ? 'ต้องสร้างใหม่ก่อนจึงจะเห็นการเปลี่ยนแปลงล่าสุด'
+                    : runtimeStatus.exists ? 'สิ่งที่สร้างไว้ตรงกับหน้าเว็บและข้อมูลปัจจุบันแล้ว'
+                    : 'กดปุ่ม “สร้างและเปิด” เพื่อเริ่มครั้งแรก'}
+                </span>
+              </span>
+            </div>
+
+            <dl className="adm-facts">
+              <div><dt>ที่อยู่ไฟล์</dt><dd className="font-monospace text-break">{runtimeStatus.runtimePath}</dd></div>
+              <div><dt>อิมเมจ</dt><dd className="font-monospace text-break">{runtimeStatus.image || 'ยังไม่ได้สร้าง'}</dd></div>
+              <div><dt>คอนเทนเนอร์</dt><dd className="font-monospace text-break">{runtimeStatus.containerName || 'ยังไม่ได้สร้าง'}</dd></div>
+              <div><dt>รุ่นที่สร้างไว้</dt><dd className="font-monospace">{runtimeStatus.buildRevision || '—'}</dd></div>
+              <div><dt>พอร์ตที่เปิด</dt><dd className="font-monospace">{runtimeStatus.port || '—'}</dd></div>
+              {Object.entries(runtimeStatus.surfaces || {}).map(([surface, info]) => (
+                <div key={surface}>
+                  <dt>{surface === 'frontend' ? 'หน้าเว็บสาธารณะ' : 'หน้าจัดการ'}</dt>
+                  <dd className="font-monospace">:{info.port || '—'}</dd>
+                </div>
+              ))}
+            </dl>
+          </>
+        )}
+      </AdminModal>
     </div>
   );
 };

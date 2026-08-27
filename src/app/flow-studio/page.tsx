@@ -296,96 +296,88 @@ export default function FlowStudioPage() {
   return (
     <div className="container-fluid p-0 d-flex flex-column min-vh-100 select-none">
       {/* Header Bar */}
-      <div
-        className="card border-0 text-white rounded-3 shadow-sm mb-3 p-3"
-        style={{
-          background: 'linear-gradient(135deg, #1e1b4b 0%, #31104b 50%, #4c1d95 100%)',
-        }}
-      >
-        <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
-          <div className="d-flex align-items-center gap-3">
-            <div className="rounded-3 bg-white bg-opacity-15 p-2 d-flex align-items-center justify-content-center text-white">
-              <Workflow size={24} />
-            </div>
-            <div>
-              <div className="d-flex align-items-center gap-2 mb-1">
-                <span className="badge bg-white bg-opacity-20 text-white extra-small">
-                  Visual Sequence Diagram Studio (DefaultFlow.MD)
-                </span>
-                <span className="badge bg-success bg-opacity-25 text-success-light border border-success border-opacity-30 extra-small">
-                  6 Lifelines Active
-                </span>
-              </div>
-              <h5 className="fw-bold mb-0 text-white">Master Sequence Lifecycle Flow Engine</h5>
+      <div className="adm-banner mb-3">
+        <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+          <div className="d-flex align-items-center gap-3 min-w-0">
+            <span className="rounded-3 bg-white bg-opacity-15 p-2 d-flex align-items-center justify-content-center text-white flex-shrink-0">
+              <Workflow size={22} aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <p className="adm-banner-eyebrow mb-0">ออกแบบขั้นตอนการทำงาน</p>
+              <h1 className="adm-banner-title">ลำดับขั้นตอนของระบบ</h1>
+              <p className="adm-banner-lead">
+                วางลำดับว่าใครทำอะไรก่อนหลัง แล้วบันทึกไว้กับแม่แบบระบบ
+              </p>
             </div>
           </div>
 
-          <div className="d-flex align-items-center gap-2">
-            {saveStatus && <span className="badge bg-success text-white px-2.5 py-1.5 extra-small">{saveStatus}</span>}
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            {saveStatus && <span className="stu-status is-ok" role="status">{saveStatus}</span>}
 
-            <button className="btn btn-outline-light btn-sm fw-semibold extra-small px-3" onClick={() => setShowJsonModal(true)}>
-              <Code2 size={15} className="me-1" /> View Flow AST JSON
-            </button>
-            <button className="btn btn-success btn-sm fw-semibold extra-small px-3 shadow-sm" onClick={handleTestRunSequence}>
-              <Play size={15} className="me-1 fill-current" /> Test Run Flow
-            </button>
+            <label htmlFor="flow-platform" className="visually-hidden">แม่แบบระบบที่จะบันทึกลำดับขั้นตอน</label>
             <select
-              className="form-select form-select-sm w-auto extra-small"
+              id="flow-platform"
+              className="adm-select"
+              style={{ width: 'auto', minHeight: '2.5rem' }}
               value={platformId}
               onChange={(event) => setPlatformId(event.target.value)}
-              aria-label="เลือก Platform ที่จะบันทึก Flow"
             >
-              <option value="">เลือก Platform…</option>
+              <option value="">เลือกแม่แบบ…</option>
               {platforms.map((platform) => (
                 <option key={platform.id} value={platform.id}>{platform.platformName}</option>
               ))}
             </select>
+
+            <button type="button" className="adm-banner-btn is-ghost" onClick={() => setShowJsonModal(true)}>
+              <Code2 size={15} aria-hidden="true" /> ดูโครงสร้าง
+            </button>
+            <button type="button" className="adm-banner-btn is-ghost" onClick={handleTestRunSequence}>
+              <Play size={15} aria-hidden="true" /> ทดลองเดินลำดับ
+            </button>
             <button
-              className="btn btn-primary btn-sm fw-semibold extra-small px-3 shadow-sm"
+              type="button"
+              className="adm-banner-btn"
               onClick={() => void handleSaveSequenceAst()}
               disabled={isSaving || !platformId}
             >
-              <Save size={15} className="me-1" /> {isSaving ? 'กำลังบันทึก…' : 'Save Workflow AST'}
+              <Save size={15} aria-hidden="true" /> {isSaving ? 'กำลังบันทึก…' : 'บันทึก'}
             </button>
           </div>
         </div>
 
         {testRunStatus && (
-          <div className="mt-2.5 p-2 bg-black bg-opacity-30 rounded-2 text-info font-monospace extra-small border border-info border-opacity-30">
+          <div className="mt-3 p-2 rounded-2 font-monospace" style={{ background: 'rgba(0,0,0,0.25)', fontSize: '0.78rem' }} role="status">
             {testRunStatus}
           </div>
         )}
       </div>
 
-      {/* Lifeline Addition Toolbar Palette */}
-      <div className="bg-white rounded-3 shadow-sm p-2 mb-3 border d-flex align-items-center justify-content-between flex-wrap gap-2">
-        <div className="d-flex align-items-center gap-1.5 flex-wrap">
-          <span className="fw-bold extra-small text-muted text-uppercase me-2" style={{ letterSpacing: '0.04em' }}>
-            Add Sequence Step:
-          </span>
-          <button className="btn btn-sm btn-outline-primary extra-small py-1 px-2.5 rounded-2 d-flex align-items-center gap-1" onClick={() => handleAddSequenceStep('user')}>
-            <User size={13} /> + Step to User
-          </button>
-          <button className="btn btn-sm btn-outline-info extra-small py-1 px-2.5 rounded-2 d-flex align-items-center gap-1" onClick={() => handleAddSequenceStep('browser')}>
-            <Globe size={13} /> + Step to Browser
-          </button>
-          <button className="btn btn-sm btn-outline-warning extra-small py-1 px-2.5 rounded-2 d-flex align-items-center gap-1 text-dark" onClick={() => handleAddSequenceStep('api')}>
-            <Zap size={13} /> + Step to API
-          </button>
-          <button className="btn btn-sm btn-outline-success extra-small py-1 px-2.5 rounded-2 d-flex align-items-center gap-1" onClick={() => handleAddSequenceStep('server')}>
-            <Server size={13} /> + Step to Server
-          </button>
-          <button className="btn btn-sm btn-outline-purple extra-small py-1 px-2.5 rounded-2 d-flex align-items-center gap-1" onClick={() => handleAddSequenceStep('db')}>
-            <Database size={13} /> + Step to DB
-          </button>
-          <button className="btn btn-sm btn-outline-secondary extra-small py-1 px-2.5 rounded-2 d-flex align-items-center gap-1" onClick={() => handleAddSequenceStep('file')}>
-            <FileCode size={13} /> + Step to File
-          </button>
+      {/* Adds one step to the diagram, aimed at the chosen participant. */}
+      <div className="adm-card p-2 mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div className="d-flex align-items-center gap-1 flex-wrap">
+          <span className="adm-label mb-0 me-2">เพิ่มขั้นตอนไปยัง</span>
+          {([
+            ['user', 'ผู้ใช้', User],
+            ['browser', 'เบราว์เซอร์', Globe],
+            ['api', 'API', Zap],
+            ['server', 'เซิร์ฟเวอร์', Server],
+            ['db', 'ฐานข้อมูล', Database],
+            ['file', 'ไฟล์', FileCode],
+          ] as const).map(([target, label, Icon]) => (
+            <button
+              key={target}
+              type="button"
+              className="adm-btn is-quiet is-sm"
+              onClick={() => handleAddSequenceStep(target)}
+            >
+              <Icon size={13} aria-hidden="true" /> {label}
+            </button>
+          ))}
         </div>
 
-        <small className="text-muted extra-small">
-          Click any step node to edit step title, source/target lifeline, and message type.
-        </small>
+        <p className="adm-help mb-0">
+          คลิกที่ขั้นตอนใดก็ได้เพื่อแก้ชื่อ ต้นทาง ปลายทาง และชนิดของข้อความ
+        </p>
       </div>
 
       {/* React Flow Canvas Workspace */}

@@ -2,7 +2,7 @@ import React from 'react';
 import { notFound } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth/authActions';
 import { getCoreDb } from '@/lib/db/coreDb';
-import { CalendarClock, Users, Globe, HardDrive, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { CalendarClock, Users, Globe, HardDrive, AlertTriangle, CheckCircle2, Package } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,10 +51,10 @@ export default async function SiteOverviewPage({
   const limits = site.package_limits ?? {};
 
   const expiryTone =
-    daysRemaining === null ? 'secondary'
-      : daysRemaining < 0 ? 'danger'
-      : daysRemaining <= 30 ? 'warning'
-      : 'success';
+    daysRemaining === null ? 'is-off'
+      : daysRemaining < 0 ? 'is-danger'
+      : daysRemaining <= 30 ? 'is-warn'
+      : 'is-ok';
 
   const quotas = [
     { label: 'ผู้ใช้', icon: Users, used: Number(site.seats), max: limits.maxUsers },
@@ -63,114 +63,123 @@ export default async function SiteOverviewPage({
   ];
 
   return (
-    <>
+    <div className="d-flex flex-column gap-3">
       {site.is_suspended && (
-        <div className="alert alert-danger border-0 rounded-3 d-flex align-items-start gap-2">
-          <AlertTriangle size={18} className="flex-shrink-0 mt-1" />
-          <div>
+        <div className="adm-alert is-danger" role="alert">
+          <AlertTriangle size={17} className="flex-shrink-0 mt-1" aria-hidden="true" />
+          <span>
             <strong>เว็บไซต์ถูกระงับการใช้งาน</strong>
-            <div className="small">{site.suspended_reason || 'กรุณาติดต่อผู้ให้บริการ'}</div>
-          </div>
+            <span className="d-block">{site.suspended_reason || 'กรุณาติดต่อผู้ให้บริการ'}</span>
+          </span>
         </div>
       )}
 
       {daysRemaining !== null && daysRemaining <= 30 && !site.is_suspended && (
-        <div className={`alert alert-${expiryTone} border-0 rounded-3 d-flex align-items-center gap-2`}>
-          <CalendarClock size={18} />
-          {daysRemaining < 0
-            ? `แพ็กเกจหมดอายุแล้ว ${Math.abs(daysRemaining)} วัน — กรุณาติดต่อผู้ให้บริการเพื่อต่ออายุ`
-            : `แพ็กเกจจะหมดอายุในอีก ${daysRemaining} วัน`}
+        <div className={`adm-alert ${daysRemaining < 0 ? 'is-danger' : 'is-warn'}`}>
+          <CalendarClock size={17} className="flex-shrink-0 mt-1" aria-hidden="true" />
+          <span>
+            {daysRemaining < 0
+              ? `แพ็กเกจหมดอายุแล้ว ${Math.abs(daysRemaining)} วัน — กรุณาติดต่อผู้ให้บริการเพื่อต่ออายุ`
+              : `แพ็กเกจจะหมดอายุในอีก ${daysRemaining} วัน`}
+          </span>
         </div>
       )}
 
-      <div className="row g-3">
+      <div className="row g-3 align-items-start">
         <div className="col-12 col-lg-5">
-          <section className="card border-0 shadow-sm rounded-3 h-100">
-            <div className="card-header bg-white border-bottom py-3 px-4">
-              <h2 className="h6 fw-bold mb-0 d-flex align-items-center gap-2">
-                <CalendarClock size={18} className="text-primary" /> แพ็กเกจการใช้งาน
+          <section className="adm-card h-100">
+            <div className="adm-card-head">
+              <h2 className="adm-card-title">
+                <Package size={17} aria-hidden="true" /> แพ็กเกจการใช้งาน
               </h2>
             </div>
-            <div className="card-body p-4">
-              <dl className="row mb-0 small">
-                <dt className="col-5 fw-normal text-secondary">แพ็กเกจ</dt>
-                <dd className="col-7 text-end fw-semibold">
-                  {site.package_name}
-                  <span className="badge bg-light text-secondary ms-2">{site.package_code}</span>
-                </dd>
-
-                <dt className="col-5 fw-normal text-secondary">เริ่มใช้งาน</dt>
-                <dd className="col-7 text-end fw-semibold">
-                  {site.package_started_at.toLocaleDateString('th-TH')}
-                </dd>
-
-                <dt className="col-5 fw-normal text-secondary">วันหมดอายุ</dt>
-                <dd className="col-7 text-end">
-                  {expiresAt ? (
-                    <span className={`fw-semibold text-${expiryTone}`}>
-                      {expiresAt.toLocaleDateString('th-TH')}
-                    </span>
-                  ) : (
-                    <span className="text-secondary">ไม่มีกำหนด</span>
-                  )}
-                </dd>
-
-                <dt className="col-5 fw-normal text-secondary">สถานะ</dt>
-                <dd className="col-7 text-end mb-0">
-                  {site.is_suspended ? (
-                    <span className="badge bg-danger">ระงับการใช้งาน</span>
-                  ) : (
-                    <span className="badge bg-success d-inline-flex align-items-center gap-1">
-                      <CheckCircle2 size={12} /> ใช้งานได้
-                    </span>
-                  )}
-                </dd>
+            <div className="p-3">
+              <dl className="mb-0 d-flex flex-column gap-2">
+                <div className="d-flex justify-content-between align-items-center gap-2">
+                  <dt className="adm-stat-label fw-normal">แพ็กเกจ</dt>
+                  <dd className="adm-cell-strong mb-0 d-flex align-items-center gap-2">
+                    {site.package_name}
+                    <span className="adm-chip is-info">{site.package_code}</span>
+                  </dd>
+                </div>
+                <div className="d-flex justify-content-between align-items-center gap-2">
+                  <dt className="adm-stat-label fw-normal">เริ่มใช้งาน</dt>
+                  <dd className="adm-cell-strong mb-0">
+                    {site.package_started_at.toLocaleDateString('th-TH')}
+                  </dd>
+                </div>
+                <div className="d-flex justify-content-between align-items-center gap-2">
+                  <dt className="adm-stat-label fw-normal">วันหมดอายุ</dt>
+                  <dd className="mb-0">
+                    {expiresAt ? (
+                      <span className={`adm-chip ${expiryTone}`}>
+                        {expiresAt.toLocaleDateString('th-TH')}
+                      </span>
+                    ) : (
+                      <span className="adm-cell-sub">ไม่มีกำหนด</span>
+                    )}
+                  </dd>
+                </div>
+                <div className="d-flex justify-content-between align-items-center gap-2">
+                  <dt className="adm-stat-label fw-normal">สถานะ</dt>
+                  <dd className="mb-0">
+                    {site.is_suspended ? (
+                      <span className="adm-chip is-danger">ระงับการใช้งาน</span>
+                    ) : (
+                      <span className="adm-chip is-ok">
+                        <CheckCircle2 size={12} aria-hidden="true" /> ใช้งานได้
+                      </span>
+                    )}
+                  </dd>
+                </div>
               </dl>
             </div>
           </section>
         </div>
 
         <div className="col-12 col-lg-7">
-          <section className="card border-0 shadow-sm rounded-3 h-100">
-            <div className="card-header bg-white border-bottom py-3 px-4">
-              <h2 className="h6 fw-bold mb-0">โควตาการใช้งาน</h2>
+          <section className="adm-card h-100">
+            <div className="adm-card-head">
+              <h2 className="adm-card-title">โควตาการใช้งาน</h2>
             </div>
-            <div className="card-body p-4 d-flex flex-column gap-3">
+            <div className="p-3 d-flex flex-column gap-3">
               {quotas.map((quota) => {
                 const percent = quota.max && quota.used !== null
                   ? Math.min(Math.round((quota.used / quota.max) * 100), 100)
                   : null;
+                const tone = percent === null ? '' : percent >= 90 ? 'is-full' : percent >= 75 ? 'is-near' : '';
                 return (
                   <div key={quota.label}>
-                    <div className="d-flex justify-content-between align-items-center small mb-1">
-                      <span className="d-flex align-items-center gap-1 text-secondary">
-                        <quota.icon size={14} /> {quota.label}
+                    <div className="d-flex justify-content-between align-items-center gap-2 mb-1">
+                      <span className="adm-stat-label d-flex align-items-center gap-1 fw-normal">
+                        <quota.icon size={14} aria-hidden="true" /> {quota.label}
                       </span>
-                      <span className="fw-semibold">
+                      <span className="adm-cell-strong">
                         {quota.used ?? '—'} / {quota.max ?? 'ไม่จำกัด'}
                       </span>
                     </div>
                     {percent !== null && (
-                      <div className="progress" style={{ height: 6 }}>
-                        <div
-                          className={`progress-bar ${percent >= 90 ? 'bg-danger' : 'bg-primary'}`}
-                          style={{ width: `${percent}%` }}
-                          aria-valuenow={percent}
-                          aria-valuemin={0}
-                          aria-valuemax={100}
-                        />
+                      <div
+                        className={`adm-meter ${tone}`}
+                        role="progressbar"
+                        aria-label={`${quota.label} ใช้ไป ${percent}%`}
+                        aria-valuenow={percent}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                      >
+                        <span style={{ width: `${percent}%` }} />
                       </div>
                     )}
                   </div>
                 );
               })}
-              <p className="extra-small text-secondary mb-0">
-                ต้องการเพิ่มโควตาหรือต่ออายุ กรุณาติดต่อผู้ให้บริการ (หนุมานไอที)
+              <p className="adm-help mb-0">
+                ต้องการเพิ่มโควตาหรือต่ออายุ กรุณาติดต่อผู้ให้บริการ (บริษัท หนุมานไอที จำกัด)
               </p>
             </div>
           </section>
         </div>
       </div>
-    </>
+    </div>
   );
 }

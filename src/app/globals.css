@@ -55,9 +55,13 @@
 }
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --bs-primary: #0d6efd;
+  --background: var(--gov-surface);
+  --foreground: var(--gov-ink);
+  /* Bootstrap's default blue, replaced by the government blue so every
+     component that has not been restyled by hand still lands on the brand.
+     A tenant theme overrides these per site at runtime. */
+  --bs-primary: #0c58a9;
+  --bs-primary-rgb: 12, 88, 169;
   --bs-secondary: #6c757d;
   --bs-success: #198754;
   --bs-danger: #dc3545;
@@ -979,3 +983,184 @@ a.adm-card:hover { border-color: #bdd4ee; box-shadow: 0 10px 24px rgba(11, 31, 5
 /* Cards laid out in a grid share the tallest height in their row, so the row
    reads as one band rather than a ragged edge. */
 .row > .d-flex > .adm-card { width: 100%; }
+
+/* --- Per-agency site console ------------------------------------------------
+   A separate context from the platform console — one agency, not all of them —
+   so it keeps its own top bar, but built from the same tokens. */
+.adm-site-header {
+  background: #fff;
+  border-bottom: 1px solid var(--gov-border);
+}
+.adm-site-name { font-size: 1.05rem; font-weight: 700; color: var(--gov-ink); margin: 0; }
+.adm-site-meta { font-size: 0.78rem; color: var(--gov-muted); margin: 0; }
+
+.adm-tabs { display: flex; gap: 0.25rem; list-style: none; margin: 0; padding: 0; overflow-x: auto; }
+.adm-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  padding-inline: 0.85rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--gov-muted);
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+}
+.adm-tab:hover { color: var(--gov-ink); background: var(--gov-surface); }
+.adm-tab:focus-visible { outline: 2px solid var(--gov-blue); outline-offset: -2px; }
+.adm-tab.is-active { color: var(--gov-blue-deep); border-bottom-color: var(--gov-gold); }
+
+/* --- Quota meter ------------------------------------------------------------ */
+.adm-meter { height: 0.4rem; border-radius: 999px; background: #e6ebf2; overflow: hidden; }
+.adm-meter > span { display: block; height: 100%; border-radius: 999px; background: var(--gov-blue); }
+.adm-meter.is-full > span { background: var(--gov-danger); }
+.adm-meter.is-near > span { background: var(--gov-warn); }
+
+/* ==========================================================================
+   Bootstrap alignment
+   Several Bootstrap components compile their colours in rather than reading a
+   variable, so the ones that show up across the console are named here. This
+   is what carries the palette into screens that have not been restyled by hand.
+   ========================================================================== */
+.btn-primary {
+  --bs-btn-bg: var(--bs-primary);
+  --bs-btn-border-color: var(--bs-primary);
+  --bs-btn-hover-bg: var(--gov-blue-deep);
+  --bs-btn-hover-border-color: var(--gov-blue-deep);
+  --bs-btn-active-bg: var(--gov-blue-deep);
+  --bs-btn-active-border-color: var(--gov-blue-deep);
+  --bs-btn-disabled-bg: var(--bs-primary);
+  --bs-btn-disabled-border-color: var(--bs-primary);
+}
+.btn-outline-primary {
+  --bs-btn-color: var(--gov-blue-deep);
+  --bs-btn-border-color: var(--bs-primary);
+  --bs-btn-hover-bg: var(--bs-primary);
+  --bs-btn-hover-border-color: var(--bs-primary);
+  --bs-btn-active-bg: var(--gov-blue-deep);
+  --bs-btn-active-border-color: var(--gov-blue-deep);
+  --bs-btn-disabled-color: var(--gov-blue-deep);
+  --bs-btn-disabled-border-color: var(--bs-primary);
+}
+.nav-pills { --bs-nav-pills-link-active-bg: var(--bs-primary); }
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus {
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 0.2rem rgba(12, 88, 169, 0.16);
+}
+.form-check-input:checked {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
+}
+.progress { --bs-progress-bar-bg: var(--bs-primary); }
+.spinner-border { color: var(--bs-primary); }
+
+/* Bootstrap ships opacity steps of 10/25/50/75/100 only. `bg-opacity-15` was
+   used in nine places and produced no rule at all, leaving a solid fill behind
+   text of the same colour — an unreadable block. Defining it makes those
+   existing badges render as intended. */
+.bg-opacity-15 { --bs-bg-opacity: 0.15; }
+.border-opacity-15 { --bs-border-opacity: 0.15; }
+
+/* ==========================================================================
+   Studio
+   A design tool, so it keeps the dark IDE chrome around a light canvas — but
+   built from the same navy and gold as the rest of the product rather than a
+   neutral grey and indigo of its own.
+   ========================================================================== */
+.stu-chrome {
+  background: var(--gov-ink);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+.stu-chrome code { color: #ffe98a; }
+
+.stu-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.82);
+}
+.stu-menu-btn:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+.stu-menu-btn.is-open { background: rgba(255, 255, 255, 0.16); color: #fff; }
+.stu-menu-btn:focus-visible { outline: 2px solid var(--gov-gold); outline-offset: -2px; }
+
+.stu-dropdown {
+  background: #10294a;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.5rem;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+}
+.stu-dropdown .dropdown-item { color: rgba(255, 255, 255, 0.85); font-size: 0.82rem; }
+.stu-dropdown .dropdown-item:hover,
+.stu-dropdown .dropdown-item:focus { background: rgba(255, 255, 255, 0.12); color: #fff; }
+
+/* Module tabs above the canvas. */
+.stu-tabs {
+  background: #fff;
+  border: 1px solid var(--gov-border);
+  border-radius: 0.75rem;
+}
+.stu-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.4rem;
+  padding-inline: 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 0;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: var(--gov-muted);
+}
+.stu-tab:hover { background: var(--gov-surface); color: var(--gov-ink); }
+.stu-tab:focus-visible { outline: 2px solid var(--gov-blue); outline-offset: -2px; }
+.stu-tab.is-active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--gov-blue) 0%, var(--gov-blue-deep) 100%);
+}
+.stu-tab-note { font-size: 0.62rem; font-weight: 600; padding: 0.1rem 0.35rem; border-radius: 999px; }
+.stu-tab .stu-tab-note { background: var(--gov-blue-soft); color: var(--gov-blue-deep); }
+.stu-tab.is-active .stu-tab-note { background: rgba(255, 255, 255, 0.22); color: #fff; }
+
+/* Dock tabs at the foot of the editor. */
+.stu-dock-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.74rem;
+  border: 0;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.62);
+}
+.stu-dock-tab:hover { background: rgba(255, 255, 255, 0.10); color: #fff; }
+.stu-dock-tab.is-active { background: var(--gov-blue); color: #fff; font-weight: 600; }
+.stu-dock-tab:focus-visible { outline: 2px solid var(--gov-gold); outline-offset: -2px; }
+
+/* Status pill on dark chrome — spelled out, never colour alone. */
+.stu-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+.stu-status.is-ok { border-color: rgba(122, 226, 174, 0.5); color: #b7f0d2; }
+.stu-status.is-warn { border-color: rgba(255, 215, 0, 0.5); color: #ffe98a; }

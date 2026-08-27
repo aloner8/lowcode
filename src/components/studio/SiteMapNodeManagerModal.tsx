@@ -38,7 +38,7 @@ export const SiteMapNodeManagerModal: React.FC<Props> = ({ isOpen, containers, i
 
   return <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style={{ zIndex: 2100, background: 'rgba(15,23,42,.55)' }}>
     <div className="card border-0 shadow-lg w-100" style={{ maxWidth: 900 }}>
-      <div className="card-header text-white p-3 d-flex justify-content-between" style={{ background: 'linear-gradient(135deg,#1e1b4b,#4c1d95)' }}>
+      <div className="card-header text-white p-3 d-flex justify-content-between" style={{ background: 'linear-gradient(135deg, #0C58A9 0%, #083A6E 60%, #0B1F3A 100%)' }}>
         <div className="d-flex gap-2 align-items-center"><MapPin size={20}/><div><h5 className="mb-0">Add Site Map Node</h5><small className="text-white-50">Bind an existing Project Resource to the selected container</small></div></div>
         <button className="btn btn-sm btn-outline-light border-0" onClick={onClose} disabled={busy}><X size={17}/></button>
       </div>

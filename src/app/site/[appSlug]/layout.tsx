@@ -1,14 +1,24 @@
 import React from 'react';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
+import { ExternalLink, LogOut } from 'lucide-react';
 import { getCurrentUser } from '@/lib/auth/authActions';
+import { logoutAction } from '@/lib/auth/authActions';
 import { getCoreDb } from '@/lib/db/coreDb';
-import { LayoutDashboard, Users, ExternalLink, Building2 } from 'lucide-react';
+import { Logo } from '@/components/brand/Logo';
+import SiteConsoleNav, { type SiteNavItem } from '@/components/site/SiteConsoleNav';
 
 export const dynamic = 'force-dynamic';
 
+const ROLE_LABELS: Record<string, string> = {
+  GOD: 'ผู้ดูแลระบบส่วนกลาง',
+  ADMIN: 'ผู้ดูแลเว็บไซต์',
+  STAFF: 'เจ้าหน้าที่',
+  VIEWER: 'ดูอย่างเดียว',
+};
+
 /**
- * Console for one agency's Site.
+ * Console for one agency's site.
  *
  * ADMIN (ผู้ดูแลระบบของหน่วยงาน) and STAFF (พนักงาน) work here; the provider's
  * control plane at /admin stays out of reach.
@@ -36,43 +46,51 @@ export default async function SiteConsoleLayout({
 
   const isAdmin = site.role === 'ADMIN' || site.role === 'GOD';
 
-  const navigation = [
-    { href: `/site/${appSlug}`, label: 'ภาพรวม', icon: LayoutDashboard, show: true },
-    { href: `/site/${appSlug}/users`, label: 'ผู้ใช้ในหน่วยงาน', icon: Users, show: isAdmin },
-  ].filter((item) => item.show);
+  const navigation: SiteNavItem[] = [
+    { href: `/site/${appSlug}`, label: 'ภาพรวม', icon: 'overview' },
+    ...(isAdmin
+      ? [{ href: `/site/${appSlug}/users`, label: 'ผู้ใช้ในหน่วยงาน', icon: 'users' as const }]
+      : []),
+  ];
 
   return (
-    <div className="min-vh-100 bg-light">
-      <header className="bg-white border-bottom">
-        <div className="container-fluid px-4 py-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
-          <div className="d-flex align-items-center gap-2">
-            <Building2 size={22} className="text-primary" />
-            <div>
-              <h1 className="h6 fw-bold mb-0 text-dark">{site.app_name}</h1>
-              <p className="extra-small text-secondary mb-0">
-                {user.fullName || user.username} · สิทธิ์ {site.role}
+    <div className="adm-shell min-vh-100">
+      <header className="adm-site-header">
+        <div className="px-3 px-md-4 pt-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div className="d-flex align-items-center gap-2 min-w-0">
+            <Logo size={34} markOnly />
+            <div className="min-w-0">
+              <h1 className="adm-site-name text-truncate">{site.app_name}</h1>
+              <p className="adm-site-meta text-truncate">
+                {user.fullName || user.username} · {ROLE_LABELS[site.role] ?? site.role}
               </p>
             </div>
           </div>
-          <Link href={`/app/${appSlug}`} className="btn btn-sm btn-outline-primary" target="_blank">
-            <ExternalLink size={14} className="me-1" /> เปิดเว็บไซต์
-          </Link>
+
+          <div className="d-flex align-items-center gap-2">
+            <Link
+              href={`/app/${appSlug}`}
+              className="adm-topbar-btn"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ExternalLink size={15} aria-hidden="true" /> เปิดเว็บไซต์
+            </Link>
+            <form action={logoutAction}>
+              <button type="submit" className="adm-btn is-quiet is-sm">
+                <LogOut size={14} aria-hidden="true" />
+                <span className="d-none d-sm-inline">ออกจากระบบ</span>
+              </button>
+            </form>
+          </div>
         </div>
 
-        <nav className="container-fluid px-4" aria-label="เมนูหน่วยงาน">
-          <ul className="nav nav-tabs border-0">
-            {navigation.map((item) => (
-              <li className="nav-item" key={item.href}>
-                <Link className="nav-link d-flex align-items-center gap-1 small" href={item.href}>
-                  <item.icon size={14} /> {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <div className="px-3 px-md-4">
+          <SiteConsoleNav items={navigation} />
+        </div>
       </header>
 
-      <div className="container-fluid px-4 py-4">{children}</div>
+      <main className="p-3 p-md-4">{children}</main>
     </div>
   );
 }

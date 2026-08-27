@@ -1,12 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
-import { AppConfig } from '@/types';
+import React, { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import {
   Save,
   Download,
   Eye,
-  Sparkles,
   Folder,
   FileText,
   Pencil,
@@ -17,10 +16,8 @@ import {
   Redo2,
   Workflow,
   ScrollText,
-  CircleUserRound,
 } from 'lucide-react';
-import Link from 'next/link';
-import { useStudioUser } from './StudioUserContext';
+import { AppConfig } from '@/types';
 
 interface StudioMenuBarProps {
   appInfo: AppConfig;
@@ -32,6 +29,14 @@ interface StudioMenuBarProps {
   children?: React.ReactNode;
 }
 
+/**
+ * Menu bar for the editor.
+ *
+ * The brand link, the signed-in user and the sign-out control used to live here
+ * too; they now sit in the console shell that wraps every screen, so repeating
+ * them put the same three things on screen twice. The "Core DB Online" pill was
+ * also removed — it was hard-coded green and never checked anything.
+ */
 export const StudioMenuBar: React.FC<StudioMenuBarProps> = ({
   appInfo,
   onSave,
@@ -42,177 +47,129 @@ export const StudioMenuBar: React.FC<StudioMenuBarProps> = ({
   children,
 }) => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const user = useStudioUser();
+  const barRef = useRef<HTMLDivElement>(null);
 
-  const toggleMenu = (menu: string) => {
-    setOpenMenu(openMenu === menu ? null : menu);
-  };
-
+  const toggleMenu = (menu: string) => setOpenMenu(openMenu === menu ? null : menu);
   const closeMenus = () => setOpenMenu(null);
+
+  // An open menu should close on Escape or on a click anywhere else.
+  useEffect(() => {
+    if (!openMenu) return;
+    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && closeMenus();
+    const onClick = (event: MouseEvent) => {
+      if (!barRef.current?.contains(event.target as Node)) closeMenus();
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('mousedown', onClick);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('mousedown', onClick);
+    };
+  }, [openMenu]);
+
+  const menuButton = (id: string, label: string, Icon: typeof FileText) => (
+    <button
+      type="button"
+      className={`stu-menu-btn ${openMenu === id ? 'is-open' : ''}`}
+      onClick={() => toggleMenu(id)}
+      aria-expanded={openMenu === id}
+      aria-haspopup="menu"
+    >
+      <Icon size={15} aria-hidden="true" />
+      <span className="d-none d-md-inline">{label}</span>
+    </button>
+  );
 
   return (
     <div
-      className="bg-dark text-white px-2 py-1 border-bottom border-secondary border-opacity-25 d-flex align-items-center justify-content-between text-nowrap select-none"
-      style={{ background: '#1e1e1e', fontSize: '0.78rem' }}
+      ref={barRef}
+      className="stu-chrome px-2 py-1 border-bottom d-flex align-items-center justify-content-between gap-2 text-nowrap"
     >
-      {/* Brand Icon & Main Menu Bar */}
       <div className="d-flex align-items-center gap-1">
-        <Link href="/admin" className="d-flex align-items-center gap-1.5 text-white text-decoration-none px-2 py-1 me-2 hover-bg-dark rounded-1">
-          <div
-            className="d-flex align-items-center justify-content-center text-white shadow-sm"
-            style={{
-              width: '20px',
-              height: '20px',
-              borderRadius: '0.35rem',
-              background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
-            }}
-          >
-            <Sparkles size={12} />
-          </div>
-          <span className="fw-bold extra-small">Platform Admin <span className="text-white-50 fw-normal">({appInfo.appName})</span></span>
-        </Link>
-
-        <span className="bg-secondary opacity-25 mx-1" style={{ width: '1px', height: '20px' }} />
-
-        {/* Dropdown Menus */}
         <div className="position-relative">
-          <button
-            className={`btn btn-sm d-flex align-items-center justify-content-center text-white border-0 rounded-2 ${openMenu === 'file' ? 'bg-primary shadow-sm' : 'hover-bg-secondary'}`}
-            onClick={() => toggleMenu('file')}
-            title="File"
-            aria-label="File menu"
-            aria-expanded={openMenu === 'file'}
-            style={{ width: '30px', height: '30px' }}
-          >
-            <FileText size={16} />
-          </button>
+          {menuButton('file', 'ไฟล์', FileText)}
           {openMenu === 'file' && (
-            <div className="position-absolute bg-dark text-white rounded-2 shadow-lg py-1 border border-secondary border-opacity-25 mt-1 z-3" style={{ minWidth: '180px', left: 0 }}>
-              <button className="dropdown-item text-white extra-small px-3 py-1.5 hover-bg-primary d-flex align-items-center gap-2" onClick={() => { onSave(); closeMenus(); }}>
-                <Save size={13} className="text-primary" /> Save Form Layout
+            <div className="stu-dropdown position-absolute py-1 mt-1 z-3" style={{ minWidth: '15rem', left: 0 }} role="menu">
+              <button type="button" className="dropdown-item d-flex align-items-center gap-2 px-3 py-2" onClick={() => { onSave(); closeMenus(); }}>
+                <Save size={14} aria-hidden="true" /> บันทึกหน้าเว็บ
               </button>
-              <button className="dropdown-item text-white extra-small px-3 py-1.5 hover-bg-primary d-flex align-items-center gap-2" onClick={() => { onDownloadJson(); closeMenus(); }}>
-                <Download size={13} className="text-info" /> Export AST JSON
+              <button type="button" className="dropdown-item d-flex align-items-center gap-2 px-3 py-2" onClick={() => { onDownloadJson(); closeMenus(); }}>
+                <Download size={14} aria-hidden="true" /> ส่งออกโครงสร้าง (JSON)
               </button>
-              <hr className="dropdown-divider border-secondary my-1 opacity-25" />
-              <Link href="/admin/apps" className="dropdown-item text-white extra-small px-3 py-1.5 hover-bg-primary d-flex align-items-center gap-2" onClick={closeMenus}>
-                <Folder size={13} className="text-warning" /> Manage All Tenant Apps
+              <hr className="dropdown-divider my-1 opacity-25" />
+              <Link href="/admin/apps" className="dropdown-item d-flex align-items-center gap-2 px-3 py-2" onClick={closeMenus}>
+                <Folder size={14} aria-hidden="true" /> ไปที่รายการเว็บไซต์
               </Link>
             </div>
           )}
         </div>
 
         <div className="position-relative">
-          <button
-            className={`btn btn-sm d-flex align-items-center justify-content-center text-white border-0 rounded-2 ${openMenu === 'edit' ? 'bg-primary shadow-sm' : 'hover-bg-secondary'}`}
-            onClick={() => toggleMenu('edit')}
-            title="Edit"
-            aria-label="Edit menu"
-            aria-expanded={openMenu === 'edit'}
-            style={{ width: '30px', height: '30px' }}
-          >
-            <Pencil size={16} />
-          </button>
+          {menuButton('edit', 'แก้ไข', Pencil)}
           {openMenu === 'edit' && (
-            <div className="position-absolute bg-dark text-white rounded-2 shadow-lg py-1 border border-secondary border-opacity-25 mt-1 z-3" style={{ minWidth: '180px', left: 0 }}>
-              <button className="dropdown-item text-white extra-small px-3 py-1.5 hover-bg-primary d-flex align-items-center gap-2" onClick={closeMenus}>
-                <Undo2 size={13} className="text-info" /> Undo (Ctrl+Z)
+            <div className="stu-dropdown position-absolute py-1 mt-1 z-3" style={{ minWidth: '15rem', left: 0 }} role="menu">
+              <button type="button" className="dropdown-item d-flex align-items-center gap-2 px-3 py-2" onClick={closeMenus}>
+                <Undo2 size={14} aria-hidden="true" /> ย้อนกลับ <kbd className="ms-auto">Ctrl+Z</kbd>
               </button>
-              <button className="dropdown-item text-white extra-small px-3 py-1.5 hover-bg-primary d-flex align-items-center gap-2" onClick={closeMenus}>
-                <Redo2 size={13} className="text-info" /> Redo (Ctrl+Y)
+              <button type="button" className="dropdown-item d-flex align-items-center gap-2 px-3 py-2" onClick={closeMenus}>
+                <Redo2 size={14} aria-hidden="true" /> ทำซ้ำ <kbd className="ms-auto">Ctrl+Y</kbd>
               </button>
             </div>
           )}
         </div>
 
         <div className="position-relative">
-          <button
-            className={`btn btn-sm d-flex align-items-center justify-content-center text-white border-0 rounded-2 ${openMenu === 'view' ? 'bg-primary shadow-sm' : 'hover-bg-secondary'}`}
-            onClick={() => toggleMenu('view')}
-            title="View"
-            aria-label="View menu"
-            aria-expanded={openMenu === 'view'}
-            style={{ width: '30px', height: '30px' }}
-          >
-            <PanelsTopLeft size={16} />
-          </button>
+          {menuButton('view', 'มุมมอง', PanelsTopLeft)}
           {openMenu === 'view' && (
-            <div className="position-absolute bg-dark text-white rounded-2 shadow-lg py-1 border border-secondary border-opacity-25 mt-1 z-3" style={{ minWidth: '180px', left: 0 }}>
-              <button className="dropdown-item text-white extra-small px-3 py-1.5 hover-bg-primary d-flex align-items-center gap-2" onClick={() => { setIsPreviewMode(!isPreviewMode); closeMenus(); }}>
-                <Eye size={13} className="text-success" /> Toggle Live Preview
+            <div className="stu-dropdown position-absolute py-1 mt-1 z-3" style={{ minWidth: '15rem', left: 0 }} role="menu">
+              <button
+                type="button"
+                className="dropdown-item d-flex align-items-center gap-2 px-3 py-2"
+                onClick={() => { setIsPreviewMode(!isPreviewMode); closeMenus(); }}
+              >
+                <Eye size={14} aria-hidden="true" />
+                {isPreviewMode ? 'ออกจากการดูตัวอย่าง' : 'ดูตัวอย่างหน้าเว็บ'}
               </button>
             </div>
           )}
         </div>
 
         <div className="position-relative">
-          <button
-            className={`btn btn-sm d-flex align-items-center justify-content-center text-white border-0 rounded-2 ${openMenu === 'project' ? 'bg-primary shadow-sm' : 'hover-bg-secondary'}`}
-            onClick={() => toggleMenu('project')}
-            title="Project"
-            aria-label="Project information"
-            aria-expanded={openMenu === 'project'}
-            style={{ width: '30px', height: '30px' }}
-          >
-            <BriefcaseBusiness size={16} />
-          </button>
+          {menuButton('project', 'เว็บไซต์นี้', BriefcaseBusiness)}
           {openMenu === 'project' && (
-            <div className="position-absolute bg-dark text-white rounded-2 shadow-lg py-1 border border-secondary border-opacity-25 mt-1 z-3" style={{ minWidth: '220px', left: 0 }}>
-              <div className="px-3 py-1 text-white-50 extra-small fw-bold">Active App: {appInfo.appName}</div>
-              <div className="px-3 py-0.5 text-info extra-small font-monospace">Port: :{appInfo.port}</div>
-              <div className="px-3 py-0.5 text-warning extra-small font-monospace">DB: {appInfo.tenantDbName}</div>
+            <div className="stu-dropdown position-absolute py-1 mt-1 z-3" style={{ minWidth: '17rem', left: 0 }}>
+              <div className="px-3 py-2">
+                <div className="fw-semibold" style={{ fontSize: '0.85rem' }}>{appInfo.appName}</div>
+                <div className="small opacity-75 font-monospace">{appInfo.appSlug}</div>
+                <hr className="dropdown-divider my-2 opacity-25" />
+                <div className="small opacity-75">พอร์ต <code>{appInfo.port}</code></div>
+                <div className="small opacity-75">ฐานข้อมูล <code>{appInfo.tenantDbName}</code></div>
+                <div className="small opacity-75">ธีม <code>{appInfo.themeConfig?.preset ?? '—'}</code></div>
+              </div>
             </div>
           )}
         </div>
 
         <div className="position-relative">
-          <button
-            className={`btn btn-sm d-flex align-items-center justify-content-center text-white border-0 rounded-2 ${openMenu === 'tools' ? 'bg-primary shadow-sm' : 'hover-bg-secondary'}`}
-            onClick={() => toggleMenu('tools')}
-            title="Tools"
-            aria-label="Tools menu"
-            aria-expanded={openMenu === 'tools'}
-            style={{ width: '30px', height: '30px' }}
-          >
-            <Wrench size={16} />
-          </button>
+          {menuButton('tools', 'เครื่องมือ', Wrench)}
           {openMenu === 'tools' && (
-            <div className="position-absolute bg-dark text-white rounded-2 shadow-lg py-1 border border-secondary border-opacity-25 mt-1 z-3" style={{ minWidth: '180px', left: 0 }}>
-              <Link href="/flow-studio" className="dropdown-item text-white extra-small px-3 py-1.5 hover-bg-primary d-flex align-items-center gap-2" onClick={closeMenus}>
-                <Workflow size={13} className="text-info" /> Open Flow Studio
+            <div className="stu-dropdown position-absolute py-1 mt-1 z-3" style={{ minWidth: '15rem', left: 0 }} role="menu">
+              <Link href="/flow-studio" className="dropdown-item d-flex align-items-center gap-2 px-3 py-2" onClick={closeMenus}>
+                <Workflow size={14} aria-hidden="true" /> ออกแบบขั้นตอนงาน
               </Link>
-              <Link href="/audit-logs" className="dropdown-item text-white extra-small px-3 py-1.5 hover-bg-primary d-flex align-items-center gap-2" onClick={closeMenus}>
-                <ScrollText size={13} className="text-warning" /> Audit Trail Logs
+              <Link href="/audit-logs" className="dropdown-item d-flex align-items-center gap-2 px-3 py-2" onClick={closeMenus}>
+                <ScrollText size={14} aria-hidden="true" /> ประวัติการใช้งาน
               </Link>
             </div>
           )}
         </div>
       </div>
 
-      {children && <div className="d-flex align-items-center flex-grow-1 ms-3 overflow-auto">{children}</div>}
+      {children && <div className="d-flex align-items-center flex-grow-1 overflow-auto">{children}</div>}
 
-      {/* System status, app identifier and signed-in user share the same Studio bar. */}
-      <div className="d-flex align-items-center gap-3">
-        {saveStatus && (
-          <span className="badge bg-success bg-opacity-20 text-success border border-success border-opacity-30 extra-small px-2 py-0.5">
-            {saveStatus}
-          </span>
-        )}
-        <div className="d-flex align-items-center gap-1.5 px-2 py-1 rounded-2 border border-success border-opacity-25 bg-success bg-opacity-10" title="Core database is online">
-          <span className="rounded-circle bg-success" style={{ width: 8, height: 8, boxShadow: '0 0 0 3px rgba(25,135,84,.18)' }} />
-          <span className="text-success small fw-semibold">Core DB Online</span>
-        </div>
-        <span className="bg-secondary opacity-25" style={{ width: 1, height: 26 }} />
-        <Link href="/admin" className="d-flex align-items-center gap-2 text-white text-decoration-none" title="Back to Platform Control Admin">
-          <div className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold" style={{ width: 30, height: 30, background: user?.globalRole === 'GOD' ? 'linear-gradient(135deg,#ef4444,#b91c1c)' : 'linear-gradient(135deg,#3b82f6,#1d4ed8)' }}>
-            {user?.username?.[0]?.toUpperCase() || user?.fullName?.[0]?.toUpperCase() || <CircleUserRound size={16}/>} 
-          </div>
-          <div className="d-none d-lg-block lh-sm">
-            <div className="small fw-semibold">{user?.fullName || user?.username || 'Studio User'}</div>
-            <div className="text-white-50" style={{ fontSize: '.65rem' }}>{user?.globalRole === 'GOD' ? 'Super Admin' : 'Platform Developer'}</div>
-          </div>
-        </Link>
-      </div>
+      {saveStatus && (
+        <span className="stu-status is-ok flex-shrink-0" role="status">{saveStatus}</span>
+      )}
     </div>
   );
 };

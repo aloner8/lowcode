@@ -49,7 +49,7 @@ export const PageManagerModal: React.FC<Props> = ({ isOpen, onClose, activePageS
 
   return <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center z-3 select-none" style={{ background: 'rgba(15,23,42,.5)', backdropFilter: 'blur(3px)' }}>
     <div className="card shadow-lg border-0 rounded-3 bg-white overflow-hidden w-100 animate-fadeIn" style={{ maxWidth: 820 }}>
-      <div className="card-header border-0 text-white p-3.5 d-flex align-items-center justify-content-between" style={{ background: 'linear-gradient(135deg,#1e1b4b 0%,#31104b 50%,#4c1d95 100%)' }}>
+      <div className="card-header border-0 text-white p-3.5 d-flex align-items-center justify-content-between" style={{ background: 'linear-gradient(135deg, #0C58A9 0%, #083A6E 60%, #0B1F3A 100%)' }}>
         <div className="d-flex align-items-center gap-2.5"><FileText size={22} /><div><h5 className="fw-bold mb-0 text-white">Solution Page Layout Manager</h5><div className="text-white-50 extra-small">Manage page layouts and save changes to Platform database</div></div></div>
         <button className="btn btn-sm btn-outline-light border-0 rounded-circle p-1" onClick={onClose} disabled={Boolean(busy)}><X size={18} /></button>
       </div>

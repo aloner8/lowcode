@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { UserPlus, Trash2, RefreshCw, ShieldAlert } from 'lucide-react';
+import { UserPlus, Trash2, RefreshCw, ShieldAlert, AlertCircle, Users } from 'lucide-react';
 import { ROLE_LABELS, type SiteRole } from '@/types';
 
 interface SiteMember {
@@ -112,53 +112,66 @@ export default function SiteUserManager({ appId, currentUserId, maxUsers }: Site
   const seatsFull = maxUsers !== null && members.length >= maxUsers;
 
   return (
-    <div className="row g-3">
+    <div className="row g-3 align-items-start">
       <div className="col-12 col-lg-5">
-        <section className="card border-0 shadow-sm rounded-3">
-          <div className="card-header bg-white border-bottom py-3 px-4">
-            <h2 className="h6 fw-bold mb-0 d-flex align-items-center gap-2">
-              <UserPlus size={18} className="text-primary" /> เพิ่มผู้ใช้
+        <section className="adm-card">
+          <div className="adm-card-head">
+            <h2 className="adm-card-title">
+              <UserPlus size={17} aria-hidden="true" /> เพิ่มผู้ใช้
             </h2>
           </div>
-          <form className="card-body p-4" onSubmit={submit}>
+          <form className="p-3" onSubmit={submit}>
             {seatsFull && (
-              <div className="alert alert-warning border-0 small rounded-3 d-flex align-items-center gap-2">
-                <ShieldAlert size={15} /> ใช้สิทธิ์ครบ {maxUsers} คนแล้ว
+              <div className="adm-alert is-warn mb-3">
+                <ShieldAlert size={16} className="flex-shrink-0 mt-1" aria-hidden="true" />
+                <span>ใช้สิทธิ์ครบ {maxUsers} คนแล้ว หากต้องการเพิ่มโควตา กรุณาติดต่อผู้ให้บริการ</span>
               </div>
             )}
 
             <div className="mb-3">
-              <label htmlFor="memberEmail" className="form-label small fw-semibold">อีเมล</label>
-              <input id="memberEmail" type="email" className="form-control" value={email}
-                     onChange={(event) => setEmail(event.target.value)} required />
-              <div className="form-text">ถ้ามีบัญชีอยู่แล้วจะเพิ่มเข้าหน่วยงานนี้ทันที</div>
+              <label htmlFor="memberEmail" className="adm-label d-block">อีเมล</label>
+              <input
+                id="memberEmail" type="email" className="adm-input" value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="somchai@example.go.th" required
+              />
+              <p className="adm-help">ถ้ามีบัญชีอยู่แล้วจะเพิ่มเข้าหน่วยงานนี้ทันที</p>
             </div>
 
             <div className="mb-3">
-              <label htmlFor="memberName" className="form-label small fw-semibold">ชื่อ-นามสกุล</label>
-              <input id="memberName" className="form-control" value={fullName}
-                     onChange={(event) => setFullName(event.target.value)} />
+              <label htmlFor="memberName" className="adm-label d-block">ชื่อ-นามสกุล</label>
+              <input
+                id="memberName" className="adm-input" value={fullName}
+                onChange={(event) => setFullName(event.target.value)}
+                placeholder="สมชาย ใจดี"
+              />
             </div>
 
             <div className="mb-3">
-              <label htmlFor="memberPassword" className="form-label small fw-semibold">
-                รหัสผ่านเริ่มต้น (เฉพาะผู้ใช้ใหม่)
-              </label>
-              <input id="memberPassword" type="password" className="form-control" value={password}
-                     onChange={(event) => setPassword(event.target.value)} minLength={8} />
+              <label htmlFor="memberPassword" className="adm-label d-block">รหัสผ่านเริ่มต้น</label>
+              <input
+                id="memberPassword" type="password" className="adm-input" value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="อย่างน้อย 8 ตัวอักษร" minLength={8}
+              />
+              <p className="adm-help">
+                กรอกเฉพาะเมื่อเป็นผู้ใช้ใหม่ — ระบบจะบังคับให้ตั้งรหัสใหม่เมื่อเข้าสู่ระบบครั้งแรก
+              </p>
             </div>
 
             <div className="mb-3">
-              <label htmlFor="memberRole" className="form-label small fw-semibold">สิทธิ์</label>
-              <select id="memberRole" className="form-select" value={siteRole}
-                      onChange={(event) => setSiteRole(event.target.value as SiteRole)}>
+              <label htmlFor="memberRole" className="adm-label d-block">สิทธิ์</label>
+              <select
+                id="memberRole" className="adm-select" value={siteRole}
+                onChange={(event) => setSiteRole(event.target.value as SiteRole)}
+              >
                 {ROLE_OPTIONS.map((role) => (
-                  <option key={role} value={role}>{role} — {ROLE_LABELS[role]}</option>
+                  <option key={role} value={role}>{ROLE_LABELS[role]}</option>
                 ))}
               </select>
             </div>
 
-            <button type="submit" className="btn btn-primary w-100" disabled={busy || seatsFull}>
+            <button type="submit" className="adm-btn w-100" disabled={busy || seatsFull}>
               {busy ? 'กำลังบันทึก…' : 'เพิ่มผู้ใช้'}
             </button>
           </form>
@@ -166,70 +179,91 @@ export default function SiteUserManager({ appId, currentUserId, maxUsers }: Site
       </div>
 
       <div className="col-12 col-lg-7">
-        <section className="card border-0 shadow-sm rounded-3">
-          <div className="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
-            <h2 className="h6 fw-bold mb-0">
+        <section className="adm-card">
+          <div className="adm-card-head">
+            <h2 className="adm-card-title">
               ผู้ใช้ในหน่วยงาน ({members.length}{maxUsers ? ` / ${maxUsers}` : ''})
             </h2>
-            <button type="button" className="btn btn-sm btn-outline-secondary"
-                    onClick={() => void load()} disabled={loading}>
-              <RefreshCw size={14} className={loading ? 'spin' : ''} />
+            <button
+              type="button" className="adm-btn is-quiet is-sm"
+              onClick={() => void load()} disabled={loading} aria-label="โหลดรายชื่อใหม่"
+            >
+              <RefreshCw size={14} className={loading ? 'adm-spin' : ''} aria-hidden="true" />
             </button>
           </div>
-          <div className="card-body p-0">
-            {error && <div className="alert alert-danger border-0 rounded-0 mb-0 small">{error}</div>}
+
+          {error && (
+            <div className="p-3 pb-0">
+              <div className="adm-alert is-danger" role="alert">
+                <AlertCircle size={17} className="flex-shrink-0 mt-1" aria-hidden="true" />
+                <span>{error}</span>
+              </div>
+            </div>
+          )}
+
+          {members.length === 0 ? (
+            <div className="adm-empty">
+              <span className="adm-empty-icon"><Users size={22} aria-hidden="true" /></span>
+              <p className="adm-empty-title">ยังไม่มีผู้ใช้ในหน่วยงาน</p>
+              <p className="adm-empty-text">ใช้แบบฟอร์มด้านซ้ายเพื่อเพิ่มคนแรก</p>
+            </div>
+          ) : (
             <div className="table-responsive">
-              <table className="table align-middle mb-0">
-                <thead className="table-light">
+              <table className="adm-table">
+                <thead>
                   <tr>
-                    <th className="small ps-4">ผู้ใช้</th>
-                    <th className="small" style={{ width: '30%' }}>สิทธิ์</th>
-                    <th className="small text-end pe-4">จัดการ</th>
+                    <th scope="col">ผู้ใช้</th>
+                    <th scope="col" style={{ width: '32%' }}>สิทธิ์</th>
+                    <th scope="col" className="text-end">จัดการ</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {members.length === 0 && (
-                    <tr><td colSpan={3} className="text-center text-muted py-4 small">ยังไม่มีผู้ใช้</td></tr>
-                  )}
-                  {members.map((member) => (
-                    <tr key={member.id}>
-                      <td className="ps-4">
-                        <div className="fw-semibold small text-dark">{member.fullName || member.username}</div>
-                        <div className="extra-small text-secondary">{member.email}</div>
-                        {member.mustChangePassword && (
-                          <span className="badge bg-warning bg-opacity-25 text-warning-emphasis extra-small mt-1">
-                            ยังไม่เปลี่ยนรหัสผ่าน
+                  {members.map((member) => {
+                    const isSelf = member.id === currentUserId;
+                    return (
+                      <tr key={member.id}>
+                        <td>
+                          <span className="adm-cell-strong d-block">
+                            {member.fullName || member.username}
+                            {isSelf && <span className="adm-chip is-info ms-2">คุณ</span>}
                           </span>
-                        )}
-                      </td>
-                      <td>
-                        <select
-                          className="form-select form-select-sm"
-                          value={member.siteRole}
-                          disabled={busy || member.id === currentUserId}
-                          onChange={(event) => void changeRole(member.id, event.target.value as SiteRole)}
-                          aria-label={`สิทธิ์ของ ${member.email}`}
-                        >
-                          {ROLE_OPTIONS.map((role) => <option key={role} value={role}>{role}</option>)}
-                        </select>
-                      </td>
-                      <td className="text-end pe-4">
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-danger"
-                          disabled={busy || member.id === currentUserId}
-                          onClick={() => void remove(member)}
-                          aria-label={`ถอด ${member.email}`}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                          <span className="adm-cell-sub d-block">{member.email}</span>
+                          {member.mustChangePassword && (
+                            <span className="adm-chip is-warn mt-1">ยังไม่เปลี่ยนรหัสผ่าน</span>
+                          )}
+                        </td>
+                        <td>
+                          <select
+                            className="adm-select"
+                            value={member.siteRole}
+                            disabled={busy || isSelf}
+                            onChange={(event) => void changeRole(member.id, event.target.value as SiteRole)}
+                            aria-label={`สิทธิ์ของ ${member.email}`}
+                          >
+                            {ROLE_OPTIONS.map((role) => (
+                              <option key={role} value={role}>{ROLE_LABELS[role]}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="text-end">
+                          <button
+                            type="button"
+                            className="adm-btn is-danger is-sm"
+                            disabled={busy || isSelf}
+                            onClick={() => void remove(member)}
+                            title={isSelf ? 'ถอดตัวเองออกไม่ได้' : `ถอด ${member.email} ออกจากหน่วยงาน`}
+                          >
+                            <Trash2 size={13} aria-hidden="true" />
+                            <span className="d-none d-xl-inline">ถอดออก</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
-          </div>
+          )}
         </section>
       </div>
     </div>

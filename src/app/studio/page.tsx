@@ -137,7 +137,7 @@ export default function StudioPage() {
     themeConfig: {
       preset: 'modern-indigo',
       mode: 'light',
-      primaryColor: '#4f46e5',
+      primaryColor: '#0c58a9',
       borderRadius: '0.5rem',
       fontFamily: 'Anuphan, sans-serif',
     },

@@ -62,7 +62,7 @@ export const ComponentPropertyModal: React.FC<ComponentPropertyModalProps> = ({
         <div
           className="card-header border-bottom py-3 px-4 text-white d-flex align-items-center justify-content-between"
           style={{
-            background: 'linear-gradient(135deg, #1e1b4b 0%, #31104b 50%, #4c1d95 100%)',
+            background: 'linear-gradient(135deg, #0C58A9 0%, #083A6E 60%, #0B1F3A 100%)',
           }}
         >
           <div className="d-flex align-items-center gap-2.5">
@@ -75,7 +75,7 @@ export const ComponentPropertyModal: React.FC<ComponentPropertyModalProps> = ({
             <div>
               <div className="d-flex align-items-center gap-2">
                 <span className="badge bg-white bg-opacity-20 text-white extra-small">
-                  Component Inspector
+                  รายละเอียดส่วนประกอบ
                 </span>
                 {saveSuccess && (
                   <span className="badge bg-success text-white extra-small d-flex align-items-center gap-1">

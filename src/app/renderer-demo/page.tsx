@@ -108,7 +108,7 @@ export default function RendererDemoPage() {
   };
 
   return (
-    <div className="min-vh-100 bg-light py-4">
+    <div className=" py-4">
       <div className="container">
         {/* Top Control Bar */}
         <div className="card shadow-sm border-0 p-3 mb-4 bg-white">

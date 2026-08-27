@@ -5,6 +5,7 @@ import StatWidgetCard from '@/components/admin/StatWidgetCard';
 import { getCurrentUser } from '@/lib/auth/authActions';
 import { getCoreDb } from '@/lib/db/coreDb';
 import { fetchPlatformAudit } from '@/lib/engine/AuditLogService';
+import { auditActionLabel, auditActionTone } from '@/lib/admin/auditLabels';
 
 export const dynamic = 'force-dynamic';
 
@@ -105,16 +106,6 @@ const relativeTime = (iso: string) => {
   const hours = Math.round(minutes / 60);
   if (hours < 24) return `${hours} ชั่วโมงที่แล้ว`;
   return `${Math.round(hours / 24)} วันที่แล้ว`;
-};
-
-/** Audit actions are stored as codes; operators should read words. */
-const ACTION_LABELS: Record<string, string> = {
-  LOGIN: 'เข้าสู่ระบบ',
-  LOGOUT: 'ออกจากระบบ',
-  CHANGE_PASSWORD: 'เปลี่ยนรหัสผ่าน',
-  CREATE: 'เพิ่มข้อมูล',
-  UPDATE: 'แก้ไขข้อมูล',
-  DELETE: 'ลบข้อมูล',
 };
 
 export default async function AdminDashboardPage() {
@@ -320,8 +311,8 @@ export default async function AdminDashboardPage() {
                       <History size={14} />
                     </span>
                     <span className="min-w-0 flex-grow-1">
-                      <span className="adm-chip is-info float-end ms-2">
-                        {ACTION_LABELS[log.action] ?? log.action}
+                      <span className={`adm-chip ${auditActionTone(log.action)} float-end ms-2`}>
+                        {auditActionLabel(log.action)}
                       </span>
                       <span className="adm-feed-text d-block">{log.changesSummary}</span>
                       <span className="adm-feed-meta">
