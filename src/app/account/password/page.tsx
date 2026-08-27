@@ -21,8 +21,8 @@ export default async function ChangePasswordPage() {
   if (!user) redirect('/login?redirect=/account/password');
 
   return (
-    <main className="min-vh-100 d-flex align-items-center justify-content-center bg-light px-3">
-      <div className="w-100" style={{ maxWidth: 460 }}>
+    <main className="auth-shell min-vh-100 d-flex align-items-center justify-content-center p-3 p-sm-4">
+      <div className="w-100" style={{ maxWidth: '28rem' }}>
         <ChangePasswordForm
           fullName={user.fullName || user.username || user.email}
           required={user.mustChangePassword ?? false}

@@ -248,3 +248,53 @@ code, kbd, pre, samp {
 @media (prefers-reduced-motion: reduce) {
   .auth-spin { animation: none; }
 }
+
+/* --- Change-password screen ------------------------------------------------ */
+.auth-notice {
+  font-size: 0.86rem;
+  line-height: 1.7;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.65rem;
+  color: #7a5200;
+  background: #fff7c2;
+  border: 1px solid #f2d98a;
+}
+
+.auth-divider { margin: 1.5rem 0; border-color: var(--auth-border); opacity: 1; }
+
+/* Four segments rather than a percentage bar: the score is coarse, and a
+   precise-looking bar would overstate how much is being measured. */
+.auth-strength-track { display: flex; gap: 0.3rem; margin-bottom: 0.35rem; }
+.auth-strength-track span {
+  flex: 1;
+  height: 0.3rem;
+  border-radius: 999px;
+  background: #e6ebf2;
+  transition: background-color 0.18s ease;
+}
+.tone-weak   span.is-on { background: #d91113; }
+.tone-fair   span.is-on { background: #e08a00; }
+.tone-good   span.is-on { background: #0c8a4a; }
+.tone-strong span.is-on { background: #0a6b3a; }
+
+.auth-strength-label { font-size: 0.78rem; font-weight: 600; }
+.auth-strength-label.tone-weak   { color: #b0181a; }
+.auth-strength-label.tone-fair   { color: #a86a00; }
+.auth-strength-label.tone-good,
+.auth-strength-label.tone-strong { color: #0a6b3a; }
+
+.auth-rules { display: flex; flex-direction: column; gap: 0.45rem; }
+.auth-rules li {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+  color: #6b7686;
+}
+.auth-rules li svg { color: #b6bfcc; flex-shrink: 0; }
+.auth-rules li.is-met { color: #0a6b3a; }
+.auth-rules li.is-met svg { color: #0c8a4a; }
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-strength-track span { transition: none; }
+}

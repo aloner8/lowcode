@@ -131,15 +131,24 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
 export async function changePasswordAction(
   _prevState: unknown,
   formData: FormData,
-): Promise<{ error?: string; success?: string }> {
+): Promise<{ error?: string }> {
   const currentPassword = formData.get('currentPassword')?.toString() ?? '';
   const newPassword = formData.get('newPassword')?.toString() ?? '';
   const confirmPassword = formData.get('confirmPassword')?.toString() ?? '';
 
   const user = await getCurrentUser();
-  if (!user) return { error: 'กรุณาเข้าสู่ระบบใหม่' };
+  if (!user) {
+    // The session can lapse between rendering this form and submitting it —
+    // an expiry, a sign-out elsewhere, or a rotated AUTH_SECRET. Showing an
+    // error here would leave the user on a page they can no longer use, so
+    // send them to sign in and come straight back.
+    const cookieStore = await cookies();
+    cookieStore.delete(SESSION_COOKIE);
+    redirect('/login?redirect=%2Faccount%2Fpassword&reason=expired');
+  }
   if (newPassword.length < 8) return { error: 'รหัสผ่านใหม่ต้องยาวอย่างน้อย 8 ตัวอักษร' };
   if (newPassword !== confirmPassword) return { error: 'รหัสผ่านใหม่และการยืนยันไม่ตรงกัน' };
+  if (newPassword === currentPassword) return { error: 'รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านเดิม' };
 
   try {
     const verified = await getCoreDb().query(
@@ -175,5 +184,5 @@ export async function changePasswordAction(
     changesSummary: `ผู้ใช้ ${user.username ?? user.email} เปลี่ยนรหัสผ่าน`,
   });
 
-  return { success: 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว' };
+  redirect('/admin?passwordChanged=1');
 }
