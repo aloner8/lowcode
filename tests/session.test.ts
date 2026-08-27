@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { signSession, verifySession } from '@/lib/auth/session';
+import { sessionCookieOptionsFor, signSession, verifySession } from '@/lib/auth/session';
 
 const payload = {
   sub: '11111111-1111-1111-1111-111111111111',
@@ -55,5 +55,39 @@ describe('session cookie', () => {
     const verified = await verifySession(token);
     process.env.AUTH_SECRET = 'a'.repeat(48);
     expect(verified).toBeNull();
+  });
+});
+
+describe('sessionCookieOptionsFor', () => {
+  const headers = (values: Record<string, string>) => ({
+    get: (name: string) => values[name.toLowerCase()] ?? null,
+  });
+
+  it('omits Secure over plain http, so the browser stores the cookie', () => {
+    expect(sessionCookieOptionsFor(headers({ host: 'localhost:33000' })).secure).toBe(false);
+  });
+
+  it('sets Secure when a proxy reports https', () => {
+    expect(sessionCookieOptionsFor(headers({
+      'x-forwarded-proto': 'https',
+      host: 'example.go.th',
+    })).secure).toBe(true);
+  });
+
+  it('reads only the first hop of a forwarded proto chain', () => {
+    expect(sessionCookieOptionsFor(headers({ 'x-forwarded-proto': 'https, http' })).secure).toBe(true);
+    expect(sessionCookieOptionsFor(headers({ 'x-forwarded-proto': 'http, https' })).secure).toBe(false);
+  });
+
+  it('falls back to the request origin when no proxy header is present', () => {
+    expect(sessionCookieOptionsFor(headers({ origin: 'https://example.go.th' })).secure).toBe(true);
+    expect(sessionCookieOptionsFor(headers({ origin: 'http://localhost:33000' })).secure).toBe(false);
+  });
+
+  it('always keeps the cookie httpOnly, lax and rooted at /', () => {
+    const options = sessionCookieOptionsFor(headers({}));
+    expect(options.httpOnly).toBe(true);
+    expect(options.sameSite).toBe('lax');
+    expect(options.path).toBe('/');
   });
 });

@@ -1,10 +1,10 @@
 'use server';
 
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getCoreDb } from '@/lib/db/coreDb';
 import { recordPlatformAudit } from '@/lib/engine/AuditLogService';
-import { SESSION_COOKIE, sessionCookieOptions, signSession, verifySession } from '@/lib/auth/session';
+import { SESSION_COOKIE, sessionCookieOptionsFor, signSession, verifySession } from '@/lib/auth/session';
 import { rateLimitHit, rateLimitReset } from '@/lib/security/rateLimit';
 import { GlobalRole, UserProfile } from '@/types';
 
@@ -82,7 +82,7 @@ export async function loginAction(_prevState: unknown, formData: FormData): Prom
   });
 
   const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, token, sessionCookieOptions);
+  cookieStore.set(SESSION_COOKIE, token, sessionCookieOptionsFor(await headers()));
 
   await recordPlatformAudit({
     action: 'LOGIN',
@@ -177,7 +177,7 @@ export async function changePasswordAction(
     mustChangePassword: false,
   });
   const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, refreshed, sessionCookieOptions);
+  cookieStore.set(SESSION_COOKIE, refreshed, sessionCookieOptionsFor(await headers()));
 
   await recordPlatformAudit({
     action: 'CHANGE_PASSWORD',

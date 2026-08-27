@@ -136,10 +136,31 @@ export async function verifySession(token: string | undefined | null): Promise<S
   }
 }
 
-export const sessionCookieOptions = {
+const BASE_COOKIE_OPTIONS = {
   httpOnly: true,
   sameSite: 'lax',
-  secure: process.env.NODE_ENV === 'production',
   path: '/',
   maxAge: SESSION_MAX_AGE_SECONDS,
 } as const;
+
+/**
+ * Cookie attributes for the current request.
+ *
+ * `Secure` must reflect the scheme the browser actually used, not NODE_ENV. A
+ * production build served over plain http — which is how the compose stack is
+ * exposed locally — would otherwise set a Secure cookie that Safari refuses to
+ * store: sign-in appears to succeed, the browser keeps no session, and every
+ * page bounces back to the login form.
+ *
+ * Behind a proxy the scheme arrives in `x-forwarded-proto`.
+ */
+export function sessionCookieOptionsFor(headers: {
+  get(name: string): string | null;
+}): typeof BASE_COOKIE_OPTIONS & { secure: boolean } {
+  const forwardedProto = headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
+  const isHttps = forwardedProto
+    ? forwardedProto === 'https'
+    : /^https:/i.test(headers.get('origin') ?? headers.get('referer') ?? '');
+
+  return { ...BASE_COOKIE_OPTIONS, secure: isHttps };
+}
