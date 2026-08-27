@@ -1040,17 +1040,42 @@ const PAGES = [
       }),
 
       /* 11 · ประกาศจัดซื้อจัดจ้างจากระบบ e-GP */
-      linkGrid('egp', {
-        title: 'ประกาศจัดซื้อจัดจ้างจากระบบ e-GP',
-        subtitle: 'ข้อมูลจากระบบจัดซื้อจัดจ้างภาครัฐ กรมบัญชีกลาง',
-        band: 'formal',
-        columns: 3,
-        items: [
-          { label: 'ประกาศเชิญชวน', description: 'ประกวดราคาและสอบราคา', icon: 'procurement', href: 'https://process.gprocurement.go.th', external: true },
-          { label: 'ประกาศราคากลาง', description: 'ราคากลางและการคำนวณ', icon: 'budget', href: 'https://process.gprocurement.go.th', external: true },
-          { label: 'ประกาศผลผู้ชนะ', description: 'ผลการจัดซื้อจัดจ้างรายไตรมาส', icon: 'documents', href: 'https://process.gprocurement.go.th', external: true },
-        ],
-      }),
+      {
+        id: 'egp',
+        type: 'TabbedSectionComponent',
+        props: {
+          stylePreset: 'gov-band-formal',
+          title: 'ประกาศจัดซื้อจัดจ้างจากระบบ e-GP',
+          subtitle: 'ข้อมูลจากระบบจัดซื้อจัดจ้างภาครัฐ กรมบัญชีกลาง',
+          tabs: [
+            {
+              label: 'ประกาศเชิญชวน',
+              emptyText: 'ยังไม่มีประกาศเชิญชวนในขณะนี้',
+              items: [
+                { label: 'ประกวดราคาจ้างก่อสร้างถนนคอนกรีตเสริมเหล็ก สายบ้านตัวอย่าง – บ้านหนองแสง', description: 'ด้วยวิธีประกวดราคาอิเล็กทรอนิกส์ (e-bidding)', date: '25 ส.ค. 2569', href: 'https://process.gprocurement.go.th', external: true },
+                { label: 'ประกวดราคาจ้างก่อสร้างรางระบายน้ำคอนกรีตเสริมเหล็ก หมู่ที่ 7', description: 'ด้วยวิธีประกวดราคาอิเล็กทรอนิกส์ (e-bidding)', date: '19 ส.ค. 2569', href: 'https://process.gprocurement.go.th', external: true },
+                { label: 'สอบราคาจ้างเหมาบริการดูแลรักษาความสะอาดอาคารสำนักงาน', description: 'โดยวิธีเฉพาะเจาะจง', date: '11 ส.ค. 2569', href: 'https://process.gprocurement.go.th', external: true },
+              ],
+            },
+            {
+              label: 'ประกาศราคากลาง',
+              emptyText: 'ยังไม่มีประกาศราคากลางในขณะนี้',
+              items: [
+                { label: 'ราคากลางงานปรับปรุงระบบประปาหมู่บ้าน หมู่ที่ 3', description: 'ตามแบบ ปร.4 และ ปร.5', date: '16 ส.ค. 2569', href: 'https://process.gprocurement.go.th', external: true },
+                { label: 'ราคากลางงานจัดซื้อครุภัณฑ์คอมพิวเตอร์ สำนักปลัดเทศบาล', description: 'ตามเกณฑ์ราคากลางของกระทรวงดิจิทัลฯ', date: '28 ก.ค. 2569', href: 'https://process.gprocurement.go.th', external: true },
+              ],
+            },
+            {
+              label: 'ประกาศผลผู้ชนะ',
+              emptyText: 'ยังไม่มีประกาศผลผู้ชนะในขณะนี้',
+              items: [
+                { label: 'ผลผู้ชนะการเสนอราคา จ้างเหมาปรับปรุงถนนคอนกรีตเสริมเหล็ก หมู่ที่ 5', date: '23 ส.ค. 2569', href: 'https://process.gprocurement.go.th', external: true },
+                { label: 'ผลผู้ชนะการจัดซื้อจัดจ้างรายไตรมาสที่ 3 ปีงบประมาณ 2569', description: 'สรุปรายไตรมาสตามระเบียบพัสดุ', date: '15 ก.ค. 2569', href: 'https://process.gprocurement.go.th', external: true },
+              ],
+            },
+          ],
+        },
+      },
 
       /* 12 · วิดีโอแนะนำหน่วยงาน */
       {

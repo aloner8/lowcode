@@ -58,6 +58,7 @@ export const SHARED_COMPONENT_PROPERTY_REGISTRY: Record<ComponentType, SharedCom
   FloatingNoticeComponent: definition('FloatingNoticeComponent', 'Floating Notice Properties', 'การ์ดช่องทางร้องเรียนลอยด้านข้าง', [data(field('items','รายการช่องทาง','json'))]),
   EventCalendarComponent: definition('EventCalendarComponent', 'Calendar Properties', 'ปฏิทินกิจกรรมรายเดือน', [content(field('title','หัวข้อ'), field('subtitle','คำอธิบาย'), field('emptyText','ข้อความเมื่อไม่มีกิจกรรม')), data(field('dataSource','แหล่งข้อมูล','json'), field('items','รายการกิจกรรม','json'))]),
   VisitCounterComponent: definition('VisitCounterComponent', 'Visit Counter Properties', 'สถิติผู้เข้าชม นับด้วยระบบเอง ไม่ส่งข้อมูลออกภายนอก', [content(field('title','หัวข้อ')), behavior(field('appSlug','เว็บไซต์ที่นับ'))]),
+  TabbedSectionComponent: definition('TabbedSectionComponent', 'Tabbed Section Properties', 'กลุ่มประกาศแบบแท็บ เช่น ประกาศจากระบบ e-GP', [content(field('title','หัวข้อ'), field('subtitle','คำอธิบาย')), data(field('tabs','แท็บและรายการ','json'))]),
 };
 
 export const getSharedComponentPropertyDefinition = (type: ComponentType) => SHARED_COMPONENT_PROPERTY_REGISTRY[type];

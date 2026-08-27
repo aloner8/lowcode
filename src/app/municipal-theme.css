@@ -1735,3 +1735,91 @@ body { top: 0 !important; }
 }
 .gov-visit-list dt { font-size: 0.82rem; color: rgba(255, 255, 255, 0.75); font-weight: 400; }
 .gov-visit-list dd { margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--gov-gold, #ffd700); }
+
+/* --- Tabbed announcements -------------------------------------------------------
+   Every panel is in the HTML and only hidden, so the whole set is
+   server-rendered and reachable by search. */
+.gov-tablist {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  border-bottom: 2px solid rgba(var(--gov-primary-rgb, 217, 17, 19), 0.15);
+  margin-bottom: 1rem;
+}
+.gov-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  padding-inline: 1rem;
+  border: 0;
+  border-radius: 0.6rem 0.6rem 0 0;
+  background: transparent;
+  color: var(--gov-muted, #5a6473);
+  font-size: 0.9rem;
+  font-weight: 600;
+  position: relative;
+  bottom: -2px;
+}
+.gov-tab:hover { background: var(--gov-primary-soft, #fdeaea); color: var(--gov-primary-dark, #8d0b0c); }
+.gov-tab:focus-visible { outline: 2px solid var(--gov-primary, #d91113); outline-offset: -2px; }
+.gov-tab.is-active {
+  color: var(--gov-primary-dark, #8d0b0c);
+  background: #fff;
+  border: 2px solid rgba(var(--gov-primary-rgb, 217, 17, 19), 0.15);
+  border-bottom-color: #fff;
+}
+.gov-tab-count {
+  min-width: 1.4rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  color: var(--gov-on-gold, #3a2a00);
+  background: var(--gov-gold, #ffd700);
+}
+
+.gov-tab-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.gov-tab-list a {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.7rem;
+  background: #fff;
+  border: 1px solid rgba(var(--gov-secondary-rgb, 6, 59, 122), 0.10);
+  color: var(--gov-ink, #26303c);
+  text-decoration: none;
+}
+.gov-tab-list a:hover {
+  color: var(--gov-primary-dark, #8d0b0c);
+  border-color: rgba(var(--gov-primary-rgb, 217, 17, 19), 0.32);
+  box-shadow: 0 8px 22px rgba(var(--gov-secondary-rgb, 6, 59, 122), 0.08);
+}
+.gov-tab-list a:focus-visible { outline: 2px solid var(--gov-primary, #d91113); outline-offset: 2px; }
+.gov-tab-item-text { flex: 1; min-width: 0; }
+.gov-tab-item-label { display: block; font-size: 0.9rem; font-weight: 600; line-height: 1.6; }
+.gov-tab-item-note { display: block; font-size: 0.78rem; color: var(--gov-muted, #5a6473); }
+.gov-tab-item-date { font-size: 0.78rem; color: var(--gov-muted-soft, #8d98a8); white-space: nowrap; }
+
+/* On the dark band the panels keep the band's colour rather than punching holes. */
+.municipal-page .gov-band-formal .gov-tablist { border-bottom-color: rgba(255, 255, 255, 0.25); }
+.municipal-page .gov-band-formal .gov-tab { color: rgba(255, 255, 255, 0.75); }
+.municipal-page .gov-band-formal .gov-tab:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+.municipal-page .gov-band-formal .gov-tab.is-active {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  border-bottom-color: transparent;
+}
+.municipal-page .gov-band-formal .gov-tab-list a {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.20);
+}
+.municipal-page .gov-band-formal .gov-tab-list a:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+  border-color: var(--gov-gold, #ffd700);
+}
+.municipal-page .gov-band-formal .gov-tab-item-note,
+.municipal-page .gov-band-formal .gov-tab-item-date { color: rgba(255, 255, 255, 0.7); }

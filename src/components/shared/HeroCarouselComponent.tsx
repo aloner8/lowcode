@@ -111,13 +111,17 @@ export const HeroCarouselComponent: React.FC<HeroCarouselComponentProps> = ({
             >
               {paused ? <Play size={13} aria-hidden="true" /> : <Pause size={13} aria-hidden="true" />}
             </button>
-            <div className="gov-hero-dots" role="tablist" aria-label="เลือกภาพ">
+            {/*
+              * Plain buttons, not tabs: these switch a picture, they do not
+              * reveal a panel, and announcing them as tabs put them in the same
+              * keyboard group as the real tab strips further down the page.
+              */}
+            <div className="gov-hero-dots" role="group" aria-label="เลือกภาพ">
               {slides.map((item, dot) => (
                 <button
                   key={`${item.title ?? 'slide'}-${dot}`}
                   type="button"
-                  role="tab"
-                  aria-selected={dot === index}
+                  aria-current={dot === index ? 'true' : undefined}
                   aria-label={`ภาพที่ ${dot + 1} จาก ${count}`}
                   className={`gov-hero-dot ${dot === index ? 'is-active' : ''}`}
                   onClick={() => go(dot)}

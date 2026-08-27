@@ -39,3 +39,4 @@ export * from './LanguageSwitchComponent';
 export * from './FloatingNoticeComponent';
 export * from './EventCalendarComponent';
 export * from './VisitCounterComponent';
+export * from './TabbedSectionComponent';

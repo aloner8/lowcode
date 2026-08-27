@@ -41,7 +41,8 @@ export type ComponentType =
   | 'LanguageSwitchComponent'
   | 'FloatingNoticeComponent'
   | 'EventCalendarComponent'
-  | 'VisitCounterComponent';
+  | 'VisitCounterComponent'
+  | 'TabbedSectionComponent';
 
 export type ThemePreset =
   | 'thai-municipal'
