@@ -29,6 +29,8 @@
 
 ## สารบัญ
 
+- [หลักการทำงาน](#หลักการทำงาน)
+- [แผนผังการทำงาน](#แผนผังการทำงาน)
 - [แบรนด์และไอคอน](#แบรนด์และไอคอน)
 - [Tech Stack](#tech-stack)
 - [เริ่มต้นใช้งาน](#เริ่มต้นใช้งาน)
@@ -44,9 +46,137 @@
 - [Shared Component Library](#shared-component-library)
 - [Studio Workflow](#studio-workflow)
 - [คำสั่งที่ใช้บ่อย](#คำสั่งที่ใช้บ่อย)
+- [คู่มือการใช้งาน](#คู่มือการใช้งาน)
 - [เอกสารออกแบบ](#เอกสารออกแบบ)
 - [สิ่งที่ยังไม่ได้ทำ](#สิ่งที่ยังไม่ได้ทำ)
 - [Troubleshooting](#troubleshooting)
+
+---
+
+## หลักการทำงาน
+
+ระบบตั้งอยู่บนหลัก 5 ข้อ ทุกอย่างที่เหลือเป็นผลจากห้าข้อนี้
+
+### 1. ฐานข้อมูลคือแหล่งความจริง
+
+หน้าเว็บ ธีม ฟอร์ม เมนู และ Flow ไม่ได้อยู่ในโค้ด แต่เก็บเป็น **JSON AST** ในฐานข้อมูล
+การแก้เว็บของหน่วยงานจึงไม่ต้อง deploy ใหม่ และย้อนดูประวัติได้จาก `platform_audit_logs`
+
+### 2. แม่พิมพ์กับสำเนา แยกจากกัน
+
+**Platform Master** คือแม่พิมพ์ (เช่น "เว็บ อบต.") ส่วน **Site** คือเว็บของหน่วยงานจริงที่แตกออกมา
+Site สืบทอดทุกอย่างจากแม่พิมพ์ แล้วทับเฉพาะส่วนที่ต่าง (`tenant_overrides`) — แก้แม่พิมพ์ครั้งเดียวมีผลกับทุก Site
+ที่ไม่ได้ override ไว้
+
+### 3. แยก tenant ทุกชั้น
+
+แต่ละ Site มี **ฐานข้อมูลของตัวเอง** (`app_db_<slug>`) และ **โฟลเดอร์ไฟล์ของตัวเอง**
+(`<TENANT_STORAGE_ROOT>/<tenantDbName>`) ข้อมูลธุรกิจและไฟล์ไม่เคยอยู่ใน Core DB
+Core DB เก็บเฉพาะ blueprint ผู้ใช้ และทะเบียน Site
+
+### 4. หนึ่ง Site หนึ่งโปรเซส
+
+`scripts/run-sites.mjs` อ่านทะเบียนแล้วเปิด Next.js หนึ่งโปรเซสต่อหนึ่ง Site
+แต่ละตัวผูกพอร์ตและโดเมนของตัวเอง — Site หนึ่งล่มไม่กระทบตัวอื่น และขยายเครื่องได้ตามจำนวน Site
+
+### 5. ปฏิเสธก่อนเสมอ
+
+ทุก API ตรวจสิทธิ์ก่อนทำงาน · ตารางที่ผู้เข้าชมสาธารณะแตะได้ต้องอยู่ใน allow-list ที่ประกาศไว้ ·
+HTML จากฐานข้อมูลผ่าน sanitizer ก่อน render · compose ไม่สตาร์ทถ้าไม่มี secret
+
+---
+
+## แผนผังการทำงาน
+
+### ภาพรวม: จากแม่พิมพ์ถึงเว็บที่เผยแพร่
+
+```mermaid
+flowchart TD
+    GOD([GOD<br/>หนุมานไอที]) -->|1. สร้างแม่พิมพ์| PM[Platform Master<br/>blueprint]
+    PM -->|2. ออกแบบใน Studio| AST[(JSON AST<br/>pages / forms / flows)]
+    AST -->|3. Publish Database| TDB[(Tenant DB<br/>ตารางเนื้อหา)]
+    AST -->|4. Build Runtime| SNAP[(runtime_snapshot)]
+    GOD -->|5. Provision Site| SITE[Tenant App<br/>slug + port + domain]
+    PM -.สืบทอด.-> SITE
+    SITE -->|6. ธีม / SEO / โดเมน| CFG[tenant_overrides<br/>theme_config · seo_settings]
+    SNAP --> RUN
+    CFG --> RUN
+    TDB --> RUN[Site process<br/>:33001]
+    RUN -->|SSR| WEB([ผู้เข้าชมเว็บ])
+```
+
+### คำขอหนึ่งครั้งเดินทางอย่างไร
+
+```mermaid
+flowchart TD
+    REQ([HTTP request]) --> PROXY{proxy.ts}
+    PROXY -->|SITE_SLUG ตั้งไว้| SITEP{เป็นเส้นทาง<br/>control plane?}
+    SITEP -->|ใช่| B404[404]
+    SITEP -->|ไม่ใช่| RW["rewrite → /app/&lt;slug&gt;"]
+    RW --> SSR[Server Component<br/>อ่าน DB ตรง]
+    SSR --> BIND[ผูกข้อมูล<br/>ข่าว/ประกาศ ลง HTML]
+    BIND --> META[metadata + JSON-LD]
+    META --> HTML([HTML พร้อมเนื้อหา<br/>crawler อ่านได้ทันที])
+
+    PROXY -->|control plane| SESS{มี session<br/>ที่เซ็นถูกต้อง?}
+    SESS -->|ไม่มี| LOGIN[redirect → /login]
+    SESS -->|มี| PW{ยังใช้รหัส<br/>เริ่มต้น?}
+    PW -->|ใช่| CPW[redirect → /account/password]
+    PW -->|ไม่| ROLE{สิทธิ์พอ?}
+    ROLE -->|ไม่พอ| DENY[403]
+    ROLE -->|พอ| OK([ทำงานตามคำขอ])
+```
+
+### การตรวจสิทธิ์ของ API
+
+```mermaid
+flowchart TD
+    A([เรียก /api/...]) --> B{cookie ผ่าน<br/>HMAC?}
+    B -->|ไม่| E401[401]
+    B -->|ผ่าน| C[อ่าน role + สถานะ<br/>จากฐานข้อมูลใหม่]
+    C --> D{บัญชียังใช้งานได้?}
+    D -->|ไม่| E401
+    D -->|ได้| F{ต้องเปลี่ยน<br/>รหัสผ่าน?}
+    F -->|ใช่| E403A["403 + redirect hint"]
+    F -->|ไม่| G{GOD?}
+    G -->|ใช่| PASS([อนุญาต])
+    G -->|ไม่| H{มีสิทธิ์บน<br/>Site/Platform นี้?}
+    H -->|ไม่มี| E403B[403]
+    H -->|มี| I{ระดับสิทธิ์<br/>ถึงเกณฑ์?}
+    I -->|ไม่ถึง| E403B
+    I -->|ถึง| PASS
+```
+
+> cookie บอกแค่ว่า "เป็นใคร" — **สิทธิ์และสถานะอ่านจากฐานข้อมูลใหม่ทุกครั้ง**
+> บัญชีที่ถูกลดสิทธิ์หรือปิดใช้งานจึงหมดสิทธิ์ทันที ไม่ต้องรอ cookie หมดอายุ
+
+### ผู้เข้าชมส่งฟอร์ม
+
+```mermaid
+sequenceDiagram
+    participant V as ผู้เข้าชม
+    participant S as Site process
+    participant R as Rate limiter
+    participant P as public_data_access
+    participant T as Tenant DB
+
+    V->>S: POST /api/runtime/{slug}/records/{table}
+    S->>R: นับตาม IP + ตาราง
+    alt เกินโควตา
+        R-->>V: 429 + Retry-After
+    else ยังไม่เกิน
+        S->>P: ตารางนี้อยู่ใน insertable ไหม
+        alt ไม่อยู่
+            P-->>V: 403
+        else อยู่
+            S->>T: INSERT (ตรวจคอลัมน์กับ information_schema)
+            T-->>V: 201 + บันทึก audit log
+        end
+    end
+```
+
+> ผู้เข้าชมสาธารณะ **เพิ่มข้อมูลได้อย่างเดียว** และเฉพาะตารางที่ประกาศไว้
+> ไม่มีเส้นทางใดให้แก้หรือลบข้อมูลโดยไม่ล็อกอิน
 
 ---
 
@@ -541,6 +671,20 @@ master theme (Platform)  →  theme ของ Site (apps.theme_config)  →  ten
 | `npm test` / `test:watch` | Vitest |
 
 CI ที่ [.github/workflows/ci.yml](.github/workflows/ci.yml) รัน migration → typecheck → lint → test → build
+
+---
+
+## คู่มือการใช้งาน
+
+คู่มือแยกตามบทบาทอยู่ใน [manual/](manual/) — เขียนสำหรับผู้ใช้งาน ไม่ใช่ผู้พัฒนา
+
+| คู่มือ | สำหรับ |
+|---|---|
+| [manual/README.md](manual/README.md) | สารบัญ + ตารางสิทธิ์ + การเข้าใช้ครั้งแรก |
+| [01-god.md](manual/01-god.md) | **GOD** — เปิดเว็บใหม่ แพ็กเกจ ความปลอดภัย rate limit |
+| [02-admin.md](manual/02-admin.md) | **ADMIN** — ผู้ใช้ในหน่วยงาน ธีม SEO โดเมน วันหมดอายุ |
+| [03-staff.md](manual/03-staff.md) | **STAFF** — เพิ่มข่าว แก้ไขหน้าเว็บ |
+| [04-troubleshooting.md](manual/04-troubleshooting.md) | แก้ปัญหาที่พบบ่อย ทุกบทบาท |
 
 ---
 
