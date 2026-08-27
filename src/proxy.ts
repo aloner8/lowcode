@@ -7,7 +7,11 @@ import { SESSION_COOKIE, verifySession } from '@/lib/auth/session';
  */
 
 /** Routes that require a valid Web แม่ (Platform) session. */
-const PROTECTED_PREFIXES = ['/admin', '/studio', '/flow-studio', '/audit-logs', '/site', '/account'];
+const PROTECTED_PREFIXES = [
+  '/admin', '/studio', '/flow-studio', '/audit-logs', '/site', '/account',
+  // Developer demos render arbitrary components; they are internal tools.
+  '/renderer-demo', '/shared-demo',
+];
 
 /** Where an account with a seeded password is sent until it sets its own. */
 const CHANGE_PASSWORD_PATH = '/account/password';
@@ -16,7 +20,7 @@ const CHANGE_PASSWORD_PATH = '/account/password';
 const GOD_ONLY_PREFIXES = ['/admin/platforms', '/admin/security'];
 
 /** Control-plane surfaces that a public site process must never expose. */
-const CONTROL_PLANE_PREFIXES = [...PROTECTED_PREFIXES, '/renderer-demo', '/shared-demo'];
+const CONTROL_PLANE_PREFIXES = [...PROTECTED_PREFIXES];
 
 /**
  * When the process was started by `scripts/run-sites.mjs` it serves exactly one

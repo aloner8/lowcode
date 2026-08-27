@@ -572,7 +572,7 @@ tests/                          Vitest (27 tests)
 
 | Path | Auth | คำอธิบาย |
 |---|---|---|
-| `/` | – | Landing page |
+| `/` | – | พาไปที่ปลายทาง: ล็อกอินแล้ว → `/admin` · ยังไม่ล็อกอิน → `/login` |
 | `/login` | – | เข้าสู่ระบบ |
 | `/admin` | ✅ | Dashboard |
 | `/admin/platforms` | GOD | Platform Master |
