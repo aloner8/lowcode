@@ -109,6 +109,17 @@ export const PostListComponent: React.FC<PostListComponentProps> = ({
             return (
               <div className={colClass} key={String(item.id ?? index)}>
                 <article className="gov-card card h-100 border-0 shadow-sm">
+                  {!item.image && (
+                    /*
+                     * A card with no picture next to cards that have one reads
+                     * as broken, so an article without a photograph gets a
+                     * drawn stand-in rather than a gap. It carries no meaning,
+                     * so it is hidden from assistive technology.
+                     */
+                    <div className="gov-card-nopic" aria-hidden="true">
+                      <span className="gov-card-nopic-mark" />
+                    </div>
+                  )}
                   {item.image && (
                     // Tenant images come from arbitrary URLs, so next/image cannot optimise them.
                     // eslint-disable-next-line @next/next/no-img-element

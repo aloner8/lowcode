@@ -1,12 +1,17 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { ThemeConfig, ThemePreset } from '@/types';
+import { buildGovPalette } from '@/lib/theme/palette';
 
-export const THEME_PRESETS: Record<ThemePreset, { primary: string; background: string; borderRadius: string }> = {
+export const THEME_PRESETS: Record<
+  ThemePreset,
+  { primary: string; secondary?: string; background: string; borderRadius: string }
+> = {
   /* เว็บราชการไทย — CI แดง/น้ำเงิน + ทอง ตามแบบ pathum.go.th */
   'thai-municipal': {
     primary: '#D91113',
+    secondary: '#063B7A',
     background: '#F7F9FC',
     borderRadius: '16px',
   },
@@ -48,11 +53,26 @@ interface ThemeEngineProps {
 }
 
 export const ThemeEngine: React.FC<ThemeEngineProps> = ({ themeConfig, children }) => {
+  const preset = THEME_PRESETS[themeConfig?.preset as ThemePreset] || THEME_PRESETS['modern-indigo'];
+
+  /*
+   * Rendered as an inline style rather than set from the effect below, so the
+   * colours are already in the server-rendered HTML. Applied only from the
+   * effect, every page would paint in the fallback palette first and then
+   * repaint — a visible flash of the wrong colours on every load.
+   */
+  const palette = useMemo(
+    () => buildGovPalette({
+      primary: themeConfig?.primaryColor || preset.primary,
+      secondary: themeConfig?.secondaryColor || preset.secondary,
+    }),
+    [themeConfig?.primaryColor, themeConfig?.secondaryColor, preset],
+  );
+
   useEffect(() => {
     if (!themeConfig) return;
 
     const root = document.documentElement;
-    const preset = THEME_PRESETS[themeConfig.preset] || THEME_PRESETS['modern-indigo'];
 
     const primary = themeConfig.primaryColor || preset.primary;
     const radius = themeConfig.borderRadius || preset.borderRadius;
@@ -85,5 +105,9 @@ export const ThemeEngine: React.FC<ThemeEngineProps> = ({ themeConfig, children 
     }
   }, [themeConfig]);
 
-  return <div className="theme-provider">{children}</div>;
+  return (
+    <div className="theme-provider" style={palette as React.CSSProperties}>
+      {children}
+    </div>
+  );
 };

@@ -70,7 +70,9 @@ export const DynamicNodeItem: React.FC<{
     ? `municipal-${node.props.__sectionId}`
     : '';
   const candidatePreset = configuredPreset || legacyMunicipalPreset;
-  const stylePreset = /^municipal-[a-z0-9-]+$/.test(candidatePreset) ? candidatePreset : '';
+  // `municipal-*` styles a section; `gov-band-*` gives it its own ground. Both
+  // are allow-listed rather than passed through, so a page cannot inject a class.
+  const stylePreset = /^(?:municipal|gov-band)-[a-z0-9-]+$/.test(candidatePreset) ? candidatePreset : '';
 
   if (!TargetComponent) {
     return (
@@ -136,7 +138,7 @@ export const DynamicNodeItem: React.FC<{
       id={node.htmlId || node.id}
       data-component-instance-id={node.id}
       aria-label={ariaLabel}
-      className={`dynamic-node-wrapper position-relative ${stylePreset ? `municipal-component ${stylePreset}` : ''} ${
+      className={`dynamic-node-wrapper position-relative ${stylePreset ? (stylePreset.startsWith('gov-band-') ? `gov-band ${stylePreset}` : `municipal-component ${stylePreset}`) : ''} ${
         isDesignMode ? 'cursor-pointer hover-outline transition' : ''
       } ${isSelected ? 'border border-2 border-primary rounded p-1 shadow-sm' : ''}`}
       style={node.style || {}}
@@ -184,8 +186,11 @@ export const DynamicPageRenderer: React.FC<DynamicPageRendererProps> = ({
   onSelectNode,
   rootTag,
 }) => {
+  // A page carrying the agency header is a government site page, whether or not
+  // its individual sections opted into a municipal style preset.
   const isMunicipalPage = nodes.some((node) =>
-    (typeof node.props?.stylePreset === 'string' && node.props.stylePreset.startsWith('municipal-'))
+    node.type === 'SiteHeaderComponent'
+    || (typeof node.props?.stylePreset === 'string' && node.props.stylePreset.startsWith('municipal-'))
     || node.id.startsWith('municipal_')
   );
 

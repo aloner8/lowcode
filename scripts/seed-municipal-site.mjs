@@ -135,6 +135,14 @@ const nav = [
     ],
   },
   { label: 'บริการประชาชน', href: '/services' },
+  {
+    label: 'เอกสารเผยแพร่',
+    children: [
+      { label: 'แผนพัฒนาและแผนปฏิบัติการ', href: '/documents' },
+      { label: 'รายงานผลการดำเนินงาน', href: '/documents' },
+      { label: 'คู่มือมาตรฐานการให้บริการ', href: '/documents' },
+    ],
+  },
   { label: 'ติดต่อเรา', href: '/contact' },
 ];
 
@@ -213,6 +221,19 @@ const dock = () => ({
  * A listing. `more` is off on the page that already shows everything — a
  * "see all" button that links to the page you are on is just a dead control.
  */
+/**
+ * A grid of links on its own ground.
+ *
+ * pathum.go.th's home page is largely a directory of transparency and service
+ * links grouped this way, alternating a pale band with a formal dark one so the
+ * page has rhythm without a background photograph for every section.
+ */
+const linkGrid = (id, { title, subtitle, items, columns = 4, band = 'soft' }) => ({
+  id,
+  type: 'ServiceLinksComponent',
+  props: { title, subtitle, columns, items, stylePreset: `gov-band-${band}` },
+});
+
 const postList = (id, { title, subtitle, category, page, limit = 3, columns = 3, more = true }) => ({
   id,
   type: 'PostListComponent',
@@ -305,6 +326,7 @@ const PAGES = [
         id: 'services',
         type: 'ServiceLinksComponent',
         props: {
+          stylePreset: 'gov-band-soft',
           title: 'บริการประชาชน',
           subtitle: 'เรื่องที่ติดต่อบ่อย เข้าถึงได้ในคลิกเดียว',
           columns: 6,
@@ -336,10 +358,63 @@ const PAGES = [
         category: 3,
         page: 'procurement',
       }),
+      linkGrid('ita', {
+        title: 'การประเมินคุณธรรมและความโปร่งใส (ITA)',
+        subtitle: 'ข้อมูลที่หน่วยงานเปิดเผยตามเกณฑ์การประเมิน',
+        band: 'formal',
+        columns: 4,
+        items: [
+          { label: 'ข้อมูลพื้นฐานหน่วยงาน', icon: 'agency', href: '/about' },
+          { label: 'อำนาจหน้าที่และกฎหมาย', icon: 'law', href: '/authority' },
+          { label: 'แผนพัฒนาและแผนปฏิบัติการ', icon: 'documents', href: '/documents' },
+          { label: 'รายงานผลการดำเนินงาน', icon: 'documents', href: '/documents' },
+          { label: 'แผนและรายงานการใช้จ่ายงบประมาณ', icon: 'budget', href: '/documents' },
+          { label: 'การจัดซื้อจัดจ้างและการจัดหาพัสดุ', icon: 'procurement', href: '/procurement' },
+          { label: 'การบริหารและพัฒนาทรัพยากรบุคคล', icon: 'people', href: '/documents' },
+          { label: 'คู่มือและมาตรฐานการให้บริการ', icon: 'form', href: '/documents' },
+        ],
+      }),
+      linkGrid('integrity', {
+        title: 'การส่งเสริมความโปร่งใสและป้องกันการทุจริต',
+        subtitle: 'ช่องทางแจ้งเรื่องและนโยบายของหน่วยงาน',
+        band: 'soft',
+        columns: 4,
+        items: [
+          { label: 'แจ้งเรื่องทุจริตและประพฤติมิชอบ', icon: 'integrity', href: '/contact' },
+          { label: 'ร้องเรียนร้องทุกข์', icon: 'complaint', href: '/contact' },
+          { label: 'นโยบายไม่รับของขวัญ (No Gift Policy)', icon: 'integrity', href: '/documents' },
+          { label: 'การมีส่วนร่วมแสดงความคิดเห็น', icon: 'people', href: '/contact' },
+        ],
+      }),
+      linkGrid('eservice', {
+        title: 'ศูนย์บริการประชาชนอิเล็กทรอนิกส์ (e-Service)',
+        subtitle: 'ยื่นคำขอและติดตามสถานะออนไลน์',
+        band: 'formal',
+        columns: 4,
+        items: [
+          { label: 'แจ้งซ่อมไฟฟ้าสาธารณะ', icon: 'form', href: '/contact' },
+          { label: 'ขอรับถังขยะ', icon: 'form', href: '/contact' },
+          { label: 'ขอน้ำเพื่ออุปโภคบริโภค', icon: 'form', href: '/contact' },
+          { label: 'สอบถามข้อมูล (Q&A)', icon: 'search', href: '/contact' },
+        ],
+      }),
+      linkGrid('related', {
+        title: 'เว็บไซต์และระบบสารสนเทศที่เกี่ยวข้อง',
+        subtitle: 'ลิงก์ไปยังหน่วยงานและระบบกลางของภาครัฐ',
+        band: 'soft',
+        columns: 4,
+        items: [
+          { label: 'กรมส่งเสริมการปกครองท้องถิ่น', icon: 'agency', href: 'https://www.dla.go.th', external: true },
+          { label: 'ระบบจัดซื้อจัดจ้างภาครัฐ (e-GP)', icon: 'procurement', href: 'https://process.gprocurement.go.th', external: true },
+          { label: 'สำนักงาน ป.ป.ช.', icon: 'integrity', href: 'https://www.nacc.go.th', external: true },
+          { label: 'ศูนย์รวมข้อมูลเพื่อติดต่อราชการ', icon: 'office', href: 'https://www.info.go.th', external: true },
+        ],
+      }),
       {
         id: 'home_stats',
         type: 'StatCounterComponent',
         props: {
+          stylePreset: 'gov-band-formal',
           title: 'ข้อมูลพื้นฐานของตำบล',
           items: [
             { label: 'จำนวนหมู่บ้าน', value: 12, unit: 'หมู่บ้าน', icon: 'area' },
@@ -476,6 +551,25 @@ const PAGES = [
         ],
       },
     },
+  ]),
+
+  innerPage('documents', 'เอกสารเผยแพร่', {
+    title: 'เอกสารเผยแพร่',
+    description: 'แผนพัฒนา รายงานผลการดำเนินงาน งบประมาณ และคู่มือการปฏิบัติงาน',
+    priority: 0.7,
+    changeFrequency: 'monthly',
+  }, '/documents', [
+    html('documents_body',
+      '<h2>แผนพัฒนาและแผนปฏิบัติการ</h2>'
+      + '<p>แผนพัฒนาท้องถิ่น แผนดำเนินงานประจำปี และแผนอัตรากำลัง '
+      + 'เผยแพร่เพื่อให้ประชาชนตรวจสอบได้</p>'
+      + '<h2>รายงานผลการดำเนินงาน</h2>'
+      + '<p>รายงานผลการดำเนินงานรายไตรมาสและประจำปี พร้อมผลการใช้จ่ายงบประมาณ</p>'
+      + '<h2>คู่มือและมาตรฐานการให้บริการ</h2>'
+      + '<p>คู่มือสำหรับประชาชนตามพระราชบัญญัติการอำนวยความสะดวกฯ พ.ศ. 2558 '
+      + 'ระบุขั้นตอน ระยะเวลา และเอกสารที่ต้องใช้ของแต่ละงานบริการ</p>'
+      + '<p class="text-muted"><em>ยังไม่ได้อัปโหลดไฟล์เอกสาร — '
+      + 'เมื่ออัปโหลดแล้วรายการจะแสดงที่นี่</em></p>'),
   ]),
 
   innerPage('services', 'บริการประชาชน', {
