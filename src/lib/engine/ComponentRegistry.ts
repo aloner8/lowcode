@@ -17,6 +17,15 @@ import {
   EditMenuComponent,
   CardComponent,
   ChartComponent,
+  SiteTopbarComponent,
+  SiteHeaderComponent,
+  SiteSidebarMenuComponent,
+  SiteFooterComponent,
+  HeroCarouselComponent,
+  ServiceLinksComponent,
+  StatCounterComponent,
+  PeopleGridComponent,
+  FloatingDockComponent,
 } from '@/components/shared';
 
 // Registry mapping string ComponentType to React Component Implementation
@@ -41,6 +50,15 @@ export const COMPONENT_REGISTRY: Record<ComponentType, React.FC<any>> = {
   TabsContainerComponent: CardComponent, // Fallback container
   AccordionComponent: CardComponent, // Fallback container
   ModalDialogComponent: CardComponent, // Fallback container
+  SiteTopbarComponent,
+  SiteHeaderComponent,
+  SiteSidebarMenuComponent,
+  SiteFooterComponent,
+  HeroCarouselComponent,
+  ServiceLinksComponent,
+  StatCounterComponent,
+  PeopleGridComponent,
+  FloatingDockComponent,
 };
 
 // Metadata for available components in DesignMode Studio Palette

@@ -16,3 +16,14 @@ export * from './SlideMenuComponent';
 export * from './EditMenuComponent';
 export * from './CardComponent';
 export * from './ChartComponent';
+
+// Building blocks for Thai government agency sites.
+export * from './SiteTopbarComponent';
+export * from './SiteHeaderComponent';
+export * from './SiteSidebarMenuComponent';
+export * from './SiteFooterComponent';
+export * from './HeroCarouselComponent';
+export * from './ServiceLinksComponent';
+export * from './StatCounterComponent';
+export * from './PeopleGridComponent';
+export * from './FloatingDockComponent';

@@ -14,7 +14,8 @@
     "sites": "node scripts/run-sites.mjs",
     "sites:dev": "node scripts/run-sites.mjs --dev",
     "sites:list": "node scripts/run-sites.mjs --list",
-    "secrets": "node scripts/generate-secrets.mjs"
+    "secrets": "node scripts/generate-secrets.mjs",
+    "seed:site": "node scripts/seed-municipal-site.mjs"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",

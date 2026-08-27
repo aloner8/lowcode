@@ -20,7 +20,16 @@ export type ComponentType =
   | 'ChartComponent'
   | 'TabsContainerComponent'
   | 'AccordionComponent'
-  | 'ModalDialogComponent';
+  | 'ModalDialogComponent'
+  | 'SiteTopbarComponent'
+  | 'SiteHeaderComponent'
+  | 'SiteSidebarMenuComponent'
+  | 'SiteFooterComponent'
+  | 'HeroCarouselComponent'
+  | 'ServiceLinksComponent'
+  | 'StatCounterComponent'
+  | 'PeopleGridComponent'
+  | 'FloatingDockComponent';
 
 export type ThemePreset =
   | 'thai-municipal'
