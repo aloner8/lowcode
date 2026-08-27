@@ -12,7 +12,12 @@ export interface AppRuntimeData {
     components: Array<{ id: string; type: string; componentTree: ComponentNode[] }>;
   }>;
   routes?: AppRoute[];
-  pages?: Array<{ id: string; title?: string; componentTree: ComponentNode[] }>;
+  /*
+   * `componentTree` is present only for pages the client can swap in without a
+   * request — those a route or a service points at. Every other page is reached
+   * by an ordinary link and rendered by the server, so its tree is not sent.
+   */
+  pages?: Array<{ id: string; title?: string; componentTree?: ComponentNode[] }>;
   services?: StudioServiceDefinition[];
   flows?: Array<{
     routePath: string;

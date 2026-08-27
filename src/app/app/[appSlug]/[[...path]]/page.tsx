@@ -172,7 +172,7 @@ export default async function SitePage({ params, searchParams }: PageProps) {
             forms: site.forms,
             collections: site.collections,
             routes: site.routes as never,
-            pages: site.pages.map((item) => ({ id: item.id, title: item.title, componentTree: item.componentTree })),
+            pages: clientPages(site),
             services: site.services as never,
             flows: site.flows as never,
           }}
@@ -180,6 +180,34 @@ export default async function SitePage({ params, searchParams }: PageProps) {
       </div>
     </div>
   );
+}
+
+/**
+ * Page list for the browser.
+ *
+ * The client can swap a page in without a request, but only for pages a route
+ * or a service points at. Every other page is reached by an ordinary link and
+ * rendered by the server, so sending its component tree is pure weight — on a
+ * site with a large menu the same navigation was serialised once per page and
+ * came to most of the response.
+ */
+function clientPages(site: NonNullable<Awaited<ReturnType<typeof loadSiteRuntime>>>) {
+  const reachable = new Set<string>();
+
+  for (const route of site.routes ?? []) {
+    if (route?.targetType === 'page' && typeof route.targetId === 'string') reachable.add(route.targetId);
+  }
+  for (const service of site.services ?? []) {
+    const bundle = (service as { bundle?: Record<string, unknown> }).bundle ?? {};
+    for (const key of ['loginPageId', 'adminPageId', 'successPageId']) {
+      const value = bundle[key];
+      if (typeof value === 'string') reachable.add(value);
+    }
+  }
+
+  return site.pages.map((item) => (reachable.has(item.id)
+    ? { id: item.id, title: item.title, componentTree: item.componentTree }
+    : { id: item.id, title: item.title }));
 }
 
 /**
@@ -303,7 +331,7 @@ function emptyRuntime(site: NonNullable<Awaited<ReturnType<typeof loadSiteRuntim
     forms: site.forms,
     collections: site.collections,
     routes: site.routes as never,
-    pages: site.pages.map((item) => ({ id: item.id, title: item.title, componentTree: item.componentTree })),
+    pages: clientPages(site),
     services: site.services as never,
     flows: site.flows as never,
   };
