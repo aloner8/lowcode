@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Menu, X, ChevronRight, ChevronDown, LayoutDashboard, Newspaper, FileText, Image, Users, Download, Flag, Settings, BookOpen, MessageSquareWarning, Tags, Monitor, Contact } from 'lucide-react';
+import { Menu, X, ChevronRight, ChevronDown, LayoutDashboard, Newspaper, FileText, Image as ImageIcon, Users, Download, Flag, Settings, BookOpen, MessageSquareWarning, Tags, Monitor, Contact } from 'lucide-react';
 import type { RuntimeMenuAction } from '@/types';
 
 export interface SlideMenuItem {
@@ -61,7 +61,7 @@ export const SlideMenuComponent: React.FC<SlideMenuProps> = ({
     if (label.includes('แผงควบคุม')) return <LayoutDashboard {...props} />;
     if (label.includes('ข่าวสาร')) return <Newspaper {...props} />;
     if (label.includes('หน้าเว็บไซต์')) return <FileText {...props} />;
-    if (label.includes('รูปนายก') || label.includes('ภาพสไลด์') || label.includes('Banner')) return <Image {...props} />;
+    if (label.includes('รูปนายก') || label.includes('ภาพสไลด์') || label.includes('Banner')) return <ImageIcon {...props} />;
     if (label.includes('บุคลากร') || label.includes('ผู้ใช้')) return <Users {...props} />;
     if (label.includes('ติดต่อ')) return <Contact {...props} />;
     if (label.includes('E-Book')) return <BookOpen {...props} />;

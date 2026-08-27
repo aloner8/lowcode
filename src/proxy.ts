@@ -1,6 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { SESSION_COOKIE, verifySession } from '@/lib/auth/session';
 
+/*
+ * Next.js 16 renamed the `middleware` file convention to `proxy`.
+ * The behaviour is unchanged: this runs before every matched request.
+ */
+
 /** Routes that require a valid Web แม่ (Platform) session. */
 const PROTECTED_PREFIXES = ['/admin', '/studio', '/flow-studio', '/audit-logs', '/site', '/account'];
 
@@ -60,7 +65,7 @@ function handleSiteRequest(request: NextRequest, path: string): NextResponse {
   return NextResponse.next({ request: { headers: request.headers } });
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   if (isSiteProcess()) return handleSiteRequest(request, path);

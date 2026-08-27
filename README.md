@@ -337,7 +337,7 @@ title/description) หรือระดับ Platform ผ่าน `PUT /api/p
 | ธีมถูก validate ฝั่ง server (สี HEX, หน่วย CSS, ฟอนต์) กันการฉีด CSS | [apps/[id]/route.ts](src/app/api/apps/[id]/route.ts) |
 | ไฟล์ที่เสิร์ฟกลับมีทั้ง `nosniff` และ CSP `sandbox` | [assets/[assetId]/route.ts](src/app/api/platforms/[id]/assets/[assetId]/route.ts) |
 | ปฏิเสธ secret ที่เคย publish ใน repo และบังคับความยาวขั้นต่ำ | [session.ts](src/lib/auth/session.ts) |
-| บังคับเปลี่ยนรหัสผ่านเริ่มต้นก่อนเข้าใช้งาน (ตรวจจาก DB ไม่ใช่ cookie) | [middleware.ts](src/middleware.ts) · [apiAuth.ts](src/lib/auth/apiAuth.ts) |
+| บังคับเปลี่ยนรหัสผ่านเริ่มต้นก่อนเข้าใช้งาน (ตรวจจาก DB ไม่ใช่ cookie) | [proxy.ts](src/proxy.ts) · [apiAuth.ts](src/lib/auth/apiAuth.ts) |
 
 หน้า `/admin/security` แสดง **สถานะจริง** ที่อ่านจากฐานข้อมูลและ config ปัจจุบัน
 
