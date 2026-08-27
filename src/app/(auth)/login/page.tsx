@@ -3,6 +3,7 @@
 import React, { useActionState, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { loginAction } from '@/lib/auth/authActions';
+import { Logo } from '@/components/brand/Logo';
 import { AlertCircle, ArrowRight, Eye, EyeOff, Loader2, Lock, ShieldCheck, User } from 'lucide-react';
 
 /** Where the user will land, shown so a redirect never feels like a detour. */
@@ -36,6 +37,7 @@ export default function LoginPage() {
     <section className="auth-card card border-0">
       <div className="card-body p-4 p-sm-5">
         <header className="mb-4">
+          <Logo size={40} className="d-lg-none mb-3" />
           <span className="auth-badge d-inline-flex align-items-center gap-1 mb-3">
             <ShieldCheck size={13} aria-hidden="true" /> เฉพาะเจ้าหน้าที่
           </span>

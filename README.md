@@ -29,6 +29,7 @@
 
 ## สารบัญ
 
+- [แบรนด์และไอคอน](#แบรนด์และไอคอน)
 - [Tech Stack](#tech-stack)
 - [เริ่มต้นใช้งาน](#เริ่มต้นใช้งาน)
 - [สิทธิ์ 3 ชั้น: GOD / ADMIN / STAFF](#สิทธิ์-3-ชั้น-god--admin--staff)
@@ -46,6 +47,32 @@
 - [เอกสารออกแบบ](#เอกสารออกแบบ)
 - [สิ่งที่ยังไม่ได้ทำ](#สิ่งที่ยังไม่ได้ทำ)
 - [Troubleshooting](#troubleshooting)
+
+---
+
+## แบรนด์และไอคอน
+
+**MATCHANU** (มัจฉานุ — ลูกหนุมาน ครึ่งวานรครึ่งมัจฉา) ใช้ mark ที่อ่านได้สองทาง:
+ยอดแหลมสามยอดเป็นตัว **M** ส่วนเส้นโค้งด้านล่างเป็น **หางปลา**
+
+| ไฟล์ | ใช้เมื่อ |
+|---|---|
+| [public/brand/logo.svg](public/brand/logo.svg) | โลโก้เต็ม (mark + wordmark) สำหรับเอกสารหรือสื่อภายนอก |
+| [public/brand/logo-mark.svg](public/brand/logo-mark.svg) | เฉพาะ mark สี่เหลี่ยม |
+| [src/app/icon.svg](src/app/icon.svg) | favicon — App Router ประกาศให้อัตโนมัติ |
+| [src/app/apple-icon.tsx](src/app/apple-icon.tsx) | Apple touch icon 180×180 render เป็น PNG ตอน build |
+| [src/components/brand/Logo.tsx](src/components/brand/Logo.tsx) | ใช้ในแอป — inline SVG ปรับขนาด/โทนสีได้ |
+
+สี: น้ำเงิน `#0C58A9` → `#083A6E` + ทอง `#FFD700` ชุดเดียวกับ design token ราชการ
+mark เป็นรูปทรงนามธรรม **ไม่ใช่ตราครุฑหรือตราหน่วยงานใด** ตามข้อกำหนดของ design system
+
+ในแอปใช้ `<Logo />` แทนการอ้างไฟล์ เพราะ inline SVG ไม่กระพริบก่อนโหลดและปรับสีตามพื้นหลังได้:
+
+```tsx
+<Logo size={40} />                    // mark + wordmark
+<Logo size={52} markOnly />           // เฉพาะ mark
+<Logo size={36} tone="light" />       // บนพื้นเข้ม
+```
 
 ---
 

@@ -17,8 +17,13 @@ const anuphan = Anuphan({
 });
 
 export const metadata: Metadata = {
-  title: 'Low-Code Builder & Control Studio',
-  description: 'Dynamic Web Application Builder & DesignMode Studio',
+  title: { default: 'MATCHANU — Low-Code Platform', template: '%s | MATCHANU' },
+  description: 'ระบบจัดการเว็บไซต์หน่วยงาน ออกแบบหน้าเว็บและดูแลหลายเว็บไซต์จากศูนย์กลางเดียว',
+  applicationName: 'MATCHANU',
+  icons: {
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    apple: [{ url: '/apple-icon', sizes: '180x180' }],
+  },
   // The control plane must never be indexed; public sites override this in
   // their own generateMetadata.
   robots: { index: false, follow: false },

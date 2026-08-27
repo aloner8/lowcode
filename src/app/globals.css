@@ -111,23 +111,6 @@ code, kbd, pre, samp {
   background: linear-gradient(180deg, #fff3a3 0%, var(--auth-gold) 40%, #d89000 100%);
 }
 
-/* Abstract mark: deliberately not an official emblem. */
-.auth-mark {
-  width: 3rem;
-  height: 3rem;
-  margin-bottom: 1.75rem;
-  border-radius: 0.9rem;
-  background: linear-gradient(135deg, #fff3a3 0%, var(--auth-gold) 45%, #d89000 100%);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
-  position: relative;
-}
-.auth-mark::before {
-  content: '';
-  position: absolute;
-  inset: 0.85rem;
-  border-radius: 0.3rem;
-  background: var(--auth-ink);
-}
 
 .auth-brand-eyebrow {
   font-size: 0.75rem;

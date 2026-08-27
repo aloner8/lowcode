@@ -1,4 +1,5 @@
 import React from 'react';
+import { Logo } from '@/components/brand/Logo';
 
 /**
  * Shell for the sign-in screens.
@@ -14,8 +15,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       {/* Brand panel — decorative, so it is skipped by assistive technology. */}
       <aside className="auth-brand d-none d-lg-flex flex-column justify-content-between p-5" aria-hidden="true">
         <div>
-          <div className="auth-mark" />
-          <p className="auth-brand-eyebrow mb-1">Low-Code Platform</p>
+          <Logo size={52} markOnly className="mb-4" />
+          <p className="auth-brand-eyebrow mb-1">MATCHANU · Low-Code Platform</p>
           <h2 className="auth-brand-title">ระบบจัดการเว็บไซต์หน่วยงาน</h2>
           <p className="auth-brand-lead">
             ออกแบบหน้าเว็บ จัดการข่าวสาร และดูแลหลายเว็บไซต์ได้จากศูนย์กลางเดียว
