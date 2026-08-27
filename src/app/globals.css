@@ -314,3 +314,16 @@ code, kbd, pre, samp {
 @media (prefers-reduced-motion: reduce) {
   .auth-strength-track span { transition: none; }
 }
+
+/* --- Error boundary -------------------------------------------------------- */
+.auth-error-detail {
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.55rem;
+  background: #f5f8fc;
+  border: 1px solid var(--auth-border, #dbe3ee);
+  color: #5a6473;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 9rem;
+  overflow: auto;
+}

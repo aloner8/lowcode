@@ -92,7 +92,10 @@ export async function loginAction(_prevState: unknown, formData: FormData): Prom
     changesSummary: `ผู้ใช้ ${profile.username ?? profile.email} เข้าสู่ระบบ`,
   });
 
-  redirect('/admin');
+  // Go straight to the right place. Letting this land on /admin and bounce off
+  // the proxy chained two redirects inside one Server Action response, which
+  // client navigation reports as "an unexpected response from the server".
+  redirect(profile.mustChangePassword ? '/account/password' : '/admin');
 }
 
 export async function logoutAction(): Promise<void> {
