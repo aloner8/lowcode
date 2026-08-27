@@ -221,38 +221,53 @@ async function ArticlePage({
     articleBreadcrumbSchema(post.parent.title, `/${post.parent.id}`, post.title, baseUrl, articlePath),
   ]);
 
-  const chrome = applyBasePath(
-    post.parent.componentTree.filter(
-      (node) => node.type === 'NavMenuComponent' || node.props?.__chrome === true,
-    ),
-    siteBasePath(site, host),
+  /*
+   * Page furniture is whatever sits before the first content section and after
+   * the last one, in the order the page itself declares. Taking the first chrome
+   * node as the header and the last as the footer worked only while there were
+   * two of them; with a contact strip, a dock, complaint cards and a cookie bar
+   * it rendered the strip and the cookie bar and dropped everything between.
+   */
+  const isChrome = (node: ComponentNode) =>
+    node.type === 'NavMenuComponent' || node.props?.__chrome === true;
+
+  const tree = post.parent.componentTree;
+  const firstContent = tree.findIndex((node) => !isChrome(node));
+  const lastContent = tree.map(isChrome).lastIndexOf(false);
+
+  const base = siteBasePath(site, host);
+  const head = applyBasePath(
+    firstContent === -1 ? tree : tree.slice(0, firstContent),
+    base,
   );
-  const [header, ...rest] = chrome;
-  const footer = rest.length ? rest[rest.length - 1] : undefined;
+  const tail = applyBasePath(
+    firstContent === -1 ? [] : tree.slice(lastContent + 1).filter(isChrome),
+    base,
+  );
 
   return (
     <div className="min-vh-100 bg-light d-flex flex-column">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
 
-      {header && (
+      {head.length > 0 && (
         <SiteRuntimeView
           appSlug={site.appSlug}
           appId={site.appId}
-          initialContent={[header]}
+          initialContent={head}
           runtimeData={emptyRuntime(site)}
           fillViewport={false}
         />
       )}
 
       <div className="flex-grow-1">
-        <PostArticleView post={post} basePath={siteBasePath(site, host)} />
+        <PostArticleView post={post} basePath={base} />
       </div>
 
-      {footer && footer !== header && (
+      {tail.length > 0 && (
         <SiteRuntimeView
           appSlug={site.appSlug}
           appId={site.appId}
-          initialContent={[footer]}
+          initialContent={tail}
           runtimeData={emptyRuntime(site)}
           fillViewport={false}
         />
