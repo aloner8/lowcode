@@ -327,3 +327,11 @@ code, kbd, pre, samp {
   max-height: 9rem;
   overflow: auto;
 }
+
+.auth-steps {
+  margin: 0;
+  padding-inline-start: 1.15rem;
+  font-size: 0.86rem;
+  line-height: 1.85;
+  color: #5a6473;
+}

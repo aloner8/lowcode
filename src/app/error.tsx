@@ -24,6 +24,30 @@ const STALE_BUILD_PATTERNS = [
 
 const RELOAD_GUARD = 'matchanu:reloaded-for-stale-build';
 
+/**
+ * Reload past the browser cache.
+ *
+ * `location.reload()` refetches the document but Safari in particular keeps
+ * serving the previously parsed JavaScript, which is exactly what is stale
+ * here. Clearing the Cache Storage entries and navigating to a fresh URL makes
+ * the browser resolve every subresource again.
+ */
+async function hardReload() {
+  try {
+    if (typeof caches !== 'undefined') {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((key) => caches.delete(key)));
+    }
+  } catch {
+    // Cache Storage is unavailable in some contexts; the navigation below is
+    // still worth attempting.
+  }
+
+  const url = new URL(window.location.href);
+  url.searchParams.set('_v', Date.now().toString(36));
+  window.location.replace(url.toString());
+}
+
 export default function AppError({
   error,
   reset,
@@ -51,7 +75,7 @@ export default function AppError({
       // Private browsing can refuse storage; skip the auto-reload rather than fail.
       return;
     }
-    if (!alreadyReloaded) window.location.reload();
+    if (!alreadyReloaded) void hardReload();
   }, [error]);
 
   useEffect(() => {
@@ -73,10 +97,18 @@ export default function AppError({
           {staleBuild ? (
             <>
               <h1 className="auth-title h5 mb-2">หน้านี้เป็นเวอร์ชันเก่า</h1>
-              <p className="auth-subtitle mb-4">
+              <p className="auth-subtitle mb-3">
                 ระบบมีการอัปเดตหลังจากที่คุณเปิดหน้านี้ไว้ กำลังโหลดเวอร์ชันล่าสุดให้อัตโนมัติ…
-                หากไม่เปลี่ยนแปลง ให้ปิดแท็บนี้แล้วเปิดใหม่
               </p>
+              <p className="auth-subtitle mb-4">
+                ถ้ายังเห็นข้อความนี้อยู่ แปลว่าเบราว์เซอร์ยังใช้ไฟล์เดิมที่เก็บไว้
+                ให้ทำอย่างใดอย่างหนึ่ง:
+              </p>
+              <ol className="auth-steps mb-4">
+                <li><strong>ปิดแท็บนี้ทิ้ง</strong> แล้วเปิดที่อยู่เดิมใหม่อีกครั้ง</li>
+                <li>หรือกด <strong>โหลดใหม่แบบล้างแคช</strong> ด้านล่าง</li>
+                <li>หรือเปิดในหน้าต่าง <strong>ส่วนตัว / Private</strong> เพื่อยืนยันว่าเป็นแคชจริง</li>
+              </ol>
             </>
           ) : (
             <>
@@ -94,8 +126,8 @@ export default function AppError({
           </pre>
 
           <div className="d-flex flex-wrap gap-2">
-            <button type="button" className="auth-submit btn flex-grow-1" onClick={() => window.location.reload()}>
-              <RefreshCw size={16} aria-hidden="true" /> โหลดหน้าใหม่
+            <button type="button" className="auth-submit btn flex-grow-1" onClick={() => void hardReload()}>
+              <RefreshCw size={16} aria-hidden="true" /> โหลดใหม่แบบล้างแคช
             </button>
             <button type="button" className="btn btn-outline-secondary" onClick={reset}>
               <RotateCcw size={16} className="me-1" aria-hidden="true" /> ลองอีกครั้ง
