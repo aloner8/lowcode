@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireGod } from '@/lib/auth/apiAuth';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { getCoreDb } from '@/lib/db/coreDb';
@@ -15,7 +16,16 @@ interface PlatformRow {
   studio_collections: StudioCollectionDefinition[];
 }
 
+/**
+ * Control-plane endpoints: they read and rewrite the routes and pages of a
+ * platform, so every method is restricted to หนุมานไอที staff. They shipped with
+ * no check at all — an anonymous caller could read a platform's whole site map
+ * and write routes into it.
+ */
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const auth = await requireGod();
+  if (auth instanceof NextResponse) return auth;
+
   const client = await getCoreDb().connect();
   try {
     const { id } = await context.params;

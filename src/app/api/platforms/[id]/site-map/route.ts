@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireGod } from '@/lib/auth/apiAuth';
 import { getCoreDb } from '@/lib/db/coreDb';
 import { generateSiteMap } from '@/lib/engine/generateSiteMap';
 import type { AppRoute } from '@/types';
@@ -6,7 +7,16 @@ import type { AppRoute } from '@/types';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+/**
+ * Control-plane endpoints: they read and rewrite the routes and pages of a
+ * platform, so every method is restricted to หนุมานไอที staff. They shipped with
+ * no check at all — an anonymous caller could read a platform's whole site map
+ * and write routes into it.
+ */
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const auth = await requireGod();
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await context.params;
   const result = await getCoreDb().query<{ studio_routes: AppRoute[] }>('SELECT studio_routes FROM public.platforms WHERE id=$1', [id]);
   if (!result.rowCount) return NextResponse.json({ error: 'Platform not found' }, { status: 404 });
@@ -14,6 +24,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 }
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  const auth = await requireGod();
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await context.params;
   const body = await request.json() as { routes?: AppRoute[]; action?: string; containerName?: string; nodeType?: AppRoute['targetType']; targetId?: string; label?: string; path?: string; isStartPoint?: boolean };
   if (body.action === 'create-node') {
@@ -60,6 +73,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 }
 
 export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
+  const auth = await requireGod();
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await context.params;
   const routeId = new URL(request.url).searchParams.get('routeId');
   if (routeId) {

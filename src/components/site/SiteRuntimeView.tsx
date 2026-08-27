@@ -294,15 +294,6 @@ export function SiteRuntimeView({
   return (
     <StorageScopeProvider scope={{ appId: appId ?? undefined }}>
     <div className={`${fillViewport ? 'min-vh-100 bg-light' : ''} d-flex flex-column municipal-admin-runtime`}>
-      {/* Runtime diagnostics — development only: never expose tenant DB names publicly. */}
-      {process.env.NODE_ENV !== 'production' && (
-        <div className="bg-dark text-white py-2 px-3 shadow-sm border-bottom">
-          <div className="container-fluid d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <span className="badge bg-success px-3 py-1">Thin Dynamic Player (Child App)</span>
-            <small className="font-monospace text-warning">{appConfig.tenantDbName}</small>
-          </div>
-        </div>
-      )}
 
       {/* Action Event Toast */}
       {lastAction && (

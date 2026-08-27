@@ -154,7 +154,10 @@ export default async function SitePage({ params, searchParams }: PageProps) {
               appName: site.appName,
               port: 0,
               subdomain: site.primaryDomain,
-              tenantDbName: `platform_${site.platformSlug.replace(/-/g, '_')}`,
+              // Internal topology stays on the server: the visitor's page has no
+              // use for the database behind it, and naming it publicly tells an
+              // attacker exactly what to aim at.
+              tenantDbName: '',
               themeConfig: site.themeConfig,
               createdAt: site.updatedAt,
               updatedAt: site.updatedAt,
@@ -313,7 +316,7 @@ function emptyRuntime(site: NonNullable<Awaited<ReturnType<typeof loadSiteRuntim
       appName: site.appName,
       port: 0,
       subdomain: site.primaryDomain,
-      tenantDbName: `platform_${site.platformSlug.replace(/-/g, '_')}`,
+      tenantDbName: '',
       themeConfig: site.themeConfig,
       createdAt: site.updatedAt,
       updatedAt: site.updatedAt,

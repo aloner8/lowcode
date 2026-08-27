@@ -102,10 +102,15 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
       id: snapshot.platformId,
       appSlug: row.app_slug ?? snapshot.platformSlug,
       appName: row.app_name ?? snapshot.platformName,
-      port: row.app_port ?? Number(process.env.PORT || 33000),
+      /*
+       * This endpoint needs no session — it is what a published site reads —
+       * so it must not carry internal topology. The database behind the site
+       * and the port it listens on are of no use to a visitor and tell anyone
+       * else exactly what to aim at.
+       */
+      port: 0,
       subdomain: row.app_subdomain ?? `${snapshot.platformSlug}.localhost`,
-      tenantDbName:
-        row.tenant_db_name ?? `platform_${String(snapshot.platformSlug).replace(/-/g, '_')}`,
+      tenantDbName: '',
       platformId: snapshot.platformId,
       inheritedFrom: isTenantApp ? snapshot.platformName : undefined,
       themeConfig,

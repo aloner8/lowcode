@@ -1,11 +1,21 @@
 import { NextResponse } from 'next/server';
+import { requireGod } from '@/lib/auth/apiAuth';
 import { convertYiiRoutes } from '@/lib/migration/yii-routes/convertYiiRoutes';
 import type { YiiRouteConversionInput } from '@/lib/migration/yii-routes/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+/**
+ * Control-plane endpoints: they read and rewrite the routes and pages of a
+ * platform, so every method is restricted to หนุมานไอที staff. They shipped with
+ * no check at all — an anonymous caller could read a platform's whole site map
+ * and write routes into it.
+ */
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  const auth = await requireGod();
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { id } = await context.params;
     const body = await request.json() as Omit<YiiRouteConversionInput, 'platformId' | 'options'> & { options?: Partial<YiiRouteConversionInput['options']> };

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireGod } from '@/lib/auth/apiAuth';
 import { getCoreDb } from '@/lib/db/coreDb';
 import { generateRoutesFromCollections, type RouteCollectionSource } from '@/lib/engine/generateRoutesFromCollections';
 import { mergeConvertedRoutes } from '@/lib/migration/yii-routes/applyConversion';
@@ -7,7 +8,16 @@ import type { AppRoute } from '@/types';
 export const runtime = 'nodejs'; export const dynamic = 'force-dynamic';
 
 interface Row { studio_collections: RouteCollectionSource[]; studio_routes: AppRoute[]; platform_slug: string; }
+/**
+ * Control-plane endpoints: they read and rewrite the routes and pages of a
+ * platform, so every method is restricted to หนุมานไอที staff. They shipped with
+ * no check at all — an anonymous caller could read a platform's whole site map
+ * and write routes into it.
+ */
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  const auth = await requireGod();
+  if (auth instanceof NextResponse) return auth;
+
   const { id } = await context.params;
   const body = await request.json() as { collectionIds?: string[]; containerName?: string; apply?: boolean };
   if (!Array.isArray(body.collectionIds) || !body.collectionIds.length) return NextResponse.json({ error: 'Select at least one collection' }, { status: 400 });
