@@ -29,7 +29,14 @@ export type ComponentType =
   | 'ServiceLinksComponent'
   | 'StatCounterComponent'
   | 'PeopleGridComponent'
-  | 'FloatingDockComponent';
+  | 'FloatingDockComponent'
+  | 'SiteTickerComponent'
+  | 'SiteSearchComponent'
+  | 'ExecutiveCardComponent'
+  | 'NoticeListComponent'
+  | 'PartnerStripComponent'
+  | 'MediaFeatureComponent'
+  | 'CookieConsentComponent';
 
 export type ThemePreset =
   | 'thai-municipal'

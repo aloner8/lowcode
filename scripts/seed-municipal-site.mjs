@@ -31,6 +31,7 @@ const AGENCY = {
   name: 'เทศบาลตำบลตัวอย่าง',
   nameEn: 'Tambon Tuayang Municipality',
   slogan: 'บริการด้วยใจ โปร่งใส ตรวจสอบได้',
+  district: 'อำเภอเมือง จังหวัดศรีสะเกษ',
   address: 'เลขที่ 99 หมู่ 1 ตำบลตัวอย่าง อำเภอเมือง จังหวัดศรีสะเกษ 33000',
   phone: '045-000000',
   fax: '045-000001',
@@ -43,6 +44,7 @@ const CATEGORIES = [
   { id: 1, name: 'ข่าวประชาสัมพันธ์' },
   { id: 2, name: 'ข่าวกิจกรรม' },
   { id: 3, name: 'ประกาศจัดซื้อจัดจ้าง' },
+  { id: 4, name: 'ข่าวรับสมัครงาน โอน/ย้าย' },
 ];
 
 const POSTS = [
@@ -73,6 +75,24 @@ const POSTS = [
       '<p>เทศบาลตำบลตัวอย่างขอประกาศราคากลางงานปรับปรุงระบบประปาหมู่บ้าน หมู่ที่ 3 '
       + 'วงเงินงบประมาณตามที่ได้รับจัดสรร พร้อมรายละเอียดการคำนวณราคากลางตามแบบ ปร.4 และ ปร.5</p>',
     days: 11,
+  },
+  {
+    category: 4,
+    name: 'รับสมัครบุคคลเพื่อสรรหาและเลือกสรรเป็นพนักงานจ้างตามภารกิจ ตำแหน่งผู้ช่วยนายช่างโยธา',
+    description:
+      '<p>เทศบาลตำบลตัวอย่างรับสมัครบุคคลเพื่อสรรหาและเลือกสรรเป็นพนักงานจ้างตามภารกิจ '
+      + 'ตำแหน่งผู้ช่วยนายช่างโยธา จำนวน 1 อัตรา ผู้สนใจยื่นใบสมัครด้วยตนเองที่งานการเจ้าหน้าที่ '
+      + 'สำนักปลัดเทศบาล ในวันและเวลาราชการ</p>',
+    days: 4,
+  },
+  {
+    category: 4,
+    name: 'ประกาศรับโอน (ย้าย) พนักงานเทศบาล ตำแหน่งนักวิชาการเงินและบัญชี',
+    description:
+      '<p>ด้วยเทศบาลตำบลตัวอย่างมีความประสงค์รับโอน (ย้าย) พนักงานเทศบาล '
+      + 'ตำแหน่งนักวิชาการเงินและบัญชี ระดับปฏิบัติการ/ชำนาญการ จำนวน 1 อัตรา '
+      + 'ผู้ประสงค์ขอโอน (ย้าย) ยื่นเอกสารได้ที่กองคลัง</p>',
+    days: 9,
   },
 ];
 
@@ -109,56 +129,555 @@ const CMS_PAGES = [
 
 /* -------------------------------------------------------- page tree helpers */
 const nav = [
-  { label: 'หน้าหลัก', href: '/' },
   {
-    label: 'เกี่ยวกับหน่วยงาน',
-    children: [
-      { label: 'ข้อมูลทั่วไป', href: '/about' },
-      { label: 'วิสัยทัศน์และพันธกิจ', href: '/vision' },
-      { label: 'อำนาจหน้าที่', href: '/authority' },
-      { label: 'โครงสร้างหน่วยงาน', href: '/structure' },
-    ],
+    label: 'หน้าหลัก',
+    href: '/'
   },
   {
-    label: 'บุคลากร',
+    label: 'ข้อมูลพื้นฐาน',
     children: [
-      { label: 'คณะผู้บริหาร', href: '/personnel' },
-      { label: 'สมาชิกสภาเทศบาล', href: '/personnel' },
-    ],
+      {
+        label: 'ข้อมูลพื้นฐาน',
+        children: [
+          {
+            label: 'ประวัติและข้อมูลสภาพทั่วไป',
+            href: '/about'
+          },
+          {
+            label: 'ตราสัญลักษณ์',
+            href: '/about'
+          },
+          {
+            label: 'วิสัยทัศน์และพันธกิจ',
+            href: '/vision'
+          },
+          {
+            label: 'ผู้นำชุมชน',
+            href: '/personnel'
+          },
+          {
+            label: 'โครงสร้างหน่วยงาน',
+            href: '/structure'
+          },
+          {
+            label: 'องค์กรสุขภาวะ (Happy Workplace)',
+            href: '/about'
+          },
+          {
+            label: 'มาตรฐานกำหนดตำแหน่ง เทศบาลฯ',
+            href: '/documents'
+          }
+        ]
+      },
+      {
+        label: 'นโยบายของผู้บริหาร',
+        children: [
+          {
+            label: 'คำแถลงนโยบายของผู้บริหาร',
+            href: '/about'
+          },
+          {
+            label: 'เจตจำนงสุจริตของผู้บริหาร',
+            href: '/about'
+          },
+          {
+            label: 'นโยบายไม่รับของขวัญ No Gift Policy',
+            href: '/about'
+          }
+        ]
+      },
+      {
+        label: 'ภารกิจ อำนาจหน้าที่ และความรับผิดชอบ',
+        children: [
+          {
+            label: 'อำนาจหน้าที่ของเทศบาลตำบลปทุม',
+            href: '/authority'
+          },
+          {
+            label: 'อำนาจหน้าที่ของสำนักปลัดเทศบาล',
+            href: '/authority'
+          },
+          {
+            label: 'อำนาจหน้าที่ของกองคลัง',
+            href: '/authority'
+          },
+          {
+            label: 'อำนาจหน้าที่ของกองช่าง',
+            href: '/authority'
+          },
+          {
+            label: 'อำนาจหน้าที่ของกองการศึกษา',
+            href: '/authority'
+          },
+          {
+            label: 'อำนาจหน้าที่ของกองสาธารณสุขและสิ่งแวดล้อม',
+            href: '/authority'
+          },
+          {
+            label: 'อำนาจหน้าที่ของหน่วยตรวจสอบภายใน',
+            href: '/authority'
+          }
+        ]
+      },
+      {
+        label: 'ทำเนียบบุคลากร',
+        children: [
+          {
+            label: 'คณะผู้บริหาร',
+            href: '/personnel'
+          },
+          {
+            label: 'สมาชิกสภาเทศบาล',
+            href: '/personnel'
+          },
+          {
+            label: 'หัวหน้าส่วนราชการ',
+            href: '/personnel'
+          },
+          {
+            label: 'สำนักปลัดเทศบาล',
+            href: '/about'
+          },
+          {
+            label: 'หน่วยตรวจสอบภายใน',
+            href: '/about'
+          },
+          {
+            label: 'กองคลัง',
+            href: '/about'
+          },
+          {
+            label: 'กองช่าง',
+            href: '/about'
+          },
+          {
+            label: 'กองการศึกษา',
+            href: '/about'
+          },
+          {
+            label: 'กองสาธารณสุขและสิ่งแวดล้อม',
+            href: '/about'
+          }
+        ]
+      },
+      {
+        label: 'ข้อมูลในพื้นที่',
+        children: [
+          {
+            label: 'ผลผลิตทางการเกษตร',
+            href: '/about'
+          },
+          {
+            label: 'ผลิตภัณฑ์ชุมชน/ภูมิปัญญาท้องถิ่น',
+            href: '/about'
+          },
+          {
+            label: 'แนะนำแหล่งท่องเที่ยวและสถานที่สำคัญ',
+            href: '/about'
+          }
+        ]
+      },
+      {
+        label: 'คู่มือการปฏิบัติงาน',
+        children: [
+          {
+            label: 'คู่มือและมาตรฐานการปฏิบัติงาน',
+            href: '/documents'
+          },
+          {
+            label: 'หลักเกณฑ์การบริหารและพัฒนาทรัพยากรบุคคล',
+            href: '/documents'
+          }
+        ]
+      }
+    ]
   },
   {
-    label: 'ข่าวสาร',
+    label: 'ศูนย์ข้อมูลข่าวสาร',
     children: [
-      { label: 'ข่าวประชาสัมพันธ์', href: '/news' },
-      { label: 'ข่าวกิจกรรม', href: '/activity' },
-      { label: 'ประกาศจัดซื้อจัดจ้าง', href: '/procurement' },
-    ],
+      {
+        label: 'ข่าวสารประชาสัมพันธ์',
+        children: [
+          {
+            label: 'จดหมายข่าว',
+            href: '/news'
+          },
+          {
+            label: 'ข่าวประชาสัมพันธ์/ข่าวประกาศ',
+            href: '/news'
+          },
+          {
+            label: 'กิจกรรม/ผลงาน',
+            href: '/activity'
+          },
+          {
+            label: 'ข่าวรับสมัครงาน โอน/ย้าย',
+            href: '/documents'
+          },
+          {
+            label: 'ITA',
+            href: '/about'
+          },
+          {
+            label: 'LPA',
+            href: '/about'
+          },
+          {
+            label: 'ฐานข้อมูลเปิดภาครัฐ (OPEN DATA)',
+            href: '/about'
+          },
+          {
+            label: 'การเปิดโอกาสการมีส่วนร่วม',
+            href: '/about'
+          }
+        ]
+      },
+      {
+        label: 'การดำเนินงานของหน่วยงาน',
+        children: [
+          {
+            label: 'แผนการดำเนินงานและงบประมาณประจำปี',
+            href: '/documents'
+          },
+          {
+            label: 'แผนพัฒนาท้องถิ่น',
+            href: '/documents'
+          },
+          {
+            label: 'แผนยุทธศาสตร์การพัฒนา',
+            href: '/documents'
+          },
+          {
+            label: 'แผนอัตรากำลัง',
+            href: '/documents'
+          },
+          {
+            label: 'แผนพัฒนาบุคลากร',
+            href: '/documents'
+          },
+          {
+            label: 'แผนปฏิบัติการป้องกันการทุจริต',
+            href: '/documents'
+          },
+          {
+            label: 'การบริหารความเสี่ยง เพื่อป้องกันการทุจริตภายในหน่วยงาน',
+            href: '/documents'
+          },
+          {
+            label: 'งานตรวจสอบภายใน',
+            href: '/documents'
+          },
+          {
+            label: 'งานบริหารและพัฒนาทรัพยากรบุคคล',
+            href: '/documents'
+          },
+          {
+            label: 'งานจริยธรรม',
+            href: '/documents'
+          }
+        ]
+      },
+      {
+        label: 'การดำเนินงานของหน่วยงาน',
+        children: [
+          {
+            label: 'การลดขั้นตอนการปฎิบัติงาน',
+            href: '/documents'
+          },
+          {
+            label: 'มาตรการภายใน',
+            href: '/about'
+          },
+          {
+            label: 'แนวปฏิบัติการจัดการเรื่องร้องเรียนการทุจริตและประพฤติมิชอบ',
+            href: '/services'
+          },
+          {
+            label: 'การประเมินความเสี่ยงเพื่อป้องกันการทุจริต',
+            href: '/documents'
+          },
+          {
+            label: 'ข้อมูลเชิงสถิติเรื่องร้องเรียนการทุจริตและประพฤติมิชอบประจำปี',
+            href: '/documents'
+          }
+        ]
+      },
+      {
+        label: 'การกำกับและติดตามการดำเนินงานตามแผน',
+        children: [
+          {
+            label: 'รายงานติดตามและประเมินผลแผนฯ',
+            href: '/documents'
+          },
+          {
+            label: 'การโอนงบประมาณรายจ่ายประจำปี',
+            href: '/documents'
+          }
+        ]
+      },
+      {
+        label: 'เอกสาร/รายงาน',
+        children: [
+          {
+            label: 'รายงานข้อมูลทางการเงิน',
+            href: '/documents'
+          },
+          {
+            label: 'รายงานผลการดำเนินงาน',
+            href: '/documents'
+          },
+          {
+            label: 'รายงานการประชุม',
+            href: '/documents'
+          },
+          {
+            label: 'รายงานผลการสำรวจความพึงพอใจการให้บริการ',
+            href: '/documents'
+          }
+        ]
+      },
+      {
+        label: 'ข้อมูลที่เกี่ยวข้อง',
+        children: [
+          {
+            label: 'เทศบัญญัติงบประมาณ',
+            href: '/authority'
+          },
+          {
+            label: 'เทศบัญญัติท้องถิ่น',
+            href: '/authority'
+          },
+          {
+            label: 'กฎหมายและระเบียบท้องถิ่น เทศบาลตำบล',
+            href: '/authority'
+          },
+          {
+            label: 'คำสั่ง ทต.',
+            href: '/authority'
+          },
+          {
+            label: 'ประมวลจริยธรรมสำหรับเจ้าหน้าที่รัฐ',
+            href: '/authority'
+          },
+          {
+            label: 'การขออนุมัติใช้เงินสะสม/การได้รับการจัดสรรเงินอุดหนุนเฉพาะกิจ',
+            href: '/about'
+          }
+        ]
+      },
+      {
+        label: 'กฎหมายท้องถิ่น',
+        children: [
+          {
+            label: 'พรบ./พรก.',
+            href: '/authority'
+          },
+          {
+            label: 'กฎระเบียบกระทรวง',
+            href: '/authority'
+          },
+          {
+            label: 'คำสั่ง สถ.',
+            href: '/authority'
+          },
+          {
+            label: 'มติ ก.อบจ.',
+            href: '/authority'
+          },
+          {
+            label: 'มติ ก.เทศบาล.',
+            href: '/authority'
+          },
+          {
+            label: 'มติ ก.อบต.',
+            href: '/authority'
+          }
+        ]
+      },
+      {
+        label: 'งานกิจการสภา',
+        children: [
+          {
+            label: 'รายงานกิจการสภา',
+            href: '/documents'
+          },
+          {
+            label: 'ข้อมูลการจัดซื้อจัดจ้าง',
+            href: '/procurement'
+          }
+        ]
+      }
+    ]
   },
-  { label: 'บริการประชาชน', href: '/services' },
   {
-    label: 'เอกสารเผยแพร่',
-    children: [
-      { label: 'แผนพัฒนาและแผนปฏิบัติการ', href: '/documents' },
-      { label: 'รายงานผลการดำเนินงาน', href: '/documents' },
-      { label: 'คู่มือมาตรฐานการให้บริการ', href: '/documents' },
-    ],
+    label: 'ข้อมูลการจัดซื้อจัดจ้าง',
+    href: '/procurement'
   },
-  { label: 'ติดต่อเรา', href: '/contact' },
+  {
+    label: 'บริการประชาชน',
+    children: [
+      {
+        label: 'บริการประชาชน',
+        children: [
+          {
+            label: 'รับเรื่องร้องเรียนร้องทุกข์',
+            href: '/contact'
+          },
+          {
+            label: 'คลังความรู้',
+            href: '/services'
+          },
+          {
+            label: 'ช่องทางร้องเรียนทุจริต',
+            href: '/contact'
+          },
+          {
+            label: 'รับฟังความคิดเห็น',
+            href: '/contact'
+          },
+          {
+            label: 'คำถาม คำตอบ (Q&A)',
+            href: '/contact'
+          },
+          {
+            label: 'แบบสอบถามความพึงพอใจในการให้บริการของหน่วยงาน',
+            href: '/documents'
+          },
+          {
+            label: 'แบบสอบถามความพึงพอใจในการให้บริการเว็บไซต์',
+            href: '/services'
+          }
+        ]
+      },
+      {
+        label: 'บริการออนไลน์',
+        children: [
+          {
+            label: 'คู่มือหรือมาตรฐานการให้บริการ',
+            href: '/documents'
+          },
+          {
+            label: 'e-Service',
+            href: '/services'
+          },
+          {
+            label: 'การลดขั้นตอนการปฏิบัติงาน',
+            href: '/documents'
+          },
+          {
+            label: 'สถิติการให้บริการประชาชน',
+            href: '/documents'
+          }
+        ]
+      },
+      {
+        label: 'บริการอื่น ๆ',
+        children: [
+          {
+            label: 'อปพร.',
+            href: '/services'
+          },
+          {
+            label: 'กู้ชีพ',
+            href: '/services'
+          }
+        ]
+      }
+    ]
+  },
+  {
+    label: 'เกี่ยวกับเรา',
+    children: [
+      {
+        label: 'เกี่ยวกับเรา',
+        children: [
+          {
+            label: 'ติดต่อเรา',
+            href: '/contact'
+          },
+          {
+            label: 'แผนผังเว็บไซต์',
+            href: '/documents'
+          },
+          {
+            label: 'ข้อกำหนดการใช้งานเว็บไซต์',
+            href: '/documents'
+          },
+          {
+            label: 'นโยบายความเป็นส่วนตัวในการใช้งานเว็บไซต์',
+            href: '/documents'
+          },
+          {
+            label: 'คำถามที่พบบ่อย',
+            href: '/about'
+          },
+          {
+            label: 'เข้าสู่ระบบ',
+            href: '/about'
+          }
+        ]
+      }
+    ]
+  }
 ];
 
+/**
+ * The side menu mirrors the main one, but flattened: its middle level is group
+ * headings, which are not pages, so a visitor clicking one would go nowhere.
+ */
 const sidebarItems = (activeHref) => {
-  const mark = (item) => ({
-    ...item,
-    ...(item.href === activeHref ? { active: true } : {}),
-    ...(item.children ? { children: item.children.map(mark) } : {}),
-  });
-  return nav.filter((item) => item.href !== '/').map(mark);
+  const leaves = (item) =>
+    (item.children ?? []).flatMap((child) => (child.children?.length ? child.children : [child]));
+
+  return nav
+    .filter((item) => item.href !== '/')
+    .map((item) => {
+      const children = leaves(item).map((leaf) => ({
+        ...leaf,
+        ...(leaf.href === activeHref ? { active: true } : {}),
+      }));
+      return {
+        label: item.label,
+        ...(item.href ? { href: item.href } : {}),
+        ...(children.length ? { children } : {}),
+        ...(item.href === activeHref || children.some((c) => c.active) ? { active: true } : {}),
+      };
+    });
 };
+
+/** Every mock asset says so, so nobody mistakes one for the agency's own. */
+const MOCK_ALT = 'ภาพประกอบตัวอย่าง — ยังไม่ได้อัปโหลดภาพจริงของหน่วยงาน';
+const MOCK_PERSON_NOTE =
+  'ยังไม่ได้อัปโหลดภาพถ่ายจริง — ภาพผู้บริหารต้องเป็นภาพถ่ายของบุคคลนั้นเท่านั้น';
+
+const noticeList = (id, { title, category, page, moreLabel = 'ดูทั้งหมด', limit = 6 }) => ({
+  id,
+  type: 'NoticeListComponent',
+  props: {
+    title,
+    moreHref: `/${page}`,
+    moreLabel,
+    dataSource: {
+      table: 'cms_post',
+      where: { cms_category_id: category },
+      orderBy: 'publish_at',
+      direction: 'desc',
+      limit,
+      linkPattern: `/${page}/{id}`,
+    },
+  },
+});
 
 const topbar = () => ({
   id: 'topbar',
   type: 'SiteTopbarComponent',
-  props: { __chrome: true, phone: AGENCY.phone, email: AGENCY.email },
+  props: {
+    __chrome: true,
+    phone: AGENCY.phone,
+    email: AGENCY.email,
+    facebookLabel: AGENCY.name,
+    facebookUrl: 'https://www.facebook.com/',
+  },
 });
 
 const header = (activeHref) => ({
@@ -215,6 +734,12 @@ const dock = () => ({
   id: 'dock',
   type: 'FloatingDockComponent',
   props: { __chrome: true, phone: AGENCY.phone },
+});
+
+const cookieBar = () => ({
+  id: 'cookie',
+  type: 'CookieConsentComponent',
+  props: { __chrome: true, policyHref: '/privacy' },
 });
 
 /**
@@ -278,10 +803,16 @@ const innerPage = (id, title, seo, activeHref, content) => ({
     },
     footer(),
     dock(),
+    cookieBar(),
   ],
 });
 
 const PAGES = [
+  /*
+   * Section for section against a real municipal portal, in the same order:
+   * banner, ticker, search, executives, sidebar + news, alert strip, ITA,
+   * e-Service, procurement, jobs, e-GP, video, places, forms, links, map.
+   */
   {
     id: 'index',
     title: 'หน้าหลัก',
@@ -299,65 +830,101 @@ const PAGES = [
     componentTree: [
       topbar(),
       header('/'),
+
+      /* 1 · แบนเนอร์หลัก */
       {
         id: 'hero',
         type: 'HeroCarouselComponent',
         props: {
           interval: 7,
           slides: [
+            { image: '/img/mock/hero-1.svg', alt: MOCK_ALT, title: AGENCY.name, text: AGENCY.district },
             {
-              title: AGENCY.name,
-              text: 'บริการด้วยความโปร่งใส เป็นธรรม และทันสมัย เพื่อคุณภาพชีวิตที่ดีของประชาชนในพื้นที่',
-            },
-            {
+              image: '/img/mock/hero-2.svg', alt: MOCK_ALT,
               title: 'แจ้งเรื่องร้องเรียนออนไลน์',
               text: 'แจ้งปัญหาในพื้นที่ถึงเจ้าหน้าที่ได้ตลอด 24 ชั่วโมง ติดตามสถานะได้ด้วยตนเอง',
               href: '/services',
             },
             {
+              image: '/img/mock/hero-3.svg', alt: MOCK_ALT,
               title: 'ประกาศจัดซื้อจัดจ้าง',
-              text: 'เปิดเผยแผนและผลการจัดซื้อจัดจ้างตามหลักธรรมาภิบาล',
+              text: 'เปิดเผยแผน ราคากลาง และผลการจัดซื้อจัดจ้างตามหลักธรรมาภิบาล',
               href: '/procurement',
             },
           ],
         },
       },
+
+      /* 2 · แถบข่าวเลื่อน */
       {
-        id: 'services',
-        type: 'ServiceLinksComponent',
+        id: 'ticker',
+        type: 'SiteTickerComponent',
         props: {
-          stylePreset: 'gov-band-soft',
-          title: 'บริการประชาชน',
-          subtitle: 'เรื่องที่ติดต่อบ่อย เข้าถึงได้ในคลิกเดียว',
-          columns: 6,
+          label: 'ข่าวสารและกิจกรรมล่าสุด',
           items: [
-            { label: 'แจ้งเรื่องร้องเรียน', icon: 'complaint', href: '/services' },
-            { label: 'ชำระภาษีออนไลน์', icon: 'budget', href: '/services' },
-            { label: 'ขออนุญาตก่อสร้าง', icon: 'form', href: '/services' },
-            { label: 'ดาวน์โหลดแบบฟอร์ม', icon: 'download', href: '/services' },
-            { label: 'จัดซื้อจัดจ้าง', icon: 'procurement', href: '/procurement' },
-            { label: 'ติดต่อหน่วยงาน', icon: 'contact', href: '/contact' },
+            { label: 'ประกาศรับสมัครบุคคลเพื่อสรรหาเป็นพนักงานจ้าง ประจำปีงบประมาณ 2569', href: '/jobs' },
+            { label: 'แจ้งกำหนดการชำระภาษีที่ดินและสิ่งปลูกสร้าง ประจำปี 2569', href: '/news' },
+            { label: 'ประกาศเผยแพร่แผนการจัดซื้อจัดจ้าง ประจำปีงบประมาณ พ.ศ. 2569', href: '/procurement' },
+            { label: 'โครงการอบรมส่งเสริมอาชีพให้แก่ประชาชน ประจำปี 2569', href: '/activity' },
           ],
         },
       },
-      postList('home_news', {
-        title: 'ข่าวประชาสัมพันธ์',
-        subtitle: 'ประกาศและข่าวสารจากเทศบาล',
-        category: 1,
-        page: 'news',
-      }),
-      postList('home_activity', {
-        title: 'ข่าวกิจกรรม',
-        subtitle: 'ภาพกิจกรรมและโครงการของหน่วยงาน',
-        category: 2,
-        page: 'activity',
-      }),
-      postList('home_procurement', {
-        title: 'ประกาศจัดซื้อจัดจ้าง',
-        subtitle: 'แผน ราคากลาง และผลการจัดซื้อจัดจ้าง',
-        category: 3,
-        page: 'procurement',
-      }),
+
+      /* 3 · ค้นหาทั้งเว็บไซต์ */
+      { id: 'search', type: 'SiteSearchComponent', props: { action: '/news' } },
+
+      /* 4 · ผู้บริหารและวิดีโอแนะนำหน่วยงาน */
+      {
+        id: 'exec_row',
+        type: 'ServiceLinksComponent',
+        props: {
+          stylePreset: 'gov-band-soft',
+          title: 'ผู้บริหารหน่วยงาน',
+          subtitle: MOCK_PERSON_NOTE,
+          columns: 3,
+          items: [
+            { label: 'คณะผู้บริหาร', description: 'นายกเทศมนตรีและรองนายกเทศมนตรี', icon: 'people', href: '/personnel' },
+            { label: 'สมาชิกสภาเทศบาล', description: 'ฝ่ายนิติบัญญัติของหน่วยงาน', icon: 'agency', href: '/personnel' },
+            { label: 'หัวหน้าส่วนราชการ', description: 'ปลัดเทศบาลและผู้อำนวยการกอง', icon: 'office', href: '/personnel' },
+          ],
+        },
+      },
+
+      /* 5 · เมนูหมวดหมู่ พร้อมข่าวประชาสัมพันธ์และข่าวกิจกรรม */
+      {
+        id: 'home_body',
+        type: 'SiteSidebarMenuComponent',
+        props: { title: 'เมนูหลัก', items: sidebarItems('/') },
+        children: [
+          postList('home_news', {
+            title: 'ข่าวประชาสัมพันธ์',
+            subtitle: 'ประกาศและข่าวสารจากเทศบาล',
+            category: 1, page: 'news', columns: 3,
+          }),
+          postList('home_activity', {
+            title: 'ข่าวกิจกรรม',
+            subtitle: 'ภาพกิจกรรมและโครงการของหน่วยงาน',
+            category: 2, page: 'activity', columns: 3,
+          }),
+        ],
+      },
+
+      /* 6 · แจ้งเหตุฉุกเฉิน */
+      {
+        id: 'smart_alert',
+        type: 'MediaFeatureComponent',
+        props: {
+          image: '/img/mock/alert-banner.svg',
+          alt: MOCK_ALT,
+          mark: 'alert',
+          title: 'ระบบแจ้งเหตุและสาธารณภัย',
+          subtitle: 'แจ้งเหตุด่วนสาธารณภัยในพื้นที่ ตลอด 24 ชั่วโมง',
+          buttonLabel: 'แจ้งเหตุ',
+          href: '/contact',
+        },
+      },
+
+      /* 7 · การประเมินคุณธรรมและความโปร่งใส */
       linkGrid('ita', {
         title: 'การประเมินคุณธรรมและความโปร่งใส (ITA)',
         subtitle: 'ข้อมูลที่หน่วยงานเปิดเผยตามเกณฑ์การประเมิน',
@@ -374,42 +941,127 @@ const PAGES = [
           { label: 'คู่มือและมาตรฐานการให้บริการ', icon: 'form', href: '/documents' },
         ],
       }),
-      linkGrid('integrity', {
-        title: 'การส่งเสริมความโปร่งใสและป้องกันการทุจริต',
-        subtitle: 'ช่องทางแจ้งเรื่องและนโยบายของหน่วยงาน',
-        band: 'soft',
-        columns: 4,
-        items: [
-          { label: 'แจ้งเรื่องทุจริตและประพฤติมิชอบ', icon: 'integrity', href: '/contact' },
-          { label: 'ร้องเรียนร้องทุกข์', icon: 'complaint', href: '/contact' },
-          { label: 'นโยบายไม่รับของขวัญ (No Gift Policy)', icon: 'integrity', href: '/documents' },
-          { label: 'การมีส่วนร่วมแสดงความคิดเห็น', icon: 'people', href: '/contact' },
-        ],
-      }),
+
+      /* 8 · ศูนย์บริการประชาชนอิเล็กทรอนิกส์ */
       linkGrid('eservice', {
-        title: 'ศูนย์บริการประชาชนอิเล็กทรอนิกส์ (e-Service)',
-        subtitle: 'ยื่นคำขอและติดตามสถานะออนไลน์',
-        band: 'formal',
-        columns: 4,
+        title: 'ศูนย์บริการประชาชนอิเล็กทรอนิกส์',
+        subtitle: 'ยื่นคำขอ แจ้งเรื่อง และสอบถามข้อมูลออนไลน์',
+        band: 'soft',
+        columns: 3,
         items: [
-          { label: 'แจ้งซ่อมไฟฟ้าสาธารณะ', icon: 'form', href: '/contact' },
-          { label: 'ขอรับถังขยะ', icon: 'form', href: '/contact' },
-          { label: 'ขอน้ำเพื่ออุปโภคบริโภค', icon: 'form', href: '/contact' },
-          { label: 'สอบถามข้อมูล (Q&A)', icon: 'search', href: '/contact' },
+          { label: 'ร้องเรียนร้องทุกข์', description: 'แจ้งปัญหาในพื้นที่ถึงเจ้าหน้าที่', icon: 'complaint', href: '/contact' },
+          { label: 'แจ้งเรื่องทุจริต', description: 'ช่องทางแจ้งเบาะแสการทุจริต', icon: 'integrity', href: '/contact' },
+          { label: 'สอบถามข้อมูล (Q&A)', description: 'คำถามที่พบบ่อยและช่องทางสอบถาม', icon: 'search', href: '/contact' },
         ],
       }),
-      linkGrid('related', {
-        title: 'เว็บไซต์และระบบสารสนเทศที่เกี่ยวข้อง',
-        subtitle: 'ลิงก์ไปยังหน่วยงานและระบบกลางของภาครัฐ',
+
+      /* 9 · ประกาศจัดซื้อจัดจ้าง */
+      noticeList('home_procurement', {
+        title: 'ประกาศจัดซื้อจัดจ้าง',
+        category: 3, page: 'procurement',
+        moreLabel: 'ประกาศจัดซื้อจัดจ้างทั้งหมด',
+      }),
+
+      /* 10 · ข่าวรับสมัครงาน โอน/ย้าย */
+      noticeList('home_jobs', {
+        title: 'ข่าวรับสมัครงาน โอน/ย้าย',
+        category: 4, page: 'jobs',
+        moreLabel: 'ประกาศรับสมัครงานทั้งหมด',
+      }),
+
+      /* 11 · ประกาศจัดซื้อจัดจ้างจากระบบ e-GP */
+      linkGrid('egp', {
+        title: 'ประกาศจัดซื้อจัดจ้างจากระบบ e-GP',
+        subtitle: 'ข้อมูลจากระบบจัดซื้อจัดจ้างภาครัฐ กรมบัญชีกลาง',
+        band: 'formal',
+        columns: 3,
+        items: [
+          { label: 'ประกาศเชิญชวน', description: 'ประกวดราคาและสอบราคา', icon: 'procurement', href: 'https://process.gprocurement.go.th', external: true },
+          { label: 'ประกาศราคากลาง', description: 'ราคากลางและการคำนวณ', icon: 'budget', href: 'https://process.gprocurement.go.th', external: true },
+          { label: 'ประกาศผลผู้ชนะ', description: 'ผลการจัดซื้อจัดจ้างรายไตรมาส', icon: 'documents', href: 'https://process.gprocurement.go.th', external: true },
+        ],
+      }),
+
+      /* 12 · วิดีโอแนะนำหน่วยงาน */
+      {
+        id: 'intro_video',
+        type: 'MediaFeatureComponent',
+        props: {
+          image: '/img/mock/video-cover.svg',
+          alt: MOCK_ALT,
+          mark: 'play',
+          title: 'วิดีโอแนะนำหน่วยงาน',
+          subtitle: 'ยังไม่ได้อัปโหลดวิดีโอจริง',
+          buttonLabel: 'ดูวิดีโอ',
+          href: '/about',
+        },
+      },
+
+      /* 13 · แหล่งท่องเที่ยวและสถานที่สำคัญ */
+      {
+        id: 'tour',
+        type: 'GalleryComponent',
+        props: {
+          title: 'แหล่งท่องเที่ยวและสถานที่สำคัญ',
+          columns: 4,
+          items: [
+            { id: 'tour-1', title: 'วัดประจำตำบล', imageUrl: '/img/mock/tour-1.svg', description: MOCK_ALT },
+            { id: 'tour-2', title: 'ตลาดชุมชน', imageUrl: '/img/mock/tour-2.svg', description: MOCK_ALT },
+            { id: 'tour-3', title: 'สวนสาธารณะริมคลอง', imageUrl: '/img/mock/tour-3.svg', description: MOCK_ALT },
+            { id: 'tour-4', title: 'ศูนย์เรียนรู้ภูมิปัญญาท้องถิ่น', imageUrl: '/img/mock/tour-4.svg', description: MOCK_ALT },
+          ],
+        },
+      },
+
+      /* 14 · แบบฟอร์มและเอกสารดาวน์โหลด */
+      linkGrid('forms', {
+        title: 'แบบฟอร์มและเอกสารดาวน์โหลด',
+        subtitle: 'เอกสารที่ประชาชนใช้บ่อย',
         band: 'soft',
         columns: 4,
         items: [
-          { label: 'กรมส่งเสริมการปกครองท้องถิ่น', icon: 'agency', href: 'https://www.dla.go.th', external: true },
-          { label: 'ระบบจัดซื้อจัดจ้างภาครัฐ (e-GP)', icon: 'procurement', href: 'https://process.gprocurement.go.th', external: true },
-          { label: 'สำนักงาน ป.ป.ช.', icon: 'integrity', href: 'https://www.nacc.go.th', external: true },
-          { label: 'ศูนย์รวมข้อมูลเพื่อติดต่อราชการ', icon: 'office', href: 'https://www.info.go.th', external: true },
+          { label: 'คำร้องทั่วไป', icon: 'form', href: '/documents' },
+          { label: 'คำขออนุญาตก่อสร้างอาคาร', icon: 'form', href: '/documents' },
+          { label: 'แบบฟอร์มร้องเรียนร้องทุกข์', icon: 'complaint', href: '/documents' },
+          { label: 'คำขอข้อมูลข่าวสารของราชการ', icon: 'download', href: '/documents' },
         ],
       }),
+
+      /* 15 · ลิงก์ที่น่าสนใจ */
+      {
+        id: 'partners',
+        type: 'PartnerStripComponent',
+        props: {
+          title: 'ลิงก์ที่น่าสนใจ',
+          items: [
+            { label: 'กรมส่งเสริมการปกครองท้องถิ่น', href: 'https://www.dla.go.th' },
+            { label: 'ระบบจัดซื้อจัดจ้างภาครัฐ (e-GP)', href: 'https://process.gprocurement.go.th' },
+            { label: 'สำนักงาน ป.ป.ช.', href: 'https://www.nacc.go.th' },
+            { label: 'ศูนย์รวมข้อมูลเพื่อติดต่อราชการ', href: 'https://www.info.go.th' },
+            { label: 'กรมบัญชีกลาง', href: 'https://www.cgd.go.th' },
+            { label: 'สำนักงานคณะกรรมการกฤษฎีกา', href: 'https://www.krisdika.go.th' },
+          ],
+        },
+      },
+
+      /* 16 · แผนที่ที่ตั้งสำนักงาน */
+      {
+        id: 'map',
+        type: 'MediaFeatureComponent',
+        props: {
+          image: '/img/mock/map-banner.svg',
+          alt: MOCK_ALT,
+          mark: 'map',
+          light: true,
+          title: 'ที่ตั้งสำนักงาน',
+          subtitle: AGENCY.address,
+          buttonLabel: 'เปิดแผนที่นำทาง',
+          href: 'https://www.google.com/maps',
+          external: true,
+        },
+      },
+
+      /* 17 · ข้อมูลพื้นฐานของตำบล */
       {
         id: 'home_stats',
         type: 'StatCounterComponent',
@@ -424,8 +1076,10 @@ const PAGES = [
           ],
         },
       },
+
       footer(),
       dock(),
+      cookieBar(),
     ],
   },
 
@@ -572,6 +1226,40 @@ const PAGES = [
       + 'เมื่ออัปโหลดแล้วรายการจะแสดงที่นี่</em></p>'),
   ]),
 
+  innerPage('jobs', 'ข่าวรับสมัครงาน โอน/ย้าย', {
+    title: 'ข่าวรับสมัครงาน โอน/ย้าย',
+    description: `ประกาศรับสมัครงาน รับโอน และย้ายของ${AGENCY.name}`,
+    priority: 0.7,
+    changeFrequency: 'weekly',
+  }, '/jobs', [
+    postList('jobs_all', {
+      title: 'ข่าวรับสมัครงาน โอน/ย้าย',
+      subtitle: 'ประกาศทั้งหมด',
+      category: 4, page: 'jobs', limit: 24, columns: 2, more: false,
+    }),
+  ]),
+
+  innerPage('privacy', 'นโยบายความเป็นส่วนตัว', {
+    title: 'นโยบายความเป็นส่วนตัว',
+    description: 'นโยบายการคุ้มครองข้อมูลส่วนบุคคลและการใช้คุกกี้ของเว็บไซต์',
+    priority: 0.4,
+    changeFrequency: 'yearly',
+  }, '/privacy', [
+    html('privacy_body',
+      '<h2>การใช้คุกกี้</h2>'
+      + '<p>เว็บไซต์นี้ใช้คุกกี้ที่จำเป็นต่อการทำงานของเว็บไซต์เท่านั้น เช่น '
+      + 'การจดจำสถานะการเข้าสู่ระบบและขนาดตัวอักษรที่ท่านเลือก '
+      + 'คุกกี้เหล่านี้ไม่ได้ใช้ติดตามพฤติกรรมของท่านเพื่อการโฆษณา</p>'
+      + '<h2>ข้อมูลส่วนบุคคล</h2>'
+      + '<p>หน่วยงานเก็บรวบรวมข้อมูลส่วนบุคคลเท่าที่จำเป็นต่อการให้บริการ '
+      + 'ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 '
+      + 'และจะไม่เปิดเผยต่อบุคคลภายนอกโดยไม่ได้รับความยินยอม '
+      + 'เว้นแต่เป็นการปฏิบัติตามที่กฎหมายกำหนด</p>'
+      + '<h2>สิทธิของเจ้าของข้อมูล</h2>'
+      + '<p>ท่านมีสิทธิขอเข้าถึง ขอแก้ไข ขอลบ และขอคัดค้านการประมวลผลข้อมูลส่วนบุคคลของท่าน '
+      + `โดยติดต่อได้ที่ ${AGENCY.email} หรือโทร ${AGENCY.phone}</p>`),
+  ]),
+
   innerPage('services', 'บริการประชาชน', {
     title: 'บริการประชาชน',
     description: 'บริการออนไลน์และแบบฟอร์มสำหรับประชาชน',
@@ -671,6 +1359,14 @@ async function seedTenantContent(client) {
     );
     pages += 1;
   }
+
+  // Articles seeded before illustrations existed still have none, which leaves
+  // half the grid as placeholder plates. Fill only the empty ones.
+  await client.query(`
+    UPDATE public.cms_post
+    SET image = '/img/mock/news-' || ((id % 6) + 1) || '.svg'
+    WHERE image IS NULL OR image = ''
+  `);
 
   const counts = await client.query(
     'SELECT (SELECT COUNT(*) FROM public.cms_post) AS posts, (SELECT COUNT(*) FROM public.cms_page) AS pages',

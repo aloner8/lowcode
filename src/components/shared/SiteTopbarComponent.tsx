@@ -1,130 +1,133 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Phone, Mail, Facebook, Youtube, Type } from 'lucide-react';
+import { Phone, Mail, Facebook, Youtube, RotateCcw, Plus, Minus } from 'lucide-react';
 
 export interface SiteTopbarComponentProps {
   phone?: string;
   email?: string;
+  facebookLabel?: string;
   facebookUrl?: string;
   youtubeUrl?: string;
   lineUrl?: string;
   className?: string;
 }
 
-const STEPS = [
-  { id: 'small', label: 'ก-', scale: 0.9, name: 'ตัวอักษรเล็ก' },
-  { id: 'normal', label: 'ก', scale: 1, name: 'ตัวอักษรปกติ' },
-  { id: 'large', label: 'ก+', scale: 1.15, name: 'ตัวอักษรใหญ่' },
-] as const;
-
 const STORAGE_KEY = 'gov:font-scale';
+const MIN = 0.85;
+const MAX = 1.35;
+const STEP = 0.1;
+
+const round = (value: number) => Math.round(value * 100) / 100;
 
 /**
  * The strip above the header: how to reach the agency, and the text-size
- * control that Thai government sites are expected to carry.
+ * control Thai government sites are expected to carry.
  *
- * The chosen size is remembered per browser, because a visitor who needs larger
- * text needs it on every page, not just the one where they pressed the button.
+ * The size steps up and down from the current value rather than offering three
+ * fixed sizes, and is remembered per browser — a visitor who needs larger text
+ * needs it on every page, not only where they pressed the button.
  */
 export const SiteTopbarComponent: React.FC<SiteTopbarComponentProps> = ({
   phone,
   email,
+  facebookLabel,
   facebookUrl,
   youtubeUrl,
   lineUrl,
   className = '',
 }) => {
-  const [scaleId, setScaleId] = useState<string>('normal');
+  const [scale, setScale] = useState(1);
 
   useEffect(() => {
     try {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      if (stored && STEPS.some((step) => step.id === stored)) setScaleId(stored);
+      const stored = Number(window.localStorage.getItem(STORAGE_KEY));
+      if (stored >= MIN && stored <= MAX) setScale(stored);
     } catch {
       // Private browsing can refuse storage; the default size is fine.
     }
   }, []);
 
   useEffect(() => {
-    const step = STEPS.find((item) => item.id === scaleId) ?? STEPS[1];
-    document.documentElement.style.setProperty('--gov-font-scale', String(step.scale));
-  }, [scaleId]);
+    document.documentElement.style.setProperty('--gov-font-scale', String(scale));
+  }, [scale]);
 
-  const choose = (id: string) => {
-    setScaleId(id);
+  const apply = (next: number) => {
+    const value = round(Math.min(MAX, Math.max(MIN, next)));
+    setScale(value);
     try {
-      window.localStorage.setItem(STORAGE_KEY, id);
+      window.localStorage.setItem(STORAGE_KEY, String(value));
     } catch {
       // Remembering is a convenience, not a requirement.
     }
   };
 
-  const socials = [
-    { url: facebookUrl, Icon: Facebook, name: 'Facebook' },
-    { url: youtubeUrl, Icon: Youtube, name: 'YouTube' },
-  ].filter((item) => Boolean(item.url));
-
   return (
     <div className={`gov-topbar ${className}`}>
       <div className="gov-topbar-inner">
-        <div className="gov-topbar-contact">
+        <div className="gov-topbar-chips">
+          {facebookUrl && (
+            <a href={facebookUrl} className="gov-chip" target="_blank" rel="noreferrer">
+              <Facebook size={13} aria-hidden="true" />
+              {facebookLabel ?? 'Facebook'}
+              <span className="visually-hidden">(เปิดในแท็บใหม่)</span>
+            </a>
+          )}
           {phone && (
-            <a href={`tel:${phone.replace(/[^\d+]/g, '')}`} className="gov-topbar-link">
+            <a href={`tel:${phone.replace(/[^\d+]/g, '')}`} className="gov-chip">
               <Phone size={13} aria-hidden="true" /> {phone}
             </a>
           )}
           {email && (
-            <a href={`mailto:${email}`} className="gov-topbar-link">
+            <a href={`mailto:${email}`} className="gov-chip">
               <Mail size={13} aria-hidden="true" /> {email}
+            </a>
+          )}
+          {youtubeUrl && (
+            <a href={youtubeUrl} className="gov-chip" target="_blank" rel="noreferrer">
+              <Youtube size={13} aria-hidden="true" /> YouTube
+              <span className="visually-hidden">(เปิดในแท็บใหม่)</span>
+            </a>
+          )}
+          {lineUrl && (
+            <a href={lineUrl} className="gov-chip" target="_blank" rel="noreferrer">
+              LINE<span className="visually-hidden"> (เปิดในแท็บใหม่)</span>
             </a>
           )}
         </div>
 
-        <div className="gov-topbar-tools">
-          <div className="gov-fontsize" role="group" aria-label="ปรับขนาดตัวอักษร">
-            <Type size={13} aria-hidden="true" className="gov-fontsize-icon" />
-            {STEPS.map((step) => (
-              <button
-                key={step.id}
-                type="button"
-                className={`gov-fontsize-btn ${scaleId === step.id ? 'is-active' : ''}`}
-                onClick={() => choose(step.id)}
-                aria-pressed={scaleId === step.id}
-                aria-label={step.name}
-              >
-                {step.label}
-              </button>
-            ))}
-          </div>
-
-          {socials.length > 0 && (
-            <div className="gov-topbar-social">
-              {socials.map(({ url, Icon, name }) => (
-                <a
-                  key={name}
-                  href={url}
-                  className="gov-topbar-link"
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label={`${name} (เปิดในแท็บใหม่)`}
-                >
-                  <Icon size={14} aria-hidden="true" />
-                </a>
-              ))}
-              {lineUrl && (
-                <a
-                  href={lineUrl}
-                  className="gov-topbar-link"
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="LINE (เปิดในแท็บใหม่)"
-                >
-                  LINE
-                </a>
-              )}
-            </div>
-          )}
+        <div className="gov-topbar-tools" role="group" aria-label="ปรับขนาดตัวอักษร">
+          <span className="gov-topbar-tools-label">ขนาดอักษร</span>
+          <button
+            type="button"
+            className="gov-round-btn"
+            onClick={() => apply(scale + STEP)}
+            disabled={scale >= MAX}
+            aria-label="เพิ่มขนาดตัวอักษร"
+          >
+            <Plus size={15} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="gov-round-btn"
+            onClick={() => apply(scale - STEP)}
+            disabled={scale <= MIN}
+            aria-label="ลดขนาดตัวอักษร"
+          >
+            <Minus size={15} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="gov-round-btn"
+            onClick={() => apply(1)}
+            disabled={scale === 1}
+            aria-label="คืนขนาดตัวอักษรเป็นค่าเริ่มต้น"
+          >
+            <RotateCcw size={14} aria-hidden="true" />
+          </button>
+          <span className="visually-hidden" aria-live="polite">
+            ขนาดตัวอักษร {Math.round(scale * 100)} เปอร์เซ็นต์
+          </span>
         </div>
       </div>
     </div>

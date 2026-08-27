@@ -86,3 +86,8 @@ Desktop.ini
 # uploaded content, local configuration, and credentials. Keep it local only.
 /public/YII/
 
+
+# Reference material downloaded while matching the design of an existing
+# government portal. Kept out of the repository: it is another organisation's
+# markup, stylesheets and screenshots, useful locally but not ours to ship.
+/temp/

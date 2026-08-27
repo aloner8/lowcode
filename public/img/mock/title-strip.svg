@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 72" preserveAspectRatio="none" role="img" aria-label="">
+  <defs>
+    <linearGradient id="ts" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffe6ea"/><stop offset="0.5" stop-color="#ffffff"/><stop offset="1" stop-color="#ffe6ea"/>
+    </linearGradient>
+    <pattern id="kranok" width="48" height="72" patternUnits="userSpaceOnUse">
+      <path d="M6 60 q18 -16 12 -38 q14 16 26 6 q-6 22 12 32" fill="none" stroke="#d91113" stroke-opacity="0.30" stroke-width="3"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="72" fill="url(#ts)"/>
+  <rect width="220" height="72" fill="url(#kranok)"/>
+  <rect x="980" width="220" height="72" fill="url(#kranok)"/>
+  <rect y="69" width="1200" height="3" fill="#ffd700"/>
+</svg>

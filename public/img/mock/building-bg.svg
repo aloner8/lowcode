@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid slice" role="img" aria-label="">
+  <defs>
+    <linearGradient id="bb" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#dcecf9"/><stop offset="1" stop-color="#f3f8fd"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="700" fill="url(#bb)"/>
+  <g fill="#b9cfe4" opacity="0.55">
+    <path d="M420 300 l380 -150 l380 150 z"/>
+    <rect x="470" y="296" width="660" height="330"/>
+    <rect x="360" y="380" width="110" height="246"/>
+    <rect x="1130" y="380" width="110" height="246"/>
+  </g>
+  <g fill="#ffffff" opacity="0.65">
+    <rect x="540" y="360" width="60" height="150" rx="30"/><rect x="640" y="360" width="60" height="150" rx="30"/>
+    <rect x="900" y="360" width="60" height="150" rx="30"/><rect x="1000" y="360" width="60" height="150" rx="30"/>
+  </g>
+  <rect y="620" width="1600" height="80" fill="#cfe0ef" opacity="0.7"/>
+</svg>

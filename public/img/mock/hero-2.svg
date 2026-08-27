@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 820" role="img" aria-label="">
+  <defs>
+    <linearGradient id="s2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0c58a9"/><stop offset="0.6" stop-color="#3f8ed0"/><stop offset="1" stop-color="#cfe6f7"/>
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="820" fill="url(#s2)"/>
+  <g fill="#ffffff" opacity="0.10">
+    <circle cx="300" cy="200" r="150"/><circle cx="1650" cy="140" r="110"/><circle cx="1200" cy="260" r="70"/>
+  </g>
+  <!-- paddy fields -->
+  <path d="M0 600 q480 -60 960 0 t960 0 v220 H0 Z" fill="#7fbf6a"/>
+  <path d="M0 680 q480 -50 960 0 t960 0 v140 H0 Z" fill="#5fa34c"/>
+  <g stroke="#ffffff" stroke-opacity="0.25" stroke-width="2">
+    <path d="M0 700 q960 -50 1920 0"/><path d="M0 745 q960 -45 1920 0"/>
+  </g>
+  <!-- village roofs -->
+  <g fill="#b1452f">
+    <path d="M420 600 l90 -70 l90 70 z"/><path d="M1240 610 l80 -62 l80 62 z"/>
+  </g>
+  <g fill="#f2e3c8"><rect x="446" y="596" width="128" height="70"/><rect x="1264" y="606" width="112" height="66"/></g>
+  <rect y="770" width="1920" height="50" fill="#ffd700" opacity="0.5"/>
+</svg>

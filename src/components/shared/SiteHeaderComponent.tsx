@@ -7,8 +7,16 @@ export interface SiteNavItem {
   label: string;
   href?: string;
   active?: boolean;
+  /**
+   * One more level than a plain dropdown: when a child has children of its own,
+   * that child is a column heading and the panel opens full width. Agency menus
+   * run to eighty-odd links, which a single column cannot hold.
+   */
   children?: SiteNavItem[];
 }
+
+const isMega = (item: SiteNavItem) =>
+  (item.children ?? []).some((child) => (child.children ?? []).length > 0);
 
 export interface SiteHeaderComponentProps {
   agencyName?: string;
@@ -74,8 +82,19 @@ export const SiteHeaderComponent: React.FC<SiteHeaderComponentProps> = ({
     }
 
     const open = openMenu === key;
+    const mega = isMega(item) && !inDrawer;
+    const close = () => { setOpenMenu(null); setDrawerOpen(false); };
+
+    const link = (child: SiteNavItem, childKey: string) => (
+      <li key={childKey}>
+        <a href={child.href ?? '#'} className="gov-nav-sublink" onClick={close}>
+          {child.label}
+        </a>
+      </li>
+    );
+
     return (
-      <li key={key} className="gov-nav-item">
+      <li key={key} className={`gov-nav-item ${mega ? 'gov-nav-item-mega' : ''}`}>
         <button
           type="button"
           className={`gov-nav-link ${item.active ? 'is-active' : ''}`}
@@ -85,19 +104,32 @@ export const SiteHeaderComponent: React.FC<SiteHeaderComponentProps> = ({
           {item.label}
           <ChevronDown size={14} aria-hidden="true" className={open ? 'gov-nav-caret is-open' : 'gov-nav-caret'} />
         </button>
-        {open && (
+
+        {open && mega && (
+          <div className="gov-nav-mega">
+            <div className="gov-nav-mega-grid">
+              {item.children?.map((group, groupIndex) => (
+                <div className="gov-nav-mega-col" key={`${group.label}-${groupIndex}`}>
+                  <p className="gov-nav-mega-title">{group.label}</p>
+                  <ul className="gov-nav-mega-list">
+                    {(group.children ?? [group]).map((child, childIndex) =>
+                      link(child, `${child.label}-${childIndex}`))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {open && !mega && (
           <ul className={inDrawer ? 'gov-nav-sublist' : 'gov-nav-dropdown'}>
-            {item.children?.map((child, childIndex) => (
-              <li key={`${child.label}-${childIndex}`}>
-                <a
-                  href={child.href ?? '#'}
-                  className="gov-nav-sublink"
-                  onClick={() => { setOpenMenu(null); setDrawerOpen(false); }}
-                >
-                  {child.label}
-                </a>
-              </li>
-            ))}
+            {item.children?.flatMap((child, childIndex) =>
+              (child.children?.length
+                ? [
+                  <li className="gov-nav-subhead" key={`h-${childIndex}`}>{child.label}</li>,
+                  ...child.children.map((leaf, leafIndex) => link(leaf, `${leaf.label}-${leafIndex}`)),
+                ]
+                : [link(child, `${child.label}-${childIndex}`)]))}
           </ul>
         )}
       </li>
@@ -106,7 +138,7 @@ export const SiteHeaderComponent: React.FC<SiteHeaderComponentProps> = ({
 
   return (
     <header className={`gov-header ${className}`}>
-      <div className="gov-header-identity">
+      <div className="gov-header-bar">
         <a href={homeHref} className="gov-header-brand">
           {emblemUrl ? (
             // Uploaded by the agency; an arbitrary URL, so next/image cannot optimise it.
@@ -124,9 +156,13 @@ export const SiteHeaderComponent: React.FC<SiteHeaderComponentProps> = ({
           </span>
         </a>
 
+        <nav className="gov-nav d-none d-xl-block" aria-label="เมนูหลัก">
+          <ul className="gov-nav-list">{items.map((item, index) => renderItem(item, index, false))}</ul>
+        </nav>
+
         <button
           type="button"
-          className="gov-nav-toggle"
+          className="gov-nav-toggle d-xl-none"
           onClick={() => setDrawerOpen(true)}
           aria-expanded={drawerOpen}
           aria-controls="gov-main-nav"
@@ -135,10 +171,6 @@ export const SiteHeaderComponent: React.FC<SiteHeaderComponentProps> = ({
           <Menu size={22} aria-hidden="true" />
         </button>
       </div>
-
-      <nav className="gov-nav d-none d-lg-block" aria-label="เมนูหลัก">
-        <ul className="gov-nav-list">{items.map((item, index) => renderItem(item, index, false))}</ul>
-      </nav>
 
       {drawerOpen && (
         <>
