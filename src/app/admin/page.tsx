@@ -1,11 +1,10 @@
 import React from 'react';
+import Link from 'next/link';
+import { Box, Users, Layers, ScrollText, Palette, Plus, Globe, History, Inbox } from 'lucide-react';
 import StatWidgetCard from '@/components/admin/StatWidgetCard';
 import { getCurrentUser } from '@/lib/auth/authActions';
 import { getCoreDb } from '@/lib/db/coreDb';
 import { fetchPlatformAudit } from '@/lib/engine/AuditLogService';
-import { listSites, type SiteRecord } from '@/lib/runtime/siteRegistry';
-import { Box, Users, Activity, Layers, Palette, Workflow, ArrowRight } from 'lucide-react';
-import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +14,18 @@ interface DashboardCounts {
   platforms: number;
   pages: number;
   auditLogs: number;
+}
+
+interface SiteSummary {
+  appId: string;
+  appSlug: string;
+  appName: string;
+  primaryDomain: string;
+  port: number;
+  packageName: string;
+  expiresAt: string | null;
+  isActive: boolean;
+  isSuspended: boolean;
 }
 
 async function loadCounts(): Promise<DashboardCounts> {
@@ -36,214 +47,295 @@ async function loadCounts(): Promise<DashboardCounts> {
   };
 }
 
+/**
+ * Sites with the commercial fields an agency administrator actually asks about
+ * — which package they are on and when it lapses — rather than the internal
+ * database name the previous table showed.
+ */
+async function loadSites(): Promise<SiteSummary[]> {
+  const result = await getCoreDb().query<{
+    id: string;
+    app_slug: string;
+    app_name: string;
+    subdomain: string;
+    port: number;
+    package_name: string;
+    package_expires_at: Date | null;
+    is_active: boolean;
+    is_suspended: boolean;
+    primary_domain: string | null;
+  }>(`
+    SELECT a.id, a.app_slug, a.app_name, a.subdomain, a.port,
+           a.package_name, a.package_expires_at, a.is_active, a.is_suspended,
+           (SELECT d.domain FROM public.app_domains d
+             WHERE d.app_id = a.id AND d.is_active
+             ORDER BY d.is_primary DESC, d.domain LIMIT 1) AS primary_domain
+    FROM public.apps a
+    ORDER BY a.is_active DESC, a.app_name
+  `);
+
+  return result.rows.map((row) => ({
+    appId: row.id,
+    appSlug: row.app_slug,
+    appName: row.app_name,
+    primaryDomain: row.primary_domain ?? row.subdomain,
+    port: row.port,
+    packageName: row.package_name,
+    expiresAt: row.package_expires_at ? row.package_expires_at.toISOString().slice(0, 10) : null,
+    isActive: row.is_active,
+    isSuspended: row.is_suspended,
+  }));
+}
+
+const thaiDate = (iso: string) =>
+  new Date(`${iso}T00:00:00Z`).toLocaleDateString('th-TH', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+
+const daysUntil = (iso: string) =>
+  Math.ceil((new Date(`${iso}T00:00:00Z`).getTime() - Date.now()) / 86_400_000);
+
 const relativeTime = (iso: string) => {
   const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) return 'เมื่อสักครู่';
+  if (minutes < 60) return `${minutes} นาทีที่แล้ว`;
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.round(hours / 24)}d ago`;
+  if (hours < 24) return `${hours} ชั่วโมงที่แล้ว`;
+  return `${Math.round(hours / 24)} วันที่แล้ว`;
+};
+
+/** Audit actions are stored as codes; operators should read words. */
+const ACTION_LABELS: Record<string, string> = {
+  LOGIN: 'เข้าสู่ระบบ',
+  LOGOUT: 'ออกจากระบบ',
+  CHANGE_PASSWORD: 'เปลี่ยนรหัสผ่าน',
+  CREATE: 'เพิ่มข้อมูล',
+  UPDATE: 'แก้ไขข้อมูล',
+  DELETE: 'ลบข้อมูล',
 };
 
 export default async function AdminDashboardPage() {
   const currentUser = await getCurrentUser();
+  const isGod = currentUser?.globalRole === 'GOD';
 
   // Every figure below is read live from the control-plane database.
   const [counts, sites, audit] = await Promise.all([
     loadCounts().catch(() => ({ apps: 0, users: 0, platforms: 0, pages: 0, auditLogs: 0 })),
-    listSites(true).catch((): SiteRecord[] => []),
-    fetchPlatformAudit({ limit: 8 }).catch(() => ({ logs: [], total: 0 })),
+    loadSites().catch((): SiteSummary[] => []),
+    fetchPlatformAudit({ limit: 6 }).catch(() => ({ logs: [], total: 0 })),
   ]);
-  const recentLogs = audit.logs;
 
   return (
-    <div className="container-fluid p-0">
-      {/* Welcome Banner */}
-      <div
-        className="card border-0 text-white rounded-3 shadow-sm mb-3 p-3.5"
-        style={{
-          background: 'linear-gradient(135deg, #1e1b4b 0%, #31104b 50%, #4c1d95 100%)',
-        }}
-      >
-        <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
-          <div>
-            <div className="badge bg-white bg-opacity-20 text-white mb-1.5 px-2.5 py-0.5 rounded-pill text-nowrap" style={{ fontSize: '0.7rem' }}>
-              Control Studio Overview
-            </div>
-            <h4 className="fw-bold mb-0.5 text-nowrap">
-              Welcome, {currentUser?.fullName || currentUser?.username} ({currentUser?.globalRole})
-            </h4>
-            <p className="text-white-50 small mb-0 text-nowrap" style={{ fontSize: '0.8rem' }}>
-              Low-Code Multi-Tenant Platform Mother Control Center
-            </p>
-          </div>
-          <div className="d-flex gap-2">
-            <Link
-              href="/studio"
-              className="btn btn-light btn-sm fw-semibold d-flex align-items-center gap-1.5 px-3 py-1.5 rounded-2 shadow-sm text-nowrap"
-              style={{ fontSize: '0.8rem' }}
-            >
-              <Palette size={15} className="text-primary" />
-              <span>DesignStudio</span>
-            </Link>
-            <Link
-              href="/flow-studio"
-              className="btn btn-outline-light btn-sm fw-semibold d-flex align-items-center gap-1.5 px-3 py-1.5 rounded-2 text-nowrap"
-              style={{ fontSize: '0.8rem' }}
-            >
-              <Workflow size={15} className="text-info" />
-              <span>Flow Studio</span>
-            </Link>
-          </div>
+    <div className="d-flex flex-column gap-3">
+      <section className="adm-banner d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+        <div className="min-w-0">
+          <p className="adm-banner-eyebrow mb-0">
+            {isGod ? 'ผู้ดูแลระบบส่วนกลาง — บริษัท หนุมานไอที จำกัด' : 'ผู้ดูแลเว็บไซต์หน่วยงาน'}
+          </p>
+          <h2 className="adm-banner-title">
+            สวัสดี {currentUser?.fullName || currentUser?.username}
+          </h2>
+          <p className="adm-banner-lead">
+            {isGod
+              ? 'ดูแลเว็บไซต์ของทุกหน่วยงานได้จากศูนย์กลางเดียว'
+              : 'จัดการเนื้อหาและผู้ใช้ของเว็บไซต์หน่วยงานของคุณ'}
+          </p>
         </div>
-      </div>
 
-      {/* Metrics Row */}
-      <div className="row g-3 mb-3">
-        <div className="col-12 col-sm-6 col-xl-3">
-          <StatWidgetCard
-            title="Total Tenant Apps"
-            value={counts.apps}
-            subtitle={`${counts.platforms} Platform Master`}
-            icon={Box}
-            color="primary"
-          />
+        <div className="d-flex flex-wrap gap-2 flex-shrink-0">
+          <Link href="/studio" className="adm-banner-btn">
+            <Palette size={16} aria-hidden="true" /> ออกแบบหน้าเว็บ
+          </Link>
+          {isGod && (
+            <Link href="/admin/apps" className="adm-banner-btn is-ghost">
+              <Plus size={16} aria-hidden="true" /> เพิ่มเว็บไซต์
+            </Link>
+          )}
         </div>
-        <div className="col-12 col-sm-6 col-xl-3">
-          <StatWidgetCard
-            title="Platform Users"
-            value={`${counts.users} Users`}
-            subtitle="บัญชีที่เปิดใช้งานอยู่"
-            icon={Users}
-            color="purple"
-          />
-        </div>
-        <div className="col-12 col-sm-6 col-xl-3">
-          <StatWidgetCard
-            title="Dynamic Page Layouts"
-            value={`${counts.pages} Pages`}
-            subtitle="JSON AST ทั้งหมดใน Platform"
-            icon={Layers}
-            color="info"
-          />
-        </div>
-        <div className="col-12 col-sm-6 col-xl-3">
-          <StatWidgetCard
-            title="Audit Trail Logs"
-            value={`${counts.auditLogs} Logs`}
-            subtitle="ประวัติการเปลี่ยนแปลงทั้งหมด"
-            icon={Activity}
-            color="success"
-          />
-        </div>
-      </div>
+      </section>
 
-      {/* Content Grid */}
       <div className="row g-3">
-        {/* Apps List Panel */}
-        <div className="col-12 col-lg-7">
-          <div className="card border-0 shadow-sm rounded-3 bg-white h-100">
-            <div className="card-header bg-white border-bottom py-2.5 px-3.5 d-flex align-items-center justify-content-between">
-              <h6 className="fw-bold mb-0 text-dark d-flex align-items-center gap-2 small text-nowrap">
-                <Box size={16} className="text-primary" />
-                Tenant Child Apps
-              </h6>
-              <Link href="/admin/apps" className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1 text-nowrap py-1 px-2.5" style={{ fontSize: '0.78rem' }}>
-                <span>Manage All</span>
-                <ArrowRight size={13} />
+        <div className="col-12 col-sm-6 col-xl-3">
+          <StatWidgetCard
+            label="เว็บไซต์หน่วยงาน"
+            value={counts.apps}
+            unit="เว็บ"
+            hint={isGod ? `แม่แบบระบบ ${counts.platforms} ชุด` : 'ที่เปิดใช้งานอยู่'}
+            icon={Box}
+            href="/admin/apps"
+          />
+        </div>
+        <div className="col-12 col-sm-6 col-xl-3">
+          <StatWidgetCard
+            label="ผู้ใช้งาน"
+            value={counts.users}
+            unit="บัญชี"
+            hint="บัญชีที่เปิดใช้งานอยู่"
+            icon={Users}
+            href="/admin/users"
+          />
+        </div>
+        <div className="col-12 col-sm-6 col-xl-3">
+          <StatWidgetCard
+            label="หน้าเว็บที่ออกแบบไว้"
+            value={counts.pages}
+            unit="หน้า"
+            hint="รวมทุกเว็บไซต์ในระบบ"
+            icon={Layers}
+            href="/studio"
+          />
+        </div>
+        <div className="col-12 col-sm-6 col-xl-3">
+          <StatWidgetCard
+            label="ประวัติการใช้งาน"
+            value={counts.auditLogs}
+            unit="รายการ"
+            hint="บันทึกการเปลี่ยนแปลงทั้งหมด"
+            icon={ScrollText}
+            href="/audit-logs"
+          />
+        </div>
+      </div>
+
+      <div className="row g-3 align-items-start">
+        <div className="col-12 col-xl-7">
+          <section className="adm-card">
+            <div className="adm-card-head">
+              <h2 className="adm-card-title">
+                <Globe size={17} aria-hidden="true" /> เว็บไซต์ในระบบ
+              </h2>
+              <Link href="/admin/apps" className="adm-link">
+                จัดการทั้งหมด <span aria-hidden="true">→</span>
               </Link>
             </div>
-            <div className="card-body p-0">
+
+            {sites.length === 0 ? (
+              <div className="adm-empty">
+                <span className="adm-empty-icon">
+                  <Inbox size={22} aria-hidden="true" />
+                </span>
+                <p className="adm-empty-title">ยังไม่มีเว็บไซต์ในระบบ</p>
+                <p className="adm-empty-text">
+                  {isGod ? (
+                    <>
+                      เริ่มต้นได้ที่หน้า <Link href="/admin/apps" className="adm-link">เว็บไซต์หน่วยงาน</Link>
+                    </>
+                  ) : (
+                    'กรุณาติดต่อผู้ดูแลระบบส่วนกลางเพื่อเปิดใช้งานเว็บไซต์'
+                  )}
+                </p>
+              </div>
+            ) : (
               <div className="table-responsive">
-                <table className="table align-middle mb-0">
-                  <thead className="table-light">
+                <table className="adm-table">
+                  <thead>
                     <tr>
-                      <th className="py-2 px-3.5 extra-small text-nowrap">App Name</th>
-                      <th className="py-2 px-3 extra-small text-nowrap">Subdomain / Port</th>
-                      <th className="py-2 px-3 extra-small text-nowrap">Tenant DB</th>
-                      <th className="py-2 px-3 extra-small text-end text-nowrap">Status</th>
+                      <th scope="col">ชื่อเว็บไซต์</th>
+                      <th scope="col">ที่อยู่เว็บ</th>
+                      <th scope="col">แพ็กเกจ</th>
+                      <th scope="col">วันหมดอายุ</th>
+                      <th scope="col" className="text-end">สถานะ</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {sites.length === 0 && (
-                      <tr>
-                        <td colSpan={4} className="text-center text-muted small py-4">
-                          ยังไม่มี Tenant App — สร้างได้ที่หน้า Tenant Apps
-                        </td>
-                      </tr>
-                    )}
-                    {sites.map((site) => (
-                      <tr key={site.appId}>
-                        <td className="py-2.5 px-3.5">
-                          <div className="fw-semibold text-dark small text-nowrap">{site.appName}</div>
-                          <div className="text-muted extra-small text-nowrap">{site.appSlug}</div>
-                        </td>
-                        <td className="py-2.5 px-3 extra-small text-nowrap">
-                          <code>{site.domains[0] ?? site.subdomain}</code> (:{site.port})
-                        </td>
-                        <td className="py-2.5 px-3 extra-small text-secondary text-nowrap">
-                          <code>{site.tenantDbName}</code>
-                        </td>
-                        <td className="py-2.5 px-3 text-end text-nowrap">
-                          <span className={`badge px-2 py-0.5 ${site.isActive
-                            ? 'bg-success bg-opacity-15 text-success border border-success border-opacity-25'
-                            : 'bg-secondary bg-opacity-15 text-secondary border border-secondary border-opacity-25'}`}
-                            style={{ fontSize: '0.7rem' }}>
-                            {site.isActive ? 'Active' : 'Disabled'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                    {sites.map((site) => {
+                      const remaining = site.expiresAt ? daysUntil(site.expiresAt) : null;
+                      return (
+                        <tr key={site.appId}>
+                          <td>
+                            <span className="adm-cell-strong d-block">{site.appName}</span>
+                            <span className="adm-cell-sub">{site.appSlug}</span>
+                          </td>
+                          <td>
+                            <code>{site.primaryDomain}</code>
+                            <span className="adm-cell-sub d-block">พอร์ต {site.port}</span>
+                          </td>
+                          <td>{site.packageName}</td>
+                          <td>
+                            {site.expiresAt ? (
+                              <>
+                                <span className="d-block adm-nowrap">{thaiDate(site.expiresAt)}</span>
+                                {remaining !== null && remaining <= 30 && (
+                                  <span
+                                    className={`adm-chip ${remaining < 0 ? 'is-danger' : 'is-warn'} mt-1`}
+                                  >
+                                    {remaining < 0
+                                      ? `หมดอายุแล้ว ${Math.abs(remaining)} วัน`
+                                      : `เหลือ ${remaining} วัน`}
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <span className="adm-cell-sub">ไม่กำหนด</span>
+                            )}
+                          </td>
+                          <td className="text-end">
+                            {site.isSuspended ? (
+                              <span className="adm-chip is-danger">ระงับการใช้งาน</span>
+                            ) : site.isActive ? (
+                              <span className="adm-chip is-ok">
+                                <span className="adm-chip-dot" aria-hidden="true" /> เปิดใช้งาน
+                              </span>
+                            ) : (
+                              <span className="adm-chip is-off">ปิดใช้งาน</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
-            </div>
-          </div>
+            )}
+          </section>
         </div>
 
-        {/* Activity Feed */}
-        <div className="col-12 col-lg-5">
-          <div className="card border-0 shadow-sm rounded-3 bg-white h-100">
-            <div className="card-header bg-white border-bottom py-2.5 px-3.5">
-              <h6 className="fw-bold mb-0 text-dark d-flex align-items-center gap-2 small text-nowrap">
-                <Activity size={16} className="text-info" />
-                Recent Audit Trail Feed
-              </h6>
+        <div className="col-12 col-xl-5">
+          <section className="adm-card">
+            <div className="adm-card-head">
+              <h2 className="adm-card-title">
+                <History size={17} aria-hidden="true" /> ความเคลื่อนไหวล่าสุด
+              </h2>
+              <Link href="/audit-logs" className="adm-link">
+                ดูทั้งหมด <span aria-hidden="true">→</span>
+              </Link>
             </div>
-            <div className="card-body p-3.5">
-              <div className="d-flex flex-column gap-2.5">
-                {recentLogs.length === 0 && (
-                  <p className="text-muted small mb-0">ยังไม่มีประวัติการเปลี่ยนแปลง</p>
-                )}
-                {recentLogs.map((log) => (
-                  <div key={log.id} className="d-flex align-items-start gap-2.5 pb-2.5 border-bottom border-light">
-                    <div
-                      className="rounded-circle d-flex align-items-center justify-content-center text-primary bg-primary bg-opacity-10 mt-0.5 flex-shrink-0"
-                      style={{ width: '28px', height: '28px' }}
-                    >
-                      <Activity size={14} />
-                    </div>
-                    <div className="overflow-hidden w-100">
-                      <div className="d-flex align-items-center justify-content-between gap-1">
-                        <span className="fw-semibold extra-small text-dark text-nowrap">@{log.performedBy}</span>
-                        <span className="badge bg-secondary bg-opacity-10 text-secondary extra-small" style={{ fontSize: '0.62rem' }}>
-                          {log.action}
-                        </span>
-                        <span className="text-muted extra-small ms-auto" style={{ fontSize: '0.68rem' }}>{relativeTime(log.createdAt)}</span>
-                      </div>
-                      <div className="extra-small text-secondary mt-0.5">{log.changesSummary}</div>
-                      {log.platformName && (
-                        <div className="extra-small text-muted mt-0.5 text-nowrap" style={{ fontSize: '0.68rem' }}>Platform: {log.platformName}</div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+
+            {audit.logs.length === 0 ? (
+              <div className="adm-empty">
+                <span className="adm-empty-icon">
+                  <History size={22} aria-hidden="true" />
+                </span>
+                <p className="adm-empty-title">ยังไม่มีความเคลื่อนไหว</p>
+                <p className="adm-empty-text">รายการจะปรากฏเมื่อมีการใช้งานระบบ</p>
               </div>
-            </div>
-          </div>
+            ) : (
+              <ul className="adm-feed">
+                {audit.logs.map((log) => (
+                  <li key={log.id}>
+                    <span className="adm-feed-mark" aria-hidden="true">
+                      <History size={14} />
+                    </span>
+                    <span className="min-w-0 flex-grow-1">
+                      <span className="adm-chip is-info float-end ms-2">
+                        {ACTION_LABELS[log.action] ?? log.action}
+                      </span>
+                      <span className="adm-feed-text d-block">{log.changesSummary}</span>
+                      <span className="adm-feed-meta">
+                        {log.performedBy} · {relativeTime(log.createdAt)}
+                        {log.platformName ? ` · ${log.platformName}` : ''}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </div>
       </div>
     </div>
   );
 }
-

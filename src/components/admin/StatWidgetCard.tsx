@@ -1,48 +1,57 @@
 import React from 'react';
+import Link from 'next/link';
+import { type LucideIcon } from 'lucide-react';
 
 interface StatWidgetCardProps {
-  title: string;
-  value: string | number;
-  subtitle?: string;
-  icon: React.ElementType;
-  color?: 'primary' | 'success' | 'warning' | 'info' | 'danger' | 'purple';
+  readonly label: string;
+  readonly value: number | string;
+  /** Rendered smaller beside the figure — "เว็บ", "บัญชี", "หน้า". */
+  readonly unit?: string;
+  readonly hint?: string;
+  readonly icon: LucideIcon;
+  /** Turns the whole tile into a link to the screen that manages this figure. */
+  readonly href?: string;
 }
 
+/**
+ * A single headline figure.
+ *
+ * The number carries the meaning, so it is the only thing at display size; the
+ * icon is a quiet marker in the shared blue rather than a coloured block
+ * competing with it. Where a figure has a screen behind it the tile links
+ * there, which is the action an operator wants next.
+ */
 export default function StatWidgetCard({
-  title,
+  label,
   value,
-  subtitle,
+  unit,
+  hint,
   icon: Icon,
-  color = 'primary',
+  href,
 }: StatWidgetCardProps) {
-  const colorGradients = {
-    primary: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-    success: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
-    warning: 'linear-gradient(135deg, #f59e0b 0%, #b45309 100%)',
-    info: 'linear-gradient(135deg, #06b6d4 0%, #0e7490 100%)',
-    danger: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
-    purple: 'linear-gradient(135deg, #a855f7 0%, #6b21a8 100%)',
-  };
-
-  return (
-    <div className="card border-0 shadow-sm rounded-3 h-100 bg-white">
-      <div className="card-body p-3.5 d-flex align-items-center justify-content-between">
-        <div>
-          <div className="text-secondary small fw-medium mb-1">{title}</div>
-          <div className="fs-3 fw-bold text-dark lh-1 mb-1">{value}</div>
-          {subtitle && <div className="text-muted extra-small" style={{ fontSize: '0.75rem' }}>{subtitle}</div>}
-        </div>
-        <div
-          className="rounded-3 d-flex align-items-center justify-content-center text-white shadow-sm"
-          style={{
-            width: '48px',
-            height: '48px',
-            background: colorGradients[color],
-          }}
-        >
-          <Icon size={24} />
-        </div>
-      </div>
-    </div>
+  const body = (
+    <span className="adm-stat">
+      <span className="min-w-0">
+        <span className="adm-stat-label d-block">{label}</span>
+        <span className="d-block">
+          <span className="adm-stat-value">{value}</span>
+          {unit && <span className="adm-stat-unit">{unit}</span>}
+        </span>
+        {hint && <span className="adm-stat-sub d-block text-truncate">{hint}</span>}
+      </span>
+      <span className="adm-stat-icon" aria-hidden="true">
+        <Icon size={22} />
+      </span>
+    </span>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className="adm-card d-block h-100 text-decoration-none">
+        {body}
+      </Link>
+    );
+  }
+
+  return <div className="adm-card h-100">{body}</div>;
 }

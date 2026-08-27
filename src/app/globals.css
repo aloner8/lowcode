@@ -28,6 +28,32 @@
   --app-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
 }
 
+/*
+ * Government palette — one source for every operator-facing screen.
+ *
+ * Deep blue carries the officialness, gold is the accent and is used sparingly
+ * (hairlines and the active marker, never a large fill). Both the sign-in
+ * screens and the admin console read these, so the two cannot drift apart.
+ */
+:root {
+  --gov-ink: #0b1f3a;
+  --gov-blue: #0c58a9;
+  --gov-blue-deep: #083a6e;
+  --gov-blue-soft: #eaf2fb;
+  --gov-gold: #ffd700;
+  --gov-gold-deep: #d89000;
+  --gov-surface: #f5f8fc;
+  --gov-border: #dbe3ee;
+  --gov-muted: #5a6473;
+  --gov-muted-soft: #8d98a8;
+  --gov-ok: #0c8a4a;
+  --gov-ok-soft: #e6f5ed;
+  --gov-warn: #a86a00;
+  --gov-warn-soft: #fff7c2;
+  --gov-danger: #b0181a;
+  --gov-danger-soft: #fdecec;
+}
+
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
@@ -99,12 +125,12 @@ code, kbd, pre, samp {
    Deep blue with a gold hairline, matching the government design tokens.
    ========================================================================== */
 .auth-shell {
-  --auth-ink: #0b1f3a;
-  --auth-blue: #0c58a9;
-  --auth-blue-deep: #083a6e;
-  --auth-gold: #ffd700;
-  --auth-surface: #f5f8fc;
-  --auth-border: #dbe3ee;
+  --auth-ink: var(--gov-ink);
+  --auth-blue: var(--gov-blue);
+  --auth-blue-deep: var(--gov-blue-deep);
+  --auth-gold: var(--gov-gold);
+  --auth-surface: var(--gov-surface);
+  --auth-border: var(--gov-border);
   background: var(--auth-surface);
 }
 
@@ -335,3 +361,621 @@ code, kbd, pre, samp {
   line-height: 1.85;
   color: #5a6473;
 }
+
+/* ==========================================================================
+   Admin console
+   Same government palette as the sign-in screens: deep blue chrome, a gold
+   hairline as the only accent, and a pale surface so data reads first.
+   ========================================================================== */
+
+.adm-shell { background: var(--gov-surface); color: var(--gov-ink); }
+
+/* --- Sidebar --------------------------------------------------------------- */
+.adm-sidebar {
+  width: 16.5rem;
+  min-width: 16.5rem;
+  color: #fff;
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(255, 255, 255, 0.10) 0%, transparent 55%),
+    linear-gradient(170deg, var(--gov-blue) 0%, var(--gov-blue-deep) 55%, var(--gov-ink) 100%);
+  position: relative;
+  transition: width 0.2s ease, min-width 0.2s ease;
+}
+.adm-sidebar.is-collapsed { width: 4.75rem; min-width: 4.75rem; }
+
+/* The gold hairline, mirroring the sign-in brand panel. */
+.adm-sidebar::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #fff3a3 0%, var(--gov-gold) 40%, var(--gov-gold-deep) 100%);
+}
+
+.adm-brand-name { font-size: 0.95rem; font-weight: 700; line-height: 1.3; }
+.adm-brand-sub {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: var(--gov-gold);
+  font-weight: 600;
+}
+
+.adm-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.65);
+}
+.adm-icon-btn:hover { background: rgba(255, 255, 255, 0.10); color: #fff; }
+.adm-icon-btn:focus-visible { outline: 2px solid var(--gov-gold); outline-offset: 1px; }
+
+.adm-user-card {
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.adm-avatar {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--gov-ink);
+  background: linear-gradient(135deg, #fff3a3 0%, var(--gov-gold) 100%);
+  flex-shrink: 0;
+}
+.adm-user-name { font-size: 0.85rem; font-weight: 600; }
+.adm-user-mail { font-size: 0.72rem; color: rgba(255, 255, 255, 0.62); }
+
+/* Role is spelled out, never colour alone. */
+.adm-role {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.10);
+  color: #fff;
+}
+.adm-role.is-god { border-color: rgba(255, 215, 0, 0.55); color: #ffe98a; }
+
+.adm-section-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.52);
+  padding-inline: 0.35rem;
+  margin-bottom: 0.4rem;
+}
+
+.adm-nav { display: flex; flex-direction: column; gap: 0.15rem; list-style: none; padding: 0; margin: 0; }
+.adm-nav-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  /* 44px minimum touch target. */
+  min-height: 2.75rem;
+  padding-inline: 0.7rem;
+  border-radius: 0.6rem;
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.78);
+  text-decoration: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.adm-nav-link svg { flex-shrink: 0; }
+.adm-nav-link:hover { background: rgba(255, 255, 255, 0.09); color: #fff; }
+.adm-nav-link:focus-visible { outline: 2px solid var(--gov-gold); outline-offset: -2px; }
+.adm-nav-link.is-active {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-weight: 600;
+}
+/* Gold marker on the active item — the accent, one place at a time. */
+.adm-nav-link.is-active::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block: 0.45rem;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--gov-gold);
+}
+.is-collapsed .adm-nav-link { justify-content: center; padding-inline: 0; }
+
+.adm-nav-tag {
+  margin-inline-start: auto;
+  font-size: 0.62rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.adm-signout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 2.6rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ffd7d7;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0.6rem;
+}
+.adm-signout:hover { background: rgba(217, 17, 19, 0.35); color: #fff; border-color: rgba(255, 255, 255, 0.3); }
+.adm-signout:focus-visible { outline: 2px solid var(--gov-gold); outline-offset: 2px; }
+
+/* --- Topbar ---------------------------------------------------------------- */
+.adm-topbar {
+  min-height: 4rem;
+  background: #fff;
+  border-bottom: 1px solid var(--gov-border);
+}
+.adm-page-title { font-size: 1.05rem; font-weight: 700; color: var(--gov-ink); margin: 0; }
+.adm-page-sub { font-size: 0.78rem; color: var(--gov-muted); margin: 0; }
+
+.adm-topbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.4rem;
+  padding-inline: 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--gov-blue-deep);
+  background: var(--gov-blue-soft);
+  border: 1px solid #cfe0f4;
+  border-radius: 0.6rem;
+  text-decoration: none;
+}
+.adm-topbar-btn:hover { background: #dcebfa; color: var(--gov-blue-deep); }
+.adm-topbar-btn:focus-visible { outline: 2px solid var(--gov-blue); outline-offset: 2px; }
+
+/* --- Cards ----------------------------------------------------------------- */
+.adm-card {
+  background: #fff;
+  border: 1px solid var(--gov-border);
+  border-radius: 0.9rem;
+  box-shadow: 0 6px 18px rgba(11, 31, 58, 0.04);
+}
+.adm-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid var(--gov-border);
+}
+.adm-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--gov-ink);
+  margin: 0;
+}
+.adm-card-title svg { color: var(--gov-blue); }
+
+.adm-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--gov-blue);
+  text-decoration: none;
+}
+.adm-link:hover { color: var(--gov-blue-deep); text-decoration: underline; }
+.adm-link:focus-visible { outline: 2px solid var(--gov-blue); outline-offset: 2px; border-radius: 0.25rem; }
+
+/* --- Page banner ----------------------------------------------------------- */
+.adm-banner {
+  border-radius: 0.9rem;
+  padding: 1.1rem 1.3rem;
+  color: #fff;
+  background:
+    radial-gradient(110% 140% at 100% 0%, rgba(255, 255, 255, 0.12) 0%, transparent 60%),
+    linear-gradient(135deg, var(--gov-blue) 0%, var(--gov-blue-deep) 60%, var(--gov-ink) 100%);
+  position: relative;
+  overflow: hidden;
+}
+.adm-banner::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--gov-gold) 0%, var(--gov-gold-deep) 45%, transparent 100%);
+}
+.adm-banner-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--gov-gold);
+}
+.adm-banner-title { font-size: 1.25rem; font-weight: 700; margin: 0.15rem 0 0.2rem; }
+.adm-banner-lead { font-size: 0.85rem; color: rgba(255, 255, 255, 0.75); margin: 0; }
+
+.adm-banner-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.5rem;
+  padding-inline: 0.95rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 0.6rem;
+  text-decoration: none;
+  color: var(--gov-ink);
+  background: #fff;
+  border: 1px solid transparent;
+}
+.adm-banner-btn:hover { color: var(--gov-ink); background: #f0f5fb; }
+.adm-banner-btn.is-ghost {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+.adm-banner-btn.is-ghost:hover { color: #fff; background: rgba(255, 255, 255, 0.20); }
+.adm-banner-btn:focus-visible { outline: 2px solid var(--gov-gold); outline-offset: 2px; }
+
+/* --- Stat tiles ------------------------------------------------------------ */
+.adm-stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  height: 100%;
+  padding: 1rem 1.1rem;
+  text-decoration: none;
+  color: inherit;
+}
+.adm-stat-label { font-size: 0.8rem; font-weight: 600; color: var(--gov-muted); }
+.adm-stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--gov-ink);
+}
+.adm-stat-unit { font-size: 0.85rem; font-weight: 600; color: var(--gov-muted); margin-inline-start: 0.25rem; }
+.adm-stat-sub { font-size: 0.75rem; color: var(--gov-muted-soft); }
+.adm-stat-icon {
+  display: grid;
+  place-items: center;
+  width: 2.9rem;
+  height: 2.9rem;
+  border-radius: 0.75rem;
+  color: var(--gov-blue);
+  background: var(--gov-blue-soft);
+  border: 1px solid #d6e5f7;
+  flex-shrink: 0;
+}
+a.adm-card:hover { border-color: #bdd4ee; box-shadow: 0 10px 24px rgba(11, 31, 58, 0.08); }
+
+/* --- Status chips ----------------------------------------------------------
+   Bootstrap has no `bg-opacity-15`, so the previous badges rendered as a solid
+   fill behind same-coloured text. These carry their own contrast pairs. */
+.adm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.adm-chip.is-ok    { color: #0a6b3a; background: var(--gov-ok-soft);     border-color: #bde5cf; }
+.adm-chip.is-off   { color: #55606f; background: #eef1f5;               border-color: #dbe1e9; }
+.adm-chip.is-warn  { color: var(--gov-warn);   background: var(--gov-warn-soft);   border-color: #f2d98a; }
+.adm-chip.is-danger{ color: var(--gov-danger); background: var(--gov-danger-soft); border-color: #f6c9c9; }
+.adm-chip.is-info  { color: var(--gov-blue-deep); background: var(--gov-blue-soft); border-color: #cfe0f4; }
+.adm-chip-dot { width: 0.45rem; height: 0.45rem; border-radius: 50%; background: currentColor; }
+
+/* --- Tables ---------------------------------------------------------------- */
+.adm-table { width: 100%; margin: 0; border-collapse: collapse; }
+.adm-table th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--gov-muted);
+  background: #f7f9fc;
+  padding: 0.6rem 1.1rem;
+  border-bottom: 1px solid var(--gov-border);
+  white-space: nowrap;
+}
+.adm-table td {
+  padding: 0.75rem 1.1rem;
+  font-size: 0.85rem;
+  border-bottom: 1px solid #eef2f7;
+  vertical-align: middle;
+}
+.adm-table tbody tr:last-child td { border-bottom: 0; }
+.adm-table tbody tr:hover { background: #fafcff; }
+.adm-table .adm-cell-strong { font-weight: 600; color: var(--gov-ink); }
+.adm-table .adm-cell-sub { font-size: 0.75rem; color: var(--gov-muted-soft); }
+.adm-table code { font-size: 0.78rem; color: var(--gov-blue-deep); }
+
+/* --- Empty state ----------------------------------------------------------- */
+.adm-empty { padding: 2.5rem 1.25rem; text-align: center; color: var(--gov-muted); }
+.adm-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto 0.75rem;
+  border-radius: 50%;
+  color: var(--gov-muted-soft);
+  background: var(--gov-surface);
+  border: 1px solid var(--gov-border);
+}
+.adm-empty-title { font-size: 0.9rem; font-weight: 600; color: var(--gov-ink); margin-bottom: 0.2rem; }
+.adm-empty-text { font-size: 0.82rem; margin: 0; }
+
+/* --- Activity feed --------------------------------------------------------- */
+.adm-feed { list-style: none; margin: 0; padding: 0; }
+.adm-feed li {
+  display: flex;
+  gap: 0.7rem;
+  padding: 0.7rem 1.1rem;
+  border-bottom: 1px solid #eef2f7;
+}
+.adm-feed li:last-child { border-bottom: 0; }
+.adm-feed-mark {
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  color: var(--gov-blue);
+  background: var(--gov-blue-soft);
+}
+.adm-feed-text { font-size: 0.82rem; color: var(--gov-ink); line-height: 1.6; }
+.adm-feed-meta { font-size: 0.72rem; color: var(--gov-muted-soft); }
+
+/* --- Responsive ------------------------------------------------------------
+   Below lg the sidebar becomes an off-canvas drawer rather than disappearing. */
+.adm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1040;
+  background: rgba(11, 31, 58, 0.45);
+  border: 0;
+}
+
+@media (max-width: 991.98px) {
+  .adm-sidebar {
+    position: fixed;
+    inset-block: 0;
+    inset-inline-start: 0;
+    z-index: 1045;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+  }
+  .adm-sidebar.is-open { transform: translateX(0); }
+  .adm-sidebar.is-collapsed { width: 16.5rem; min-width: 16.5rem; }
+  .adm-sidebar.is-collapsed .adm-nav-link { justify-content: flex-start; padding-inline: 0.7rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adm-sidebar { transition: none; }
+}
+
+/* Identifiers and dates are read as single units — wrapping them mid-token
+   ("demo-" / "muni.localhost") makes them harder to scan than a scrollbar does. */
+.adm-table .adm-nowrap,
+.adm-table code,
+.adm-table .adm-cell-strong { white-space: nowrap; }
+
+/* --- Buttons ---------------------------------------------------------------
+   Bootstrap's own buttons carry a different blue and radius from the rest of
+   this console, so the console names its own and leaves .btn alone. */
+.adm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.5rem;
+  padding-inline: 0.95rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 0.6rem;
+  border: 1px solid transparent;
+  text-decoration: none;
+  color: #fff;
+  background: linear-gradient(135deg, var(--gov-blue) 0%, var(--gov-blue-deep) 100%);
+}
+.adm-btn:hover:not(:disabled) { color: #fff; filter: brightness(1.08); }
+.adm-btn:focus-visible { outline: 3px solid rgba(12, 88, 169, 0.35); outline-offset: 2px; }
+.adm-btn:disabled { opacity: 0.6; }
+
+.adm-btn.is-quiet {
+  color: var(--gov-ink);
+  background: #fff;
+  border-color: var(--gov-border);
+}
+.adm-btn.is-quiet:hover:not(:disabled) { background: var(--gov-surface); filter: none; }
+
+.adm-btn.is-danger {
+  color: var(--gov-danger);
+  background: #fff;
+  border-color: #f0c2c2;
+}
+.adm-btn.is-danger:hover:not(:disabled) { color: #fff; background: #b0181a; border-color: #b0181a; filter: none; }
+
+.adm-btn.is-sm { min-height: 2.15rem; padding-inline: 0.7rem; font-size: 0.8rem; }
+
+/* --- Toolbar above a list -------------------------------------------------- */
+.adm-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.adm-toolbar-note { font-size: 0.82rem; color: var(--gov-muted); margin: 0; }
+
+/* --- Inline messages ------------------------------------------------------- */
+.adm-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.65;
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.65rem;
+  border: 1px solid transparent;
+}
+.adm-alert.is-danger { color: #8a1113; background: var(--gov-danger-soft); border-color: #f6c9c9; }
+.adm-alert.is-info { color: var(--gov-blue-deep); background: var(--gov-blue-soft); border-color: #cfe0f4; }
+.adm-alert.is-warn { color: var(--gov-warn); background: var(--gov-warn-soft); border-color: #f2d98a; }
+
+/* --- Removable tag (bound domains, selected features) ---------------------- */
+.adm-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  padding: 0.2rem 0.3rem 0.2rem 0.6rem;
+  border-radius: 0.5rem;
+  color: var(--gov-ink);
+  background: var(--gov-surface);
+  border: 1px solid var(--gov-border);
+  font-family: var(--app-font-mono);
+}
+.adm-tag.is-fixed { padding-inline-end: 0.6rem; }
+.adm-tag-remove {
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 0;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: var(--gov-muted);
+  line-height: 1;
+}
+.adm-tag-remove:hover { background: var(--gov-danger-soft); color: var(--gov-danger); }
+.adm-tag-remove:focus-visible { outline: 2px solid var(--gov-danger); outline-offset: 1px; }
+
+.adm-swatch {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 0.3rem;
+  border: 1px solid rgba(11, 31, 58, 0.15);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* --- Definition rows inside a card ----------------------------------------- */
+.adm-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem 1rem; margin: 0; }
+.adm-facts dt { font-size: 0.72rem; color: var(--gov-muted); font-weight: 500; }
+.adm-facts dd { font-size: 0.85rem; color: var(--gov-ink); margin: 0; font-weight: 600; }
+
+/* --- Forms ----------------------------------------------------------------- */
+.adm-label { font-size: 0.82rem; font-weight: 600; color: #2a3543; margin-bottom: 0.3rem; }
+.adm-help { font-size: 0.76rem; color: var(--gov-muted); margin-top: 0.3rem; margin-bottom: 0; }
+.adm-input,
+.adm-select,
+.adm-textarea {
+  width: 100%;
+  min-height: 2.6rem;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.88rem;
+  color: var(--gov-ink);
+  background: #fff;
+  border: 1px solid var(--gov-border);
+  border-radius: 0.55rem;
+}
+.adm-textarea { min-height: 6rem; }
+.adm-input:focus,
+.adm-select:focus,
+.adm-textarea:focus {
+  outline: 0;
+  border-color: var(--gov-blue);
+  box-shadow: 0 0 0 0.2rem rgba(12, 88, 169, 0.14);
+}
+.adm-input.is-mono, .adm-textarea.is-mono { font-family: var(--app-font-mono); }
+
+/* --- Modal ----------------------------------------------------------------- */
+.adm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1060;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(11, 31, 58, 0.55);
+  overflow-y: auto;
+}
+.adm-modal-card {
+  width: 100%;
+  max-width: 34rem;
+  background: #fff;
+  border-radius: 0.9rem;
+  box-shadow: 0 24px 60px rgba(11, 31, 58, 0.28);
+  max-height: calc(100vh - 2rem);
+  display: flex;
+  flex-direction: column;
+}
+.adm-modal-card.is-wide { max-width: 46rem; }
+.adm-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid var(--gov-border);
+}
+.adm-modal-title { font-size: 1rem; font-weight: 700; color: var(--gov-ink); margin: 0; }
+.adm-modal-sub { font-size: 0.78rem; color: var(--gov-muted); margin: 0.15rem 0 0; }
+.adm-modal-body { padding: 1.2rem; overflow-y: auto; }
+.adm-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.9rem 1.2rem;
+  border-top: 1px solid var(--gov-border);
+  background: var(--gov-surface);
+  border-end-start-radius: 0.9rem;
+  border-end-end-radius: 0.9rem;
+}
+.adm-modal-close {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--gov-muted);
+  flex-shrink: 0;
+}
+.adm-modal-close:hover { background: var(--gov-surface); color: var(--gov-ink); }
+.adm-modal-close:focus-visible { outline: 2px solid var(--gov-blue); outline-offset: 1px; }
+
+.adm-spin { animation: auth-spin 0.9s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .adm-spin { animation: none; } }
+
+@media (max-width: 575.98px) {
+  .adm-facts { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Cards laid out in a grid share the tallest height in their row, so the row
+   reads as one band rather than a ragged edge. */
+.row > .d-flex > .adm-card { width: 100%; }

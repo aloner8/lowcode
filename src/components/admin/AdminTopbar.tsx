@@ -1,60 +1,72 @@
 'use client';
 
 import React from 'react';
-import { UserProfile } from '@/types';
-import { ExternalLink } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Menu, Palette, KeyRound } from 'lucide-react';
+import { navItemFor } from '@/lib/admin/navigation';
+import { UserProfile } from '@/types';
 
 interface AdminTopbarProps {
-  user: UserProfile;
+  readonly user: UserProfile;
+  readonly onOpenMenu: () => void;
 }
 
-export default function AdminTopbar({ user }: AdminTopbarProps) {
+export default function AdminTopbar({ user, onOpenMenu }: AdminTopbarProps) {
+  const pathname = usePathname();
+  const current = navItemFor(pathname);
+
   return (
-    <header
-      className="d-flex align-items-center justify-content-between px-4 py-3 border-bottom bg-white shadow-sm"
-      style={{ minHeight: '64px', zIndex: 10 }}
-    >
-      <div className="d-flex align-items-center gap-3">
-        <span className="fw-semibold text-dark small text-nowrap">
-          Platform Control Admin
-        </span>
-        <span className="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25 px-2 py-0.5 text-nowrap" style={{ fontSize: '0.7rem' }}>
-          🟢 Core DB Online
-        </span>
+    <header className="adm-topbar d-flex align-items-center justify-content-between gap-3 px-3 px-md-4">
+      <div className="d-flex align-items-center gap-2 gap-md-3 min-w-0">
+        <button
+          type="button"
+          className="btn btn-link p-2 d-lg-none text-decoration-none"
+          style={{ color: 'var(--gov-ink)' }}
+          onClick={onOpenMenu}
+          aria-label="เปิดเมนู"
+          aria-controls="admin-sidebar"
+        >
+          <Menu size={20} />
+        </button>
+
+        <div className="min-w-0">
+          <h1 className="adm-page-title text-truncate">{current?.label ?? 'ภาพรวม'}</h1>
+          {current?.description && (
+            <p className="adm-page-sub d-none d-sm-block text-truncate">{current.description}</p>
+          )}
+        </div>
       </div>
 
-      <div className="d-flex align-items-center gap-3">
-        <Link
-          href="/studio"
-          className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1.5 rounded-2 text-nowrap"
-          style={{ fontSize: '0.8rem' }}
-        >
-          <span>DesignStudio</span>
-          <ExternalLink size={13} />
+      <div className="d-flex align-items-center gap-2 gap-md-3 flex-shrink-0">
+        <Link href="/studio" className="adm-topbar-btn d-none d-md-inline-flex">
+          <Palette size={15} aria-hidden="true" />
+          <span>ออกแบบหน้าเว็บ</span>
         </Link>
 
+        <Link
+          href="/account/password"
+          className="adm-topbar-btn"
+          title="เปลี่ยนรหัสผ่าน"
+          aria-label="เปลี่ยนรหัสผ่าน"
+        >
+          <KeyRound size={15} aria-hidden="true" />
+          <span className="d-none d-lg-inline">เปลี่ยนรหัสผ่าน</span>
+        </Link>
 
-        <div className="vr my-1 bg-secondary opacity-25"></div>
-
-        <div className="d-flex align-items-center gap-2">
-          <div
-            className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm"
-            style={{
-              width: '36px',
-              height: '36px',
-              background: user.globalRole === 'GOD' ? 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)' : 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-            }}
-          >
-            {user.username ? user.username[0].toUpperCase() : 'U'}
-          </div>
-          <div className="d-none d-md-block text-end">
-            <div className="fw-medium text-dark small lh-1">{user.fullName || user.username}</div>
-            <div className="text-muted extra-small" style={{ fontSize: '0.7rem' }}>
-              {user.globalRole === 'GOD' ? '🔴 Super Admin' : '🔵 Platform Developer'}
-            </div>
-          </div>
-        </div>
+        <span className="d-flex align-items-center gap-2">
+          <span className="adm-avatar" aria-hidden="true">
+            {(user.username ?? user.email)[0]?.toUpperCase() ?? 'U'}
+          </span>
+          <span className="d-none d-md-block lh-sm">
+            <span className="d-block" style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+              {user.fullName || user.username}
+            </span>
+            <span className="d-block" style={{ fontSize: '0.72rem', color: 'var(--gov-muted)' }}>
+              {user.globalRole === 'GOD' ? 'ผู้ดูแลระบบส่วนกลาง' : 'ผู้ใช้ของหน่วยงาน'}
+            </span>
+          </span>
+        </span>
       </div>
     </header>
   );

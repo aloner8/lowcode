@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Lock, CheckCircle, AlertTriangle, Database, Key, Globe } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Database, Key, Globe, Lock } from 'lucide-react';
 import { getCoreDb } from '@/lib/db/coreDb';
 import RateLimitSettings from '@/components/admin/RateLimitSettings';
 
@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 interface SecurityFacts {
   totalUsers: number;
-  superAdmins: number;
+  admins: number;
   pendingPasswords: number;
   lockedAccounts: number;
   memberships: number;
@@ -19,11 +19,14 @@ async function loadFacts(): Promise<SecurityFacts> {
   const db = getCoreDb();
 
   const [counts, publicAccess] = await Promise.all([
+    // 'GOD' — the only administrator value the schema's CHECK constraint allows.
+    // This counted 'SUPER_ADMIN' before, which can never match, so the figure
+    // read zero however many administrators existed.
     db.query<Record<string, string>>(`
       SELECT
         (SELECT COUNT(*) FROM public.platform_users WHERE is_active)::text                       AS total_users,
         (SELECT COUNT(*) FROM public.platform_users WHERE is_active
-           AND global_role = 'SUPER_ADMIN')::text                                                AS super_admins,
+           AND global_role = 'GOD')::text                                                        AS admins,
         (SELECT COUNT(*) FROM public.platform_users WHERE must_change_password)::text            AS pending_passwords,
         (SELECT COUNT(*) FROM public.platform_users WHERE locked_until > NOW())::text            AS locked_accounts,
         (SELECT COUNT(*) FROM public.platform_memberships)::text                                 AS memberships,
@@ -37,7 +40,7 @@ async function loadFacts(): Promise<SecurityFacts> {
   const row = counts.rows[0] ?? {};
   return {
     totalUsers: Number(row.total_users ?? 0),
-    superAdmins: Number(row.super_admins ?? 0),
+    admins: Number(row.admins ?? 0),
     pendingPasswords: Number(row.pending_passwords ?? 0),
     lockedAccounts: Number(row.locked_accounts ?? 0),
     memberships: Number(row.memberships ?? 0),
@@ -63,182 +66,191 @@ export default async function SecurityPage() {
   const secretLength = process.env.AUTH_SECRET?.length ?? 0;
   const controls: Control[] = [
     {
-      name: 'Signed session cookie',
-      description: 'Session ถูกเซ็นด้วย HMAC-SHA256 และตรวจลายเซ็นทุกครั้งที่ middleware ทำงาน',
+      name: 'การจดจำการเข้าสู่ระบบ',
+      description: 'ข้อมูลการเข้าสู่ระบบถูกเซ็นกำกับ และตรวจลายเซ็นทุกครั้งที่เปิดหน้าใหม่',
       ok: secretLength >= 32,
       detail: secretLength >= 32
-        ? `AUTH_SECRET ตั้งค่าแล้ว (${secretLength} ตัวอักษร)`
-        : 'ยังไม่ได้ตั้ง AUTH_SECRET — ระบบใช้ค่า development ที่ไม่ปลอดภัย',
+        ? `ตั้งกุญแจลับแล้ว (${secretLength} ตัวอักษร)`
+        : 'ยังไม่ได้ตั้ง AUTH_SECRET — ระบบใช้ค่าสำหรับทดสอบที่ไม่ปลอดภัย',
     },
     {
-      name: 'Password hashing',
-      description: 'รหัสผ่านถูก hash ด้วย bcrypt ผ่าน pgcrypto และตรวจสอบภายในฐานข้อมูล',
+      name: 'การเก็บรหัสผ่าน',
+      description: 'รหัสผ่านถูกเข้ารหัสทางเดียวและตรวจสอบภายในฐานข้อมูล ไม่มีการเก็บรหัสจริง',
       ok: true,
-      detail: 'verify_platform_credentials() + set_platform_user_password()',
+      detail: 'bcrypt ผ่าน pgcrypto',
     },
     {
-      name: 'Brute-force lockout',
-      description: 'ล็อกบัญชี 15 นาทีหลังใส่รหัสผิดครบ 10 ครั้ง',
+      name: 'ป้องกันการเดารหัสผ่าน',
+      description: 'ล็อกบัญชีชั่วคราวเมื่อใส่รหัสผิดติดกันหลายครั้ง',
       ok: (facts?.lockedAccounts ?? 0) === 0,
       detail: facts ? `ขณะนี้ถูกล็อกอยู่ ${facts.lockedAccounts} บัญชี` : 'อ่านสถานะไม่ได้',
     },
     {
-      name: 'API authorisation',
-      description: 'ทุก endpoint ภายใต้ /api ตรวจ session และสิทธิ์ระดับ Platform ก่อนทำงาน',
+      name: 'ตรวจสิทธิ์ทุกคำขอ',
+      description: 'ทุกการเรียกข้อมูลตรวจว่าเป็นใครและมีสิทธิ์กับเว็บไซต์นั้นหรือไม่ก่อนทำงาน',
       ok: true,
-      detail: 'requireApiSession() / requirePlatformAccess()',
+      detail: 'ตรวจที่ชั้น API ทุกเส้นทาง',
     },
     {
-      name: 'HTML sanitisation',
-      description: 'HTML จากฐานข้อมูลผ่าน allow-list sanitizer ก่อน render ทุกครั้ง',
+      name: 'กรองเนื้อหาก่อนแสดงผล',
+      description: 'เนื้อหาจากฐานข้อมูลถูกกรองด้วยรายการที่อนุญาตก่อนแสดง เพื่อกันสคริปต์แปลกปลอม',
       ok: true,
-      detail: 'lib/security/sanitizeHtml.ts',
+      detail: 'allow-list sanitizer',
     },
     {
-      name: 'Tenant isolation',
-      description: 'ข้อมูลธุรกิจและไฟล์อัปโหลดอยู่ในฐานข้อมูลของ Tenant เอง ไม่ปนกับ Core DB',
+      name: 'แยกข้อมูลรายหน่วยงาน',
+      description: 'ข้อมูลและไฟล์อัปโหลดของแต่ละหน่วยงานอยู่คนละฐานข้อมูล ไม่ปะปนกัน',
       ok: true,
-      detail: 'platform_<slug> + sys.assets',
+      detail: 'ฐานข้อมูลแยกต่อหนึ่งเว็บไซต์',
     },
     {
-      name: 'Default credentials',
-      description: 'บัญชี seed ต้องเปลี่ยนรหัสผ่านก่อนใช้งานจริง',
+      name: 'รหัสผ่านเริ่มต้น',
+      description: 'บัญชีที่ระบบตั้งรหัสให้ต้องเปลี่ยนรหัสก่อนใช้งานส่วนอื่น',
       ok: (facts?.pendingPasswords ?? 1) === 0,
       detail: facts
         ? `${facts.pendingPasswords} บัญชียังไม่ได้เปลี่ยนรหัสผ่านเริ่มต้น`
         : 'อ่านสถานะไม่ได้',
     },
     {
-      name: 'SUPER_ADMIN redundancy',
-      description: 'ระบบบังคับให้มี SUPER_ADMIN อย่างน้อยหนึ่งบัญชีเสมอ',
-      ok: (facts?.superAdmins ?? 0) >= 1,
-      detail: facts ? `มี SUPER_ADMIN ${facts.superAdmins} บัญชี` : 'อ่านสถานะไม่ได้',
+      name: 'ผู้ดูแลระบบสำรอง',
+      description: 'ต้องมีผู้ดูแลระบบส่วนกลางอย่างน้อยหนึ่งบัญชีเสมอ',
+      ok: (facts?.admins ?? 0) >= 1,
+      detail: facts ? `มีผู้ดูแลระบบส่วนกลาง ${facts.admins} บัญชี` : 'อ่านสถานะไม่ได้',
     },
   ];
 
   const failing = controls.filter((control) => !control.ok);
 
   return (
-    <div className="container-fluid p-0">
-      <div className="mb-4">
-        <h4 className="fw-bold mb-1 text-dark d-flex align-items-center gap-2">
-          <Shield className="text-primary" size={24} /> ความปลอดภัยของระบบ
-        </h4>
-        <p className="text-secondary small mb-0">
-          สถานะจริงที่อ่านจากฐานข้อมูลและการตั้งค่าปัจจุบัน ไม่ใช่ข้อความคงที่
-        </p>
-      </div>
-
-      {failing.length > 0 && (
-        <div className="alert alert-warning border-0 rounded-3 d-flex align-items-start gap-2">
-          <AlertTriangle size={18} className="flex-shrink-0 mt-1" />
-          <div className="small">
+    <div className="d-flex flex-column gap-3">
+      {failing.length > 0 ? (
+        <div className="adm-alert is-warn">
+          <AlertTriangle size={17} className="flex-shrink-0 mt-1" aria-hidden="true" />
+          <span>
             <strong>มี {failing.length} รายการที่ควรแก้ไข:</strong>{' '}
             {failing.map((control) => control.name).join(', ')}
-          </div>
+          </span>
+        </div>
+      ) : (
+        <div className="adm-alert is-info">
+          <CheckCircle size={17} className="flex-shrink-0 mt-1" aria-hidden="true" />
+          <span>มาตรการทั้งหมดผ่านการตรวจสอบ</span>
         </div>
       )}
 
       <RateLimitSettings />
 
-      <div className="card border-0 shadow-sm rounded-3 bg-white mb-4">
-        <div className="card-header bg-white border-bottom py-3 px-4">
-          <h6 className="fw-bold mb-0 text-dark d-flex align-items-center gap-2">
-            <Lock size={18} className="text-success" /> มาตรการที่บังคับใช้อยู่
-          </h6>
+      <section className="adm-card">
+        <div className="adm-card-head">
+          <h2 className="adm-card-title">
+            <Lock size={17} aria-hidden="true" /> มาตรการที่บังคับใช้อยู่
+          </h2>
+          <span className="adm-cell-sub">
+            อ่านจากฐานข้อมูลและการตั้งค่าจริง ไม่ใช่ข้อความคงที่
+          </span>
         </div>
-        <div className="card-body p-0">
-          <div className="table-responsive">
-            <table className="table align-middle mb-0">
-              <thead className="table-light">
-                <tr>
-                  <th className="py-2 px-4 small">มาตรการ</th>
-                  <th className="py-2 px-3 small">รายละเอียด</th>
-                  <th className="py-2 px-4 small text-end">สถานะ</th>
+        <div className="table-responsive">
+          <table className="adm-table">
+            <thead>
+              <tr>
+                <th scope="col">มาตรการ</th>
+                <th scope="col">สถานะปัจจุบัน</th>
+                <th scope="col" className="text-end">ผลตรวจ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {controls.map((control) => (
+                <tr key={control.name}>
+                  <td>
+                    <span className="adm-cell-strong d-block">{control.name}</span>
+                    <span className="adm-cell-sub d-block" style={{ whiteSpace: 'normal' }}>
+                      {control.description}
+                    </span>
+                  </td>
+                  <td style={{ whiteSpace: 'normal' }}>{control.detail}</td>
+                  <td className="text-end">
+                    {control.ok ? (
+                      <span className="adm-chip is-ok">
+                        <CheckCircle size={12} aria-hidden="true" /> ผ่าน
+                      </span>
+                    ) : (
+                      <span className="adm-chip is-warn">
+                        <AlertTriangle size={12} aria-hidden="true" /> ต้องแก้ไข
+                      </span>
+                    )}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {controls.map((control) => (
-                  <tr key={control.name}>
-                    <td className="py-3 px-4">
-                      <div className="fw-semibold text-dark small">{control.name}</div>
-                      <div className="text-secondary extra-small">{control.description}</div>
-                    </td>
-                    <td className="py-3 px-3 small text-secondary font-monospace">{control.detail}</td>
-                    <td className="py-3 px-4 text-end">
-                      {control.ok ? (
-                        <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 d-inline-flex align-items-center gap-1">
-                          <CheckCircle size={13} /> ผ่าน
-                        </span>
-                      ) : (
-                        <span className="badge bg-warning bg-opacity-10 text-warning-emphasis border border-warning border-opacity-25 d-inline-flex align-items-center gap-1">
-                          <AlertTriangle size={13} /> ต้องแก้ไข
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </div>
+      </section>
 
-      <div className="row g-3">
+      <div className="row g-3 align-items-start">
         <div className="col-12 col-lg-5">
-          <div className="card border-0 shadow-sm rounded-3 h-100">
-            <div className="card-header bg-white border-bottom py-3 px-4">
-              <h6 className="fw-bold mb-0 text-dark d-flex align-items-center gap-2">
-                <Key size={18} className="text-primary" /> บัญชีและสิทธิ์
-              </h6>
+          <section className="adm-card h-100">
+            <div className="adm-card-head">
+              <h2 className="adm-card-title">
+                <Key size={17} aria-hidden="true" /> บัญชีและสิทธิ์
+              </h2>
             </div>
-            <div className="card-body p-4 small">
-              <dl className="row mb-0">
-                <dt className="col-8 fw-normal text-secondary">ผู้ใช้ที่เปิดใช้งาน</dt>
-                <dd className="col-4 text-end fw-semibold">{facts?.totalUsers ?? '—'}</dd>
-                <dt className="col-8 fw-normal text-secondary">SUPER_ADMIN</dt>
-                <dd className="col-4 text-end fw-semibold">{facts?.superAdmins ?? '—'}</dd>
-                <dt className="col-8 fw-normal text-secondary">สิทธิ์ระดับ Platform ที่มอบไว้</dt>
-                <dd className="col-4 text-end fw-semibold">{facts?.memberships ?? '—'}</dd>
-                <dt className="col-8 fw-normal text-secondary">Platform ทั้งหมด</dt>
-                <dd className="col-4 text-end fw-semibold mb-0">{facts?.platforms ?? '—'}</dd>
+            <div className="p-3">
+              <dl className="mb-0 d-flex flex-column gap-2">
+                {[
+                  ['ผู้ใช้ที่เปิดใช้งาน', facts?.totalUsers],
+                  ['ผู้ดูแลระบบส่วนกลาง', facts?.admins],
+                  ['สิทธิ์รายเว็บไซต์ที่มอบไว้', facts?.memberships],
+                  ['แม่แบบระบบทั้งหมด', facts?.platforms],
+                ].map(([label, value]) => (
+                  <div key={label as string} className="d-flex justify-content-between gap-2">
+                    <dt className="adm-stat-label fw-normal">{label}</dt>
+                    <dd className="adm-cell-strong mb-0">{value ?? '—'}</dd>
+                  </div>
+                ))}
               </dl>
             </div>
-          </div>
+          </section>
         </div>
 
         <div className="col-12 col-lg-7">
-          <div className="card border-0 shadow-sm rounded-3 h-100">
-            <div className="card-header bg-white border-bottom py-3 px-4">
-              <h6 className="fw-bold mb-0 text-dark d-flex align-items-center gap-2">
-                <Globe size={18} className="text-info" /> ตารางที่เปิดให้เข้าถึงแบบสาธารณะ
-              </h6>
+          <section className="adm-card h-100">
+            <div className="adm-card-head">
+              <h2 className="adm-card-title">
+                <Globe size={17} aria-hidden="true" /> ข้อมูลที่เปิดให้ผู้เข้าชมเว็บเห็น
+              </h2>
             </div>
-            <div className="card-body p-4">
-              <p className="text-secondary extra-small mb-3 d-flex align-items-start gap-1">
-                <Database size={13} className="mt-1 flex-shrink-0" />
-                ผู้เข้าชมเว็บ Site ไม่มี session จึงอ่าน/เขียนได้เฉพาะตารางที่ระบุไว้ที่นี่เท่านั้น
+            <div className="p-3">
+              <p className="adm-toolbar-note d-flex align-items-start gap-2 mb-3">
+                <Database size={14} className="mt-1 flex-shrink-0" aria-hidden="true" />
+                ผู้เข้าชมเว็บไซต์ไม่ได้เข้าสู่ระบบ จึงอ่านหรือบันทึกได้เฉพาะรายการที่ระบุไว้นี้เท่านั้น
                 และไม่สามารถแก้ไขหรือลบข้อมูลได้ในทุกกรณี
               </p>
+
               {facts?.publicTables.length ? (
                 <div className="d-flex flex-column gap-2">
                   {facts.publicTables.map((entry) => (
-                    <div key={entry.platformSlug} className="border rounded-3 p-2">
-                      <code className="small fw-semibold text-dark">{entry.platformSlug}</code>
-                      <div className="extra-small text-secondary mt-1">
+                    <div
+                      key={entry.platformSlug}
+                      className="border rounded-3 p-2"
+                      style={{ borderColor: 'var(--gov-border)' }}
+                    >
+                      <span className="adm-cell-strong font-monospace d-block mb-1">
+                        {entry.platformSlug}
+                      </span>
+                      <span className="adm-cell-sub d-block" style={{ whiteSpace: 'normal' }}>
                         อ่านได้: {entry.readable.length ? entry.readable.join(', ') : '— ไม่มี —'}
-                      </div>
-                      <div className="extra-small text-secondary">
+                      </span>
+                      <span className="adm-cell-sub d-block" style={{ whiteSpace: 'normal' }}>
                         บันทึกได้: {entry.insertable.length ? entry.insertable.join(', ') : '— ไม่มี —'}
-                      </div>
+                      </span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-muted small mb-0">ยังไม่มี Platform ในระบบ</p>
+                <p className="adm-empty-text mb-0">ยังไม่มีแม่แบบระบบในระบบ</p>
               )}
             </div>
-          </div>
+          </section>
         </div>
       </div>
     </div>

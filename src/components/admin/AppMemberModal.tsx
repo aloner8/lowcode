@@ -1,29 +1,30 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { Info, Layers } from 'lucide-react';
 import { UserProfile, PlatformConfig, SiteRole, ROLE_LABELS } from '@/types';
-import { Shield, Layers, Save } from 'lucide-react';
+import AdminModal from '@/components/admin/AdminModal';
 
 interface PlatformMemberModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  user: UserProfile | null;
-  platforms: PlatformConfig[];
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
+  readonly user: UserProfile | null;
+  readonly platforms: PlatformConfig[];
   /** Current grants, keyed by platform id. */
-  initialRoles: Record<string, SiteRole>;
-  onSaveAccess: (userId: string, permissions: Record<string, SiteRole | null>) => void;
-  isSaving?: boolean;
+  readonly initialRoles: Record<string, SiteRole>;
+  readonly onSaveAccess: (userId: string, permissions: Record<string, SiteRole | null>) => void;
+  readonly isSaving?: boolean;
 }
 
-const ROLE_OPTIONS: Array<{ value: SiteRole | ''; label: string }> = [
+const ROLE_OPTIONS: ReadonlyArray<{ value: SiteRole | ''; label: string }> = [
   { value: '', label: 'ไม่มีสิทธิ์' },
-  { value: 'VIEWER', label: `VIEWER — ${ROLE_LABELS.VIEWER}` },
-  { value: 'STAFF', label: `STAFF — ${ROLE_LABELS.STAFF}` },
-  { value: 'ADMIN', label: `ADMIN — ${ROLE_LABELS.ADMIN}` },
+  { value: 'VIEWER', label: `ดูอย่างเดียว — ${ROLE_LABELS.VIEWER}` },
+  { value: 'STAFF', label: `เจ้าหน้าที่ — ${ROLE_LABELS.STAFF}` },
+  { value: 'ADMIN', label: `ผู้ดูแลเว็บไซต์ — ${ROLE_LABELS.ADMIN}` },
 ];
 
 /**
- * Grants a developer access to specific Platform Masters.
+ * Grants a user access to specific sites.
  * These rows are what `requirePlatformAccess` checks on every scoped API call.
  */
 export default function AppMemberModal({
@@ -41,92 +42,84 @@ export default function AppMemberModal({
     if (isOpen) setPermissions({ ...initialRoles });
   }, [isOpen, initialRoles]);
 
-  if (!isOpen || !user) return null;
+  if (!user) return null;
 
   const handleRoleChange = (platformId: string, role: SiteRole | '') => {
     setPermissions((prev) => ({ ...prev, [platformId]: role === '' ? null : role }));
   };
 
   return (
-    <div
-      className="modal fade show d-block"
-      tabIndex={-1}
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)', zIndex: 1050 }}
-      role="dialog"
+    <AdminModal
+      isOpen={isOpen}
+      wide
+      title="สิทธิ์เข้าถึงเว็บไซต์"
+      subtitle={user.fullName || user.username}
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className="adm-btn is-quiet" onClick={onClose}>ยกเลิก</button>
+          <button
+            type="button"
+            className="adm-btn"
+            disabled={isSaving}
+            onClick={() => onSaveAccess(user.id, permissions)}
+          >
+            {isSaving ? 'กำลังบันทึก…' : 'บันทึกสิทธิ์'}
+          </button>
+        </>
+      }
     >
-      <div className="modal-dialog modal-dialog-centered modal-lg">
-        <div className="modal-content border-0 shadow rounded-3">
-          <div className="modal-header">
-            <h6 className="modal-title fw-bold d-flex align-items-center gap-2">
-              <Shield size={18} className="text-primary" />
-              สิทธิ์เข้าถึง Platform — {user.fullName || user.username}
-            </h6>
-            <button type="button" className="btn-close" onClick={onClose} aria-label="ปิด" />
-          </div>
-
-          <div className="modal-body">
-            {user.globalRole === 'GOD' && (
-              <div className="alert alert-info border-0 small rounded-3">
-                ผู้ใช้นี้เป็นบัญชี GOD (ผู้ให้บริการ) จึงเข้าถึงทุก Platform และทุก Site อยู่แล้ว
-              </div>
-            )}
-
-            {platforms.length === 0 ? (
-              <p className="text-muted small mb-0">ยังไม่มี Platform ในระบบ</p>
-            ) : (
-              <div className="table-responsive">
-                <table className="table align-middle mb-0">
-                  <thead className="table-light">
-                    <tr>
-                      <th className="small">Platform</th>
-                      <th className="small" style={{ width: '45%' }}>สิทธิ์</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {platforms.map((platform) => (
-                      <tr key={platform.id}>
-                        <td>
-                          <div className="d-flex align-items-center gap-2">
-                            <Layers size={15} className="text-secondary" />
-                            <div>
-                              <div className="fw-semibold small text-dark">{platform.platformName}</div>
-                              <code className="extra-small text-secondary">{platform.platformSlug}</code>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <select
-                            className="form-select form-select-sm"
-                            value={permissions[platform.id] ?? ''}
-                            onChange={(event) => handleRoleChange(platform.id, event.target.value as SiteRole | '')}
-                            aria-label={`สิทธิ์บน ${platform.platformName}`}
-                          >
-                            {ROLE_OPTIONS.map((option) => (
-                              <option key={option.value} value={option.value}>{option.label}</option>
-                            ))}
-                          </select>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          <div className="modal-footer">
-            <button type="button" className="btn btn-light" onClick={onClose}>ยกเลิก</button>
-            <button
-              type="button"
-              className="btn btn-primary d-flex align-items-center gap-2"
-              disabled={isSaving}
-              onClick={() => onSaveAccess(user.id, permissions)}
-            >
-              <Save size={16} /> {isSaving ? 'กำลังบันทึก…' : 'บันทึกสิทธิ์'}
-            </button>
-          </div>
+      {user.globalRole === 'GOD' && (
+        <div className="adm-alert is-info mb-3">
+          <Info size={17} className="flex-shrink-0 mt-1" aria-hidden="true" />
+          <span>
+            บัญชีนี้เป็นผู้ดูแลระบบส่วนกลาง จึงเข้าถึงทุกเว็บไซต์อยู่แล้ว
+            สิทธิ์ที่ตั้งที่นี่จะไม่จำกัดการเข้าถึงของบัญชีนี้
+          </span>
         </div>
-      </div>
-    </div>
+      )}
+
+      {platforms.length === 0 ? (
+        <p className="adm-empty-text mb-0">ยังไม่มีแม่แบบระบบให้กำหนดสิทธิ์</p>
+      ) : (
+        <div className="table-responsive">
+          <table className="adm-table">
+            <thead>
+              <tr>
+                <th scope="col">แม่แบบระบบ</th>
+                <th scope="col" style={{ width: '48%' }}>สิทธิ์</th>
+              </tr>
+            </thead>
+            <tbody>
+              {platforms.map((platform) => (
+                <tr key={platform.id}>
+                  <td>
+                    <span className="d-flex align-items-center gap-2">
+                      <Layers size={15} style={{ color: 'var(--gov-muted-soft)' }} aria-hidden="true" />
+                      <span>
+                        <span className="adm-cell-strong d-block">{platform.platformName}</span>
+                        <span className="adm-cell-sub font-monospace">{platform.platformSlug}</span>
+                      </span>
+                    </span>
+                  </td>
+                  <td>
+                    <select
+                      className="adm-select"
+                      value={permissions[platform.id] ?? ''}
+                      onChange={(event) => handleRoleChange(platform.id, event.target.value as SiteRole | '')}
+                      aria-label={`สิทธิ์บน ${platform.platformName}`}
+                    >
+                      {ROLE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </AdminModal>
   );
 }

@@ -2,14 +2,33 @@
 
 import React, { useState, useEffect } from 'react';
 import { UserProfile, GlobalRole } from '@/types';
-import { UserPlus, Save } from 'lucide-react';
+import AdminModal from '@/components/admin/AdminModal';
 
 interface UserFormModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (user: Partial<UserProfile> & { password?: string }) => void;
-  userToEdit?: UserProfile | null;
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
+  readonly onSave: (user: Partial<UserProfile> & { password?: string }) => void;
+  readonly userToEdit?: UserProfile | null;
 }
+
+/**
+ * Only two values exist in the schema, and the API rejects anything else. The
+ * dropdown here used to offer DEVELOPER / SUPER_ADMIN / VIEWER, none of which
+ * are accepted — so picking one failed the save, and leaving it alone showed a
+ * role the form was not actually sending.
+ */
+const ROLE_OPTIONS: ReadonlyArray<{ value: GlobalRole; label: string; help: string }> = [
+  {
+    value: 'TENANT_USER',
+    label: 'ผู้ใช้ของหน่วยงาน',
+    help: 'เข้าถึงเฉพาะเว็บไซต์ที่ได้รับสิทธิ์ กำหนดสิทธิ์รายเว็บได้ที่ปุ่ม “สิทธิ์เว็บไซต์”',
+  },
+  {
+    value: 'GOD',
+    label: 'ผู้ดูแลระบบส่วนกลาง',
+    help: 'พนักงานบริษัท หนุมานไอที จำกัด เข้าถึงทุกเว็บไซต์และตั้งค่าได้ทั้งระบบ',
+  },
+];
 
 export default function UserFormModal({
   isOpen,
@@ -25,27 +44,16 @@ export default function UserFormModal({
   const [isActive, setIsActive] = useState(true);
 
   useEffect(() => {
-    if (userToEdit) {
-      setUsername(userToEdit.username || '');
-      setEmail(userToEdit.email || '');
-      setFullName(userToEdit.fullName || '');
-      setGlobalRole(userToEdit.globalRole || 'TENANT_USER');
-      setIsActive(userToEdit.isActive ?? true);
-      setPassword('');
-    } else {
-      setUsername('');
-      setEmail('');
-      setFullName('');
-      setPassword('');
-      setGlobalRole('TENANT_USER');
-      setIsActive(true);
-    }
+    setUsername(userToEdit?.username ?? '');
+    setEmail(userToEdit?.email ?? '');
+    setFullName(userToEdit?.fullName ?? '');
+    setGlobalRole(userToEdit?.globalRole ?? 'TENANT_USER');
+    setIsActive(userToEdit?.isActive ?? true);
+    setPassword('');
   }, [userToEdit, isOpen]);
 
-  if (!isOpen) return null;
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
     onSave({
       id: userToEdit?.id,
       username,
@@ -58,112 +66,114 @@ export default function UserFormModal({
     onClose();
   };
 
+  const roleHelp = ROLE_OPTIONS.find((option) => option.value === globalRole)?.help;
+
   return (
-    <div
-      className="modal fade show d-block"
-      tabIndex={-1}
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)', zIndex: 1050 }}
+    <AdminModal
+      isOpen={isOpen}
+      title={userToEdit ? 'แก้ไขข้อมูลผู้ใช้' : 'เพิ่มผู้ใช้'}
+      subtitle={
+        userToEdit
+          ? userToEdit.email
+          : 'บัญชีนี้จะถูกบังคับให้ตั้งรหัสผ่านใหม่เมื่อเข้าสู่ระบบครั้งแรก'
+      }
+      onClose={onClose}
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <button type="button" className="adm-btn is-quiet" onClick={onClose}>ยกเลิก</button>
+          <button type="submit" className="adm-btn">บันทึก</button>
+        </>
+      }
     >
-      <div className="modal-dialog modal-dialog-centered">
-        <div className="modal-content border-0 shadow-lg rounded-3">
-          <div className="modal-header border-bottom px-4 py-3">
-            <h5 className="modal-title fw-bold fs-6 d-flex align-items-center gap-2">
-              <UserPlus size={18} className="text-primary" />
-              {userToEdit ? 'แก้ไขข้อมูลผู้ใช้งานเว็บแม่' : 'เพิ่มผู้ใช้งานระบบเว็บแม่ (Platform User)'}
-            </h5>
-            <button type="button" className="btn-close" onClick={onClose}></button>
-          </div>
-          <form onSubmit={handleSubmit}>
-            <div className="modal-body px-4 py-3">
-              <div className="mb-3">
-                <label className="form-label small fw-medium text-secondary">Username (ชื่อผู้ใช้)</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="เช่น aloner, dev_john"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label small fw-medium text-secondary">Email (อีเมล)</label>
-                <input
-                  type="email"
-                  className="form-control"
-                  placeholder="เช่น aloner@platform.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label small fw-medium text-secondary">ชื่อ - นามสกุล (Full Name)</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="เช่น Aloner Developer"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                />
-              </div>
-
-              {!userToEdit && (
-                <div className="mb-3">
-                  <label className="form-label small fw-medium text-secondary">รหัสผ่าน (Password)</label>
-                  <input
-                    type="password"
-                    className="form-control"
-                    placeholder="ขั้นต่ำ 6 ตัวอักษร"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required={!userToEdit}
-                  />
-                  <div className="form-text extra-small text-muted">รหัสผ่านเริ่มต้นตั้งเป็น <code>1qaz@WSX</code></div>
-                </div>
-              )}
-
-              <div className="mb-3">
-                <label className="form-label small fw-medium text-secondary">Platform Global Role</label>
-                <select
-                  className="form-select"
-                  value={globalRole}
-                  onChange={(e) => setGlobalRole(e.target.value as GlobalRole)}
-                >
-                  <option value="DEVELOPER">🔵 DEVELOPER (สร้าง/แก้ไข Layout, Flow, Theme ใน Studio)</option>
-                  <option value="SUPER_ADMIN">🔴 SUPER_ADMIN (สิทธิ์สูงสุด แอดมินควบคุมระบบ)</option>
-                  <option value="VIEWER">⚪ VIEWER (สิทธิ์ดูได้อย่างเดียว)</option>
-                </select>
-              </div>
-
-              <div className="form-check form-switch mt-3">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  id="userActiveSwitch"
-                  checked={isActive}
-                  onChange={(e) => setIsActive(e.target.checked)}
-                />
-                <label className="form-check-label small fw-medium" htmlFor="userActiveSwitch">
-                  เปิดใช้งานบัญชีนี้ (Active User)
-                </label>
-              </div>
-            </div>
-            <div className="modal-footer border-top px-4 py-3">
-              <button type="button" className="btn btn-light btn-sm" onClick={onClose}>
-                ยกเลิก
-              </button>
-              <button type="submit" className="btn btn-primary btn-sm d-flex align-items-center gap-1.5 px-3">
-                <Save size={16} />
-                บันทึกข้อมูล
-              </button>
-            </div>
-          </form>
-        </div>
+      <div className="mb-3">
+        <label htmlFor="uf-fullname" className="adm-label d-block">ชื่อ-นามสกุล</label>
+        <input
+          id="uf-fullname"
+          className="adm-input"
+          value={fullName}
+          onChange={(event) => setFullName(event.target.value)}
+          placeholder="สมชาย ใจดี"
+          required
+        />
       </div>
-    </div>
+
+      <div className="mb-3">
+        <label htmlFor="uf-username" className="adm-label d-block">ชื่อผู้ใช้</label>
+        <input
+          id="uf-username"
+          className="adm-input is-mono"
+          value={username}
+          onChange={(event) => setUsername(event.target.value)}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          placeholder="somchai"
+          required
+        />
+        <p className="adm-help">ใช้สำหรับเข้าสู่ระบบ ร่วมกับอีเมล</p>
+      </div>
+
+      <div className="mb-3">
+        <label htmlFor="uf-email" className="adm-label d-block">อีเมล</label>
+        <input
+          id="uf-email"
+          type="email"
+          className="adm-input"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="somchai@example.go.th"
+          required
+        />
+      </div>
+
+      {!userToEdit && (
+        <div className="mb-3">
+          <label htmlFor="uf-password" className="adm-label d-block">รหัสผ่านเริ่มต้น</label>
+          <input
+            id="uf-password"
+            type="password"
+            className="adm-input"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="อย่างน้อย 8 ตัวอักษร"
+            minLength={8}
+            required
+          />
+          <p className="adm-help">
+            แจ้งรหัสนี้ให้ผู้ใช้ทราบ ระบบจะบังคับให้ตั้งรหัสใหม่ทันทีที่เข้าสู่ระบบครั้งแรก
+          </p>
+        </div>
+      )}
+
+      <div className="mb-3">
+        <label htmlFor="uf-role" className="adm-label d-block">สิทธิ์ในระบบ</label>
+        <select
+          id="uf-role"
+          className="adm-select"
+          value={globalRole}
+          onChange={(event) => setGlobalRole(event.target.value as GlobalRole)}
+        >
+          {ROLE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
+        {roleHelp && <p className="adm-help">{roleHelp}</p>}
+      </div>
+
+      <div className="form-check form-switch">
+        <input
+          className="form-check-input"
+          type="checkbox"
+          id="uf-active"
+          checked={isActive}
+          onChange={(event) => setIsActive(event.target.checked)}
+        />
+        <label className="form-check-label adm-label mb-0" htmlFor="uf-active">
+          เปิดใช้งานบัญชีนี้
+        </label>
+      </div>
+      <p className="adm-help">ปิดไว้เพื่อระงับการเข้าใช้งานชั่วคราวโดยไม่ต้องลบบัญชี</p>
+    </AdminModal>
   );
 }

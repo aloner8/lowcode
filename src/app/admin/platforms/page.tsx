@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Layers, Plus, Box, Palette, ArrowRight, Sparkles, Check, X } from 'lucide-react';
+import { Layers, Plus, Box, Palette, Check, X, Info, Inbox, AlertCircle, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { PlatformConfig } from '@/types';
+import AdminModal from '@/components/admin/AdminModal';
 
 export default function PlatformsPage() {
   const [platforms, setPlatforms] = useState<PlatformConfig[]>([]);
@@ -134,226 +135,200 @@ export default function PlatformsPage() {
   };
 
   return (
-    <div className="container-fluid p-0 select-none">
-      {/* Header */}
-      <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
-        <div>
-          <h4 className="fw-bold mb-0.5 text-dark d-flex align-items-center gap-2 text-nowrap">
-            <Layers className="text-primary" size={20} />
-            Platform Master Solutions (Blueprints)
-          </h4>
-          <p className="text-secondary small mb-0 text-nowrap" style={{ fontSize: '0.8rem' }}>
-            Master system templates (e.g. PlatformERP) that spawn multiple Tenant Child Apps with cascading live updates
-          </p>
-        </div>
-
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="btn btn-primary btn-sm d-flex align-items-center gap-1.5 px-3 py-1.5 rounded-2 shadow-sm fw-medium text-nowrap"
-          style={{ fontSize: '0.8rem' }}
-        >
-          <Plus size={16} />
-          <span>+ Create New Platform Blueprint</span>
+    <div className="d-flex flex-column gap-3">
+      <div className="adm-toolbar">
+        <p className="adm-toolbar-note">
+          แม่แบบคือโครงสร้างตั้งต้นที่ใช้สร้างเว็บไซต์ใหม่ — แก้ที่แม่แบบแล้วเว็บที่สร้างจากแม่แบบนั้นจะได้รับการอัปเดตตาม
+        </p>
+        <button type="button" className="adm-btn is-sm" onClick={() => setIsModalOpen(true)}>
+          <Plus size={15} aria-hidden="true" /> เพิ่มแม่แบบ
         </button>
       </div>
 
-      {/* Feature Banner */}
-      <div className="alert alert-primary border-0 bg-primary bg-opacity-10 text-primary-emphasis rounded-3 d-flex align-items-center gap-2 mb-3 p-2.5 small">
-        <Sparkles size={16} className="text-primary flex-shrink-0" />
-        <div className="extra-small text-nowrap">
-          <strong>Cascading Updates:</strong> Modifying a Platform Master (e.g., PlatformERP) automatically updates all child Tenant Apps spawned from it!
-        </div>
-      </div>
-
-      {/* Platforms Grid */}
-      {platformError && <div className="alert alert-danger py-2 small">{platformError}</div>}
-      {isLoadingPlatforms && <div className="text-secondary small mb-3">Loading platforms...</div>}
-      <div className="row g-3">
-        {platforms.map((p) => (
-          <div key={p.id} className="col-12 col-lg-6">
-            <div className="card border-0 shadow-sm rounded-3 bg-white h-100">
-              <div className="card-body p-3.5">
-                <div className="d-flex align-items-start justify-content-between mb-2.5">
-                  <div className="d-flex align-items-center gap-2.5">
-                    <div
-                      className="rounded-3 d-flex align-items-center justify-content-center text-white shadow-sm"
-                      style={{
-                        width: '42px',
-                        height: '42px',
-                        background: 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)',
-                      }}
-                    >
-                      <Layers size={22} />
-                    </div>
-                    <div>
-                      <h5 className="fw-bold mb-0 text-dark small text-nowrap">{p.platformName}</h5>
-                      <span className="badge bg-light text-secondary border extra-small text-nowrap">{p.platformSlug}</span>
-                    </div>
-                  </div>
-                  <span className="badge bg-primary bg-opacity-15 text-primary border border-primary border-opacity-25 px-2 py-0.5 extra-small text-nowrap">
-                    🏷️ {p.category} Master
-                  </span>
-                </div>
-
-                <p className="text-secondary extra-small mb-3" style={{ fontSize: '0.78rem' }}>
-                  {p.description}
-                </p>
-
-                <div className="d-flex align-items-center gap-2">
-                  <Link
-                    href={`/studio?platformId=${p.id}`}
-                    className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1.5 flex-grow-1 justify-content-center py-1.5 text-nowrap"
-                    style={{ fontSize: '0.78rem' }}
-                  >
-                    <Palette size={14} />
-                    <span>Edit in Studio</span>
-                  </Link>
-                  <Link
-                    href={`/admin/apps?spawnPlatformId=${p.id}`}
-                    className="btn btn-sm btn-primary text-white d-flex align-items-center gap-1.5 flex-grow-1 justify-content-center py-1.5 text-nowrap"
-                    style={{ fontSize: '0.78rem' }}
-                  >
-                    <Box size={14} />
-                    <span>Spawn Tenant App</span>
-                    <ArrowRight size={13} />
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content border-0 shadow-lg rounded-3">
-              <div className="modal-header border-bottom px-4 py-3">
-                <h5 className="modal-title fw-bold fs-6">Create Platform Master Solution</h5>
-                <button type="button" className="btn-close" onClick={() => setIsModalOpen(false)}></button>
-              </div>
-              <form onSubmit={handleCreatePlatform}>
-                <div className="modal-body px-4 py-3">
-                  <div className="mb-3">
-                    <label className="form-label small fw-medium text-secondary">Platform Solution Name</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="e.g. PlatformERP, PlatformCRM"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label small fw-medium text-secondary">Platform Slug</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="e.g. platform-erp"
-                      value={slug}
-                      onChange={(e) => setSlug(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  {/* Category Field with Inline + Add Category Support */}
-                  <div className="mb-3">
-                    <div className="d-flex align-items-center justify-content-between mb-1">
-                      <label className="form-label small fw-medium text-secondary mb-0">Category</label>
-                      {!isAddingCustomCategory && (
-                        <button
-                          type="button"
-                          className="btn btn-link p-0 text-decoration-none extra-small text-primary fw-semibold d-flex align-items-center gap-1"
-                          onClick={() => setIsAddingCustomCategory(true)}
-                          style={{ fontSize: '0.75rem' }}
-                        >
-                          <Plus size={13} /> Add New Category
-                        </button>
-                      )}
-                    </div>
-
-                    {isAddingCustomCategory ? (
-                      <div className="input-group input-group-sm">
-                        <input
-                          type="text"
-                          className="form-control"
-                          placeholder="Type new category name..."
-                          value={newCategoryInput}
-                          onChange={(e) => setNewCategoryInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              void handleSaveCustomCategory();
-                            }
-                          }}
-                          disabled={isSavingCategory}
-                          autoFocus
-                        />
-                        <button
-                          type="button"
-                          className="btn btn-success d-flex align-items-center gap-1"
-                          onClick={() => void handleSaveCustomCategory()}
-                          disabled={!newCategoryInput.trim() || isSavingCategory}
-                        >
-                          <Check size={14} /> {isSavingCategory ? 'Saving...' : 'Add'}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-outline-secondary d-flex align-items-center"
-                          onClick={() => setIsAddingCustomCategory(false)}
-                          disabled={isSavingCategory}
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ) : (
-                      <select
-                        className="form-select"
-                        value={category}
-                        onChange={(e) => setCategory(e.target.value)}
-                        disabled={isLoadingCategories || categoriesList.length === 0}
-                      >
-                        {isLoadingCategories && <option value="">Loading categories...</option>}
-                        {!isLoadingCategories && categoriesList.length === 0 && (
-                          <option value="">No categories found</option>
-                        )}
-                        {categoriesList.map((cat) => (
-                          <option key={cat} value={cat}>
-                            {cat}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    {categoryError && (
-                      <div className="d-flex align-items-center justify-content-between gap-2 mt-2">
-                        <div className="text-danger small">{categoryError}</div>
-                        <button
-                          type="button"
-                          className="btn btn-link btn-sm p-0 text-nowrap"
-                          onClick={() => void loadCategories()}
-                        >
-                          Retry
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="modal-footer border-top px-4 py-3">
-                  <button type="button" className="btn btn-light btn-sm" onClick={() => setIsModalOpen(false)}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn-primary btn-sm" disabled={!category || isCreatingPlatform}>
-                    {isCreatingPlatform ? 'Saving...' : 'Create Master Platform'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+      {platformError && (
+        <div className="adm-alert is-danger" role="alert">
+          <AlertCircle size={17} className="flex-shrink-0 mt-1" aria-hidden="true" />
+          <span>{platformError}</span>
         </div>
       )}
+
+      <div className="adm-alert is-info">
+        <Info size={17} className="flex-shrink-0 mt-1" aria-hidden="true" />
+        <span>
+          การแก้ไขแม่แบบมีผลกับทุกเว็บไซต์ที่สร้างจากแม่แบบนั้น
+          หากต้องการเปลี่ยนเฉพาะเว็บใดเว็บหนึ่ง ให้ใช้ &ldquo;ปรับแต่ง&rdquo; ในหน้าเว็บไซต์หน่วยงานแทน
+        </span>
+      </div>
+
+      {isLoadingPlatforms ? (
+        <div className="adm-card adm-empty">
+          <RefreshCw size={22} className="adm-spin mb-2" aria-hidden="true" />
+          <p className="adm-empty-text">กำลังโหลด…</p>
+        </div>
+      ) : platforms.length === 0 ? (
+        <div className="adm-card adm-empty">
+          <span className="adm-empty-icon"><Inbox size={22} aria-hidden="true" /></span>
+          <p className="adm-empty-title">ยังไม่มีแม่แบบระบบ</p>
+          <p className="adm-empty-text">กด &ldquo;เพิ่มแม่แบบ&rdquo; เพื่อสร้างโครงสร้างตั้งต้นชุดแรก</p>
+        </div>
+      ) : (
+        <div className="row g-3">
+          {platforms.map((platform) => (
+            <div key={platform.id} className="col-12 col-xl-6 d-flex">
+              <section className="adm-card h-100 d-flex flex-column">
+                <div className="adm-card-head">
+                  <div className="min-w-0 d-flex align-items-center gap-2">
+                    <span className="adm-stat-icon" style={{ width: '2.4rem', height: '2.4rem' }} aria-hidden="true">
+                      <Layers size={18} />
+                    </span>
+                    <div className="min-w-0">
+                      <h2 className="adm-card-title">{platform.platformName}</h2>
+                      <p className="adm-cell-sub mb-0 font-monospace">{platform.platformSlug}</p>
+                    </div>
+                  </div>
+                  <span className="adm-chip is-info">{platform.category}</span>
+                </div>
+
+                <div className="p-3 flex-grow-1 d-flex flex-column gap-3">
+                  <p className="adm-toolbar-note mb-0">
+                    {platform.description || 'ยังไม่มีคำอธิบายสำหรับแม่แบบนี้'}
+                  </p>
+
+                  <div className="d-flex flex-wrap gap-2 mt-auto">
+                    <Link href={`/studio?platformId=${platform.id}`} className="adm-btn is-quiet is-sm">
+                      <Palette size={14} aria-hidden="true" /> แก้ไขโครงสร้าง
+                    </Link>
+                    <Link href={`/admin/apps?spawnPlatformId=${platform.id}`} className="adm-btn is-sm">
+                      <Box size={14} aria-hidden="true" /> สร้างเว็บไซต์จากแม่แบบนี้
+                    </Link>
+                  </div>
+                </div>
+              </section>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <AdminModal
+        isOpen={isModalOpen}
+        title="เพิ่มแม่แบบระบบ"
+        subtitle="โครงสร้างตั้งต้นชุดใหม่สำหรับสร้างเว็บไซต์"
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleCreatePlatform}
+        footer={
+          <>
+            <button type="button" className="adm-btn is-quiet" onClick={() => setIsModalOpen(false)}>
+              ยกเลิก
+            </button>
+            <button type="submit" className="adm-btn" disabled={!category || isCreatingPlatform}>
+              {isCreatingPlatform ? 'กำลังสร้าง…' : 'สร้างแม่แบบ'}
+            </button>
+          </>
+        }
+      >
+        <div className="mb-3">
+          <label htmlFor="pf-name" className="adm-label d-block">ชื่อแม่แบบ</label>
+          <input
+            id="pf-name"
+            className="adm-input"
+            placeholder="เว็บไซต์เทศบาล"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            required
+          />
+        </div>
+
+        <div className="mb-3">
+          <label htmlFor="pf-slug" className="adm-label d-block">ชื่อย่อสำหรับระบบ (slug)</label>
+          <input
+            id="pf-slug"
+            className="adm-input is-mono"
+            placeholder="web-thesaban"
+            value={slug}
+            onChange={(event) => setSlug(event.target.value)}
+            required
+          />
+          <p className="adm-help">ใช้อ้างอิงภายในระบบ เปลี่ยนภายหลังไม่ได้</p>
+        </div>
+
+        <div className="mb-1">
+          <div className="d-flex align-items-center justify-content-between gap-2 mb-1">
+            <label htmlFor="pf-category" className="adm-label mb-0">หมวดหมู่</label>
+            {!isAddingCustomCategory && (
+              <button
+                type="button"
+                className="adm-link"
+                onClick={() => setIsAddingCustomCategory(true)}
+              >
+                <Plus size={13} aria-hidden="true" /> เพิ่มหมวดหมู่ใหม่
+              </button>
+            )}
+          </div>
+
+          {isAddingCustomCategory ? (
+            <div className="d-flex gap-2">
+              <input
+                className="adm-input"
+                placeholder="ชื่อหมวดหมู่ใหม่"
+                value={newCategoryInput}
+                onChange={(event) => setNewCategoryInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    void handleSaveCustomCategory();
+                  }
+                }}
+                disabled={isSavingCategory}
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+                aria-label="ชื่อหมวดหมู่ใหม่"
+              />
+              <button
+                type="button"
+                className="adm-btn is-sm"
+                onClick={() => void handleSaveCustomCategory()}
+                disabled={!newCategoryInput.trim() || isSavingCategory}
+              >
+                <Check size={14} aria-hidden="true" /> {isSavingCategory ? 'กำลังบันทึก…' : 'เพิ่ม'}
+              </button>
+              <button
+                type="button"
+                className="adm-btn is-quiet is-sm"
+                onClick={() => setIsAddingCustomCategory(false)}
+                disabled={isSavingCategory}
+                aria-label="ยกเลิกการเพิ่มหมวดหมู่"
+              >
+                <X size={14} aria-hidden="true" />
+              </button>
+            </div>
+          ) : (
+            <select
+              id="pf-category"
+              className="adm-select"
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+              disabled={isLoadingCategories || categoriesList.length === 0}
+            >
+              {isLoadingCategories && <option value="">กำลังโหลดหมวดหมู่…</option>}
+              {!isLoadingCategories && categoriesList.length === 0 && (
+                <option value="">ยังไม่มีหมวดหมู่</option>
+              )}
+              {categoriesList.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          )}
+
+          {categoryError && (
+            <div className="d-flex align-items-center justify-content-between gap-2 mt-2">
+              <span className="adm-help" style={{ color: 'var(--gov-danger)' }}>{categoryError}</span>
+              <button type="button" className="adm-link" onClick={() => void loadCategories()}>
+                ลองใหม่
+              </button>
+            </div>
+          )}
+        </div>
+      </AdminModal>
     </div>
   );
 }

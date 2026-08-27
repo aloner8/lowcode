@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Gauge, RefreshCw, Save, Unlock, AlertTriangle } from 'lucide-react';
+import { Gauge, RefreshCw, Unlock, AlertTriangle, AlertCircle, ShieldCheck } from 'lucide-react';
 
 interface Policy {
   policyKey: string;
@@ -112,123 +112,162 @@ export default function RateLimitSettings() {
   };
 
   return (
-    <section className="card border-0 shadow-sm rounded-3 bg-white mb-4">
-      <div className="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <section className="adm-card">
+      <div className="adm-card-head">
         <div>
-          <h2 className="h6 fw-bold mb-0 text-dark d-flex align-items-center gap-2">
-            <Gauge size={18} className="text-primary" /> จำกัดอัตราการเรียกใช้งาน (Rate Limit)
+          <h2 className="adm-card-title">
+            <Gauge size={17} aria-hidden="true" /> จำกัดจำนวนครั้งที่เรียกใช้งาน
           </h2>
-          <p className="text-secondary extra-small mb-0 mt-1">
-            ค่าเหล่านี้เก็บในฐานข้อมูลและมีผลทันที ไม่ต้อง deploy ใหม่
+          <p className="adm-page-sub mt-1 mb-0">
+            ป้องกันการเดารหัสผ่านและการยิงคำขอถี่ผิดปกติ — ค่าที่ตั้งมีผลทันที ไม่ต้องติดตั้งใหม่
           </p>
         </div>
-        <button type="button" className="btn btn-sm btn-outline-secondary"
-                onClick={() => void load()} disabled={loading}>
-          <RefreshCw size={14} className={loading ? 'spin' : ''} />
+        <button
+          type="button"
+          className="adm-btn is-quiet is-sm"
+          onClick={() => void load()}
+          disabled={loading}
+          aria-label="โหลดค่าล่าสุด"
+        >
+          <RefreshCw size={14} className={loading ? 'adm-spin' : ''} aria-hidden="true" />
         </button>
       </div>
 
-      <div className="card-body p-0">
-        {error && <div className="alert alert-danger border-0 rounded-0 mb-0 small">{error}</div>}
-
-        {loading && policies.length === 0 ? (
-          <p className="text-muted small text-center py-4 mb-0">กำลังโหลด…</p>
-        ) : (
-          <div className="table-responsive">
-            <table className="table align-middle mb-0">
-              <thead className="table-light">
-                <tr>
-                  <th className="small ps-4">นโยบาย</th>
-                  <th className="small text-center" style={{ width: 110 }}>ครั้งสูงสุด</th>
-                  <th className="small text-center" style={{ width: 130 }}>ช่วงนับ (วินาที)</th>
-                  <th className="small text-center" style={{ width: 130 }}>ล็อก (วินาที)</th>
-                  <th className="small text-center" style={{ width: 90 }}>เปิดใช้</th>
-                  <th className="small text-end pe-4" style={{ width: 110 }} />
-                </tr>
-              </thead>
-              <tbody>
-                {policies.map((policy) => {
-                  const dirty = Boolean(draft[policy.policyKey]);
-                  return (
-                    <tr key={policy.policyKey}>
-                      <td className="ps-4">
-                        <div className="fw-semibold small text-dark">{policy.label}</div>
-                        <div className="extra-small text-secondary">{policy.description}</div>
-                        <code className="extra-small text-secondary">{policy.policyKey}</code>
-                      </td>
-                      <td className="text-center">
-                        <input type="number" min={1} max={10000} className="form-control form-control-sm text-center"
-                               value={valueOf(policy, 'maxAttempts')}
-                               onChange={(event) => edit(policy.policyKey, 'maxAttempts', Number(event.target.value))}
-                               aria-label={`จำนวนครั้งสูงสุดของ ${policy.label}`} />
-                      </td>
-                      <td className="text-center">
-                        <input type="number" min={10} max={86400} className="form-control form-control-sm text-center"
-                               value={valueOf(policy, 'windowSeconds')}
-                               onChange={(event) => edit(policy.policyKey, 'windowSeconds', Number(event.target.value))}
-                               aria-label={`ช่วงเวลานับของ ${policy.label}`} />
-                        <span className="extra-small text-secondary">{duration(valueOf(policy, 'windowSeconds'))}</span>
-                      </td>
-                      <td className="text-center">
-                        <input type="number" min={0} max={86400} className="form-control form-control-sm text-center"
-                               value={valueOf(policy, 'lockoutSeconds')}
-                               onChange={(event) => edit(policy.policyKey, 'lockoutSeconds', Number(event.target.value))}
-                               aria-label={`ระยะเวลาล็อกของ ${policy.label}`} />
-                        <span className="extra-small text-secondary">{duration(valueOf(policy, 'lockoutSeconds'))}</span>
-                      </td>
-                      <td className="text-center">
-                        <div className="form-check form-switch d-inline-block">
-                          <input type="checkbox" className="form-check-input"
-                                 checked={valueOf(policy, 'isEnabled')}
-                                 onChange={(event) => edit(policy.policyKey, 'isEnabled', event.target.checked)}
-                                 aria-label={`เปิดใช้ ${policy.label}`} />
-                        </div>
-                      </td>
-                      <td className="text-end pe-4">
-                        <button type="button"
-                                className={`btn btn-sm ${saved === policy.policyKey ? 'btn-success' : 'btn-primary'}`}
-                                disabled={!dirty || busy === policy.policyKey}
-                                onClick={() => void save(policy)}>
-                          <Save size={14} className="me-1" />
-                          {saved === policy.policyKey ? 'บันทึกแล้ว' : 'บันทึก'}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      {error && (
+        <div className="p-3 pb-0">
+          <div className="adm-alert is-danger" role="alert">
+            <AlertCircle size={17} className="flex-shrink-0 mt-1" aria-hidden="true" />
+            <span>{error}</span>
           </div>
-        )}
-
-        <div className="border-top p-4">
-          <h3 className="h6 fw-bold mb-2 d-flex align-items-center gap-2">
-            <AlertTriangle size={16} className="text-warning" /> ที่กำลังถูกล็อกอยู่ ({lockouts.length})
-          </h3>
-          {lockouts.length === 0 ? (
-            <p className="text-muted small mb-0">ไม่มีรายการที่ถูกล็อกในขณะนี้</p>
-          ) : (
-            <ul className="list-unstyled mb-0 d-flex flex-column gap-2">
-              {lockouts.map((lockout) => (
-                <li key={`${lockout.policyKey}:${lockout.identity}`}
-                    className="d-flex justify-content-between align-items-center border rounded-3 px-3 py-2">
-                  <span className="small">
-                    <code className="text-dark">{lockout.identity}</code>
-                    <span className="text-secondary ms-2">
-                      {lockout.policyKey} · {lockout.attempts} ครั้ง · ถึง{' '}
-                      {new Date(lockout.lockedUntil).toLocaleString('th-TH')}
-                    </span>
-                  </span>
-                  <button type="button" className="btn btn-sm btn-outline-secondary"
-                          disabled={busy === lockout.identity}
-                          onClick={() => void release(lockout)}>
-                    <Unlock size={14} className="me-1" /> ปลดล็อก
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
+      )}
+
+      {loading && policies.length === 0 ? (
+        <div className="adm-empty">
+          <RefreshCw size={22} className="adm-spin mb-2" aria-hidden="true" />
+          <p className="adm-empty-text">กำลังโหลด…</p>
+        </div>
+      ) : (
+        <div className="table-responsive">
+          <table className="adm-table">
+            <thead>
+              <tr>
+                <th scope="col">รายการ</th>
+                <th scope="col" className="text-center" style={{ width: 120 }}>ครั้งสูงสุด</th>
+                <th scope="col" className="text-center" style={{ width: 150 }}>ภายในเวลา</th>
+                <th scope="col" className="text-center" style={{ width: 150 }}>ล็อกนาน</th>
+                <th scope="col" className="text-center" style={{ width: 90 }}>เปิดใช้</th>
+                <th scope="col" className="text-end" style={{ width: 120 }}>
+                  <span className="visually-hidden">บันทึก</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {policies.map((policy) => {
+                const dirty = Boolean(draft[policy.policyKey]);
+                return (
+                  <tr key={policy.policyKey}>
+                    <td>
+                      <span className="adm-cell-strong d-block">{policy.label}</span>
+                      <span className="adm-cell-sub d-block" style={{ whiteSpace: 'normal' }}>
+                        {policy.description}
+                      </span>
+                    </td>
+                    <td className="text-center">
+                      <input
+                        type="number" min={1} max={10000}
+                        className="adm-input text-center"
+                        value={valueOf(policy, 'maxAttempts')}
+                        onChange={(event) => edit(policy.policyKey, 'maxAttempts', Number(event.target.value))}
+                        aria-label={`จำนวนครั้งสูงสุดของ ${policy.label}`}
+                      />
+                    </td>
+                    <td className="text-center">
+                      <input
+                        type="number" min={10} max={86400}
+                        className="adm-input text-center"
+                        value={valueOf(policy, 'windowSeconds')}
+                        onChange={(event) => edit(policy.policyKey, 'windowSeconds', Number(event.target.value))}
+                        aria-label={`ช่วงเวลานับของ ${policy.label} เป็นวินาที`}
+                      />
+                      <span className="adm-cell-sub d-block mt-1">{duration(valueOf(policy, 'windowSeconds'))}</span>
+                    </td>
+                    <td className="text-center">
+                      <input
+                        type="number" min={0} max={86400}
+                        className="adm-input text-center"
+                        value={valueOf(policy, 'lockoutSeconds')}
+                        onChange={(event) => edit(policy.policyKey, 'lockoutSeconds', Number(event.target.value))}
+                        aria-label={`ระยะเวลาล็อกของ ${policy.label} เป็นวินาที`}
+                      />
+                      <span className="adm-cell-sub d-block mt-1">{duration(valueOf(policy, 'lockoutSeconds'))}</span>
+                    </td>
+                    <td className="text-center">
+                      <div className="form-check form-switch d-inline-block">
+                        <input
+                          type="checkbox" className="form-check-input"
+                          checked={valueOf(policy, 'isEnabled')}
+                          onChange={(event) => edit(policy.policyKey, 'isEnabled', event.target.checked)}
+                          aria-label={`เปิดใช้ ${policy.label}`}
+                        />
+                      </div>
+                    </td>
+                    <td className="text-end">
+                      <button
+                        type="button"
+                        className={`adm-btn is-sm ${saved === policy.policyKey ? 'is-quiet' : ''}`}
+                        disabled={!dirty || busy === policy.policyKey}
+                        onClick={() => void save(policy)}
+                      >
+                        {saved === policy.policyKey ? (
+                          <><ShieldCheck size={14} aria-hidden="true" /> บันทึกแล้ว</>
+                        ) : (
+                          'บันทึก'
+                        )}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="border-top p-3">
+        <h3 className="adm-card-title mb-2">
+          <AlertTriangle size={16} aria-hidden="true" style={{ color: 'var(--gov-warn)' }} />
+          ที่กำลังถูกล็อกอยู่ ({lockouts.length})
+        </h3>
+        {lockouts.length === 0 ? (
+          <p className="adm-empty-text mb-0">ไม่มีรายการที่ถูกล็อกในขณะนี้</p>
+        ) : (
+          <ul className="list-unstyled mb-0 d-flex flex-column gap-2">
+            {lockouts.map((lockout) => (
+              <li
+                key={`${lockout.policyKey}:${lockout.identity}`}
+                className="d-flex flex-wrap justify-content-between align-items-center gap-2 border rounded-3 px-3 py-2"
+                style={{ borderColor: 'var(--gov-border)' }}
+              >
+                <span>
+                  <span className="adm-cell-strong font-monospace d-block">{lockout.identity}</span>
+                  <span className="adm-cell-sub">
+                    {lockout.policyKey} · พยายาม {lockout.attempts} ครั้ง · ปลดล็อกอัตโนมัติ{' '}
+                    {new Date(lockout.lockedUntil).toLocaleString('th-TH')}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className="adm-btn is-quiet is-sm"
+                  disabled={busy === lockout.identity}
+                  onClick={() => void release(lockout)}
+                >
+                  <Unlock size={14} aria-hidden="true" /> ปลดล็อกทันที
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </section>
   );

@@ -5,7 +5,7 @@ import UserTable from '@/components/admin/UserTable';
 import UserFormModal from '@/components/admin/UserFormModal';
 import AppMemberModal from '@/components/admin/AppMemberModal';
 import { UserProfile, PlatformConfig, SiteRole } from '@/types';
-import { Users, UserPlus, Search, ShieldAlert, RefreshCw } from 'lucide-react';
+import { UserPlus, Search, ShieldAlert, RefreshCw, AlertCircle } from 'lucide-react';
 
 export default function UserManagementPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -116,56 +116,64 @@ export default function UserManagementPage() {
   const pendingPasswordCount = users.filter((user) => user.mustChangePassword).length;
 
   return (
-    <div className="container-fluid p-0">
-      <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
-        <div>
-          <h4 className="fw-bold mb-1 text-dark d-flex align-items-center gap-2">
-            <Users className="text-primary" size={24} /> ผู้ใช้และสิทธิ์ (Users &amp; Roles)
-          </h4>
-          <p className="text-secondary small mb-0">
-            บัญชีทั้งหมดถูกเก็บใน <code>public.platform_users</code> และตรวจรหัสผ่านด้วย pgcrypto
-          </p>
-        </div>
+    <div className="d-flex flex-column gap-3">
+      <div className="adm-toolbar">
+        <p className="adm-toolbar-note">
+          เพิ่มผู้ใช้ กำหนดว่าใครเข้าถึงเว็บไซต์ใดได้บ้าง และดูว่าใครยังไม่เปลี่ยนรหัสผ่านเริ่มต้น
+        </p>
         <div className="d-flex gap-2">
-          <button className="btn btn-outline-secondary btn-sm" onClick={() => void loadData()} disabled={loading}>
-            <RefreshCw size={15} className={`me-1 ${loading ? 'spin' : ''}`} /> Refresh
+          <button type="button" className="adm-btn is-quiet is-sm" onClick={() => void loadData()} disabled={loading}>
+            <RefreshCw size={15} className={loading ? 'adm-spin' : ''} aria-hidden="true" /> โหลดใหม่
           </button>
           <button
-            className="btn btn-primary btn-sm fw-semibold"
+            type="button"
+            className="adm-btn is-sm"
             onClick={() => { setSelectedUser(null); setUserModalOpen(true); }}
           >
-            <UserPlus size={15} className="me-1" /> เพิ่มผู้ใช้
+            <UserPlus size={15} aria-hidden="true" /> เพิ่มผู้ใช้
           </button>
         </div>
       </div>
 
-      {error && <div className="alert alert-danger border-0 rounded-3 small">{error}</div>}
-
-      {pendingPasswordCount > 0 && (
-        <div className="alert alert-warning border-0 rounded-3 small d-flex align-items-center gap-2">
-          <ShieldAlert size={16} />
-          มีผู้ใช้ {pendingPasswordCount} คนที่ยังไม่ได้เปลี่ยนรหัสผ่านเริ่มต้น
+      {error && (
+        <div className="adm-alert is-danger" role="alert">
+          <AlertCircle size={17} className="flex-shrink-0 mt-1" aria-hidden="true" />
+          <span>{error}</span>
         </div>
       )}
 
-      <div className="card border-0 shadow-sm rounded-3 mb-3">
-        <div className="card-body p-3">
-          <div className="input-group">
-            <span className="input-group-text bg-white border-end-0"><Search size={16} className="text-secondary" /></span>
-            <input
-              className="form-control border-start-0"
-              placeholder="ค้นหาจากชื่อผู้ใช้ อีเมล หรือชื่อ-นามสกุล"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              aria-label="ค้นหาผู้ใช้"
-            />
-          </div>
+      {pendingPasswordCount > 0 && (
+        <div className="adm-alert is-warn">
+          <ShieldAlert size={17} className="flex-shrink-0 mt-1" aria-hidden="true" />
+          <span>
+            มีผู้ใช้ {pendingPasswordCount} คนที่ยังใช้รหัสผ่านที่ระบบตั้งให้
+            บัญชีเหล่านี้จะถูกบังคับให้ตั้งรหัสผ่านใหม่ก่อนใช้งานส่วนอื่น
+          </span>
         </div>
+      )}
+
+      <div className="adm-card p-3">
+        <label htmlFor="user-search" className="adm-label d-block">ค้นหาผู้ใช้</label>
+        <div className="auth-field">
+          <Search size={17} className="auth-field-icon" aria-hidden="true" />
+          <input
+            id="user-search"
+            className="adm-input"
+            style={{ paddingInlineStart: '2.5rem' }}
+            placeholder="ชื่อผู้ใช้ อีเมล หรือชื่อ-นามสกุล"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+          />
+        </div>
+        <p className="adm-help" aria-live="polite">
+          แสดง {filteredUsers.length} จากทั้งหมด {users.length} บัญชี
+        </p>
       </div>
 
       {loading ? (
-        <div className="text-center py-5 text-muted">
-          <div className="spinner-border spinner-border-sm me-2" /> กำลังโหลด…
+        <div className="adm-card adm-empty">
+          <RefreshCw size={22} className="adm-spin mb-2" aria-hidden="true" />
+          <p className="adm-empty-text">กำลังโหลด…</p>
         </div>
       ) : (
         <UserTable
