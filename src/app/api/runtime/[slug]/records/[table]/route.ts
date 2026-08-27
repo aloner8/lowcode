@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCoreDb } from '@/lib/db/coreDb';
 import { insertTenantRecord, listTenantRecords, TenantRecordError } from '@/lib/db/tenantRecords';
 import { recordPlatformAudit } from '@/lib/engine/AuditLogService';
+import { clientIdentity, enforceRateLimit } from '@/lib/security/rateLimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -46,6 +47,10 @@ const failure = (error: unknown) => {
 
 export async function GET(request: Request, context: Context) {
   const { slug, table } = await context.params;
+
+  const limited = await enforceRateLimit('public_read', clientIdentity(request, slug));
+  if (limited) return limited;
+
   const platform = await resolvePlatform(slug);
   if (!platform) return NextResponse.json({ error: 'ไม่พบ Site ที่ระบุ' }, { status: 404 });
 
@@ -71,6 +76,16 @@ export async function GET(request: Request, context: Context) {
 
 export async function POST(request: Request, context: Context) {
   const { slug, table } = await context.params;
+
+  // Public form submissions are the easiest endpoint to flood, so they get the
+  // tighter policy.
+  const limited = await enforceRateLimit(
+    'public_write',
+    clientIdentity(request, `${slug}:${table}`),
+    'ส่งข้อมูลบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่',
+  );
+  if (limited) return limited;
+
   const platform = await resolvePlatform(slug);
   if (!platform) return NextResponse.json({ error: 'ไม่พบ Site ที่ระบุ' }, { status: 404 });
 

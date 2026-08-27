@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCoreDb } from '@/lib/db/coreDb';
 import { getTenantDb } from '@/lib/db/tenantDb';
 import { issueJwt } from '@/lib/services/jwtAuthService';
+import { clientIdentity, enforceRateLimit, rateLimitReset } from '@/lib/security/rateLimit';
 import type { StudioServiceDefinition } from '@/types';
 
 export const runtime = 'nodejs';
@@ -11,6 +12,16 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
   const { slug } = await context.params;
   const body = await request.json().catch(() => ({})) as { email?: string; password?: string };
   if (!body.email || !body.password) return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
+
+  // Counted per IP *and* per account, so neither spraying one account nor
+  // rotating accounts from one address gets unlimited tries.
+  const identity = clientIdentity(request, `${slug}:${body.email.trim()}`);
+  const limited = await enforceRateLimit(
+    'tenant_login',
+    identity,
+    'พยายามเข้าสู่ระบบบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่',
+  );
+  if (limited) return limited;
 
   const platform = await getCoreDb().query<{ id: string; runtime_snapshot: any }>(
     'SELECT id, runtime_snapshot FROM public.platforms WHERE platform_slug=$1 AND runtime_snapshot IS NOT NULL', [slug],
@@ -33,6 +44,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
       [body.email.trim(), body.password],
     );
     if (!userResult.rowCount) return NextResponse.json({ error: 'Email or password is incorrect' }, { status: 401 });
+    await rateLimitReset('tenant_login', identity);
     const user = userResult.rows[0];
     const secretKey = service.config.secretEnvKey || 'PLATFORM_JWT_SECRET';
     const token = issueJwt({ sub: user.id, email: user.email, roles: user.role_name ? [user.role_name] : [], permissions: user.permissions }, service.config, process.env[secretKey] || '');

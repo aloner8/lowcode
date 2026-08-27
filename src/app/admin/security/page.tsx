@@ -1,6 +1,7 @@
 import React from 'react';
 import { Shield, Lock, CheckCircle, AlertTriangle, Database, Key, Globe } from 'lucide-react';
 import { getCoreDb } from '@/lib/db/coreDb';
+import RateLimitSettings from '@/components/admin/RateLimitSettings';
 
 export const dynamic = 'force-dynamic';
 
@@ -137,6 +138,8 @@ export default async function SecurityPage() {
           </div>
         </div>
       )}
+
+      <RateLimitSettings />
 
       <div className="card border-0 shadow-sm rounded-3 bg-white mb-4">
         <div className="card-header bg-white border-bottom py-3 px-4">

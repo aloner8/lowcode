@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { getCoreDb } from '@/lib/db/coreDb';
 import { recordPlatformAudit } from '@/lib/engine/AuditLogService';
 import { SESSION_COOKIE, sessionCookieOptions, signSession, verifySession } from '@/lib/auth/session';
+import { rateLimitHit, rateLimitReset } from '@/lib/security/rateLimit';
 import { GlobalRole, UserProfile } from '@/types';
 
 interface PlatformUserRow {
@@ -43,6 +44,15 @@ export async function loginAction(_prevState: unknown, formData: FormData): Prom
     return { error: 'กรุณากรอกชื่อผู้ใช้/อีเมล และรหัสผ่าน' };
   }
 
+  // Server Actions have no Request object, so the identity is the account being
+  // targeted. The database also enforces its own per-account lockout.
+  const rateKey = `login:${identifier.toLowerCase()}`;
+  const limit = await rateLimitHit('platform_login', rateKey);
+  if (!limit.allowed) {
+    const minutes = Math.ceil(limit.retryAfter / 60);
+    return { error: `พยายามเข้าสู่ระบบบ่อยเกินไป กรุณารออีก ${minutes} นาที` };
+  }
+
   let profile: UserProfile;
   try {
     const result = await getCoreDb().query<PlatformUserRow>(
@@ -56,6 +66,7 @@ export async function loginAction(_prevState: unknown, formData: FormData): Prom
       return { error: 'อีเมล/ชื่อผู้ใช้ หรือรหัสผ่านไม่ถูกต้อง' };
     }
     profile = toProfile(result.rows[0]);
+    await rateLimitReset('platform_login', rateKey);
   } catch (error) {
     console.error('[auth] login failed', error);
     return { error: 'ไม่สามารถตรวจสอบผู้ใช้ได้ กรุณาตรวจสอบการเชื่อมต่อฐานข้อมูล' };
