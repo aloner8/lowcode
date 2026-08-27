@@ -51,7 +51,9 @@ export function buildSiteMetadata(
 
   return {
     metadataBase: new URL(baseUrl),
-    title,
+    // `absolute` stops the control plane's "| MATCHANU" template from being
+    // appended to a tenant site's own title.
+    title: { absolute: title },
     description,
     ...(keywords.length ? { keywords } : {}),
     applicationName: runtime.seo.siteName,
@@ -102,6 +104,6 @@ export function buildSiteMetadata(
 
 /** Metadata for a slug that does not resolve to a published page. */
 export const notFoundMetadata: Metadata = {
-  title: 'ไม่พบหน้าที่ต้องการ',
+  title: { absolute: 'ไม่พบหน้าที่ต้องการ' },
   robots: { index: false, follow: false },
 };

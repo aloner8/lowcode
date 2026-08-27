@@ -138,7 +138,7 @@ export const FileManagerPopupComponent: React.FC<FileManagerPopupProps> = ({
 
   const load = async (append = false) => {
     if (!open) return;
-    append ? setLoadingMore(true) : setLoading(true);
+    if (append) setLoadingMore(true); else setLoading(true);
     setError('');
     try {
       const result = onLoad
