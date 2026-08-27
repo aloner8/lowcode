@@ -17,8 +17,6 @@
     "secrets": "node scripts/generate-secrets.mjs"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.12.4",
-    "@supabase/supabase-js": "^2.48.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@tiptap/extension-color": "^3.30.2",
     "@tiptap/extension-highlight": "^3.30.2",
@@ -38,18 +36,14 @@
     "@tiptap/starter-kit": "^3.30.2",
     "@xyflow/react": "^12.11.2",
     "bootstrap": "^5.3.3",
-    "clsx": "^2.1.1",
     "lucide-react": "^0.475.0",
     "next": "^16.3.3",
     "pg": "^8.16.3",
     "react": "^19.0.0",
-    "react-bootstrap": "^2.10.9",
     "react-dom": "^19.0.0",
-    "server-only": "^0.0.1",
-    "tailwind-merge": "^3.0.1"
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.6",
     "@types/node": "^22.13.1",
     "@types/pg": "^8.15.5",
     "@types/react": "^19.0.8",
@@ -60,7 +54,6 @@
     "postcss": "^8.5.1",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.7.3",
-    "typescript-eslint": "^8.68.0",
     "vitest": "^4.1.11"
   }
 }

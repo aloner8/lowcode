@@ -72,8 +72,6 @@ services:
       # default is the same as no secret at all. Run `npm run secrets` to create one.
       AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required — run "npm run secrets" to generate .env}
       MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-10485760}
-      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-https://your-supabase-project.supabase.co}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-your-anon-key}
       DOCKER_SOCKET_PATH: /var/run/docker.sock
       PLATFORM_RUNTIME_NETWORK: lowcode_network
       PLATFORM_RUNTIME_BASE_IMAGE: lowcode-app:latest
@@ -109,8 +107,6 @@ services:
       PLATFORM_JWT_SECRET: ${PLATFORM_JWT_SECRET:?PLATFORM_JWT_SECRET is required — run "npm run secrets" to generate .env}
       MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-10485760}
       TENANT_STORAGE_ROOT: /app/storage/tenants
-      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-https://your-supabase-project.supabase.co}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-your-anon-key}
     volumes:
       # Same store as the control plane, so a file uploaded in Studio is the
       # same file the running site serves.

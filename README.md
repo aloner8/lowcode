@@ -208,8 +208,55 @@ mark เป็นรูปทรงนามธรรม **ไม่ใช่ต
 
 ## Tech Stack
 
-| ชั้น | เทคโนโลยี |
+| ชั้น | เทคโนโลยี | เวอร์ชัน |
+|---|---|---|
+| **Framework** | Next.js — App Router, Server Components, Turbopack | `16.3` |
+| | React · React DOM | `19.2` |
+| | TypeScript (`strict: true`) | `5.9` |
+| **UI** | Bootstrap 5 — โครงหลักของหน้าจอ | `5.3` |
+| | Tailwind CSS — utility เสริม ตั้งค่าผ่าน `@theme` ใน CSS | `4.3` |
+| | lucide-react — ไอคอน | `0.475` |
+| | Anuphan (`next/font`) — ฟอนต์เดียวทั้งระบบ | Google Fonts |
+| **Visual editor** | `@xyflow/react` — Flow / Sequence / Site Map designer | `12.11` |
+| | Tiptap — rich-text editor | `3.30` |
+| **Database** | PostgreSQL — Core DB + หนึ่งฐานต่อหนึ่ง tenant | `17` |
+| | `pg` — connection pool | `8.16` |
+| | `pgcrypto` — bcrypt และ UUID | extension |
+| **ความปลอดภัย** | Session cookie เซ็น HMAC-SHA256 ผ่าน Web Crypto | ในตัว |
+| | Rate limit เก็บสถานะใน PostgreSQL ปรับค่าได้จาก UI | ในตัว |
+| | HTML sanitizer แบบ allow-list ทำงานทั้ง server และ client | ในตัว |
+| **คุณภาพ** | Vitest — unit test 64 ตัว | `4.1` |
+| | ESLint flat config + `eslint-config-next` | `9.39` |
+| **Deploy** | Docker Compose + Nginx reverse proxy | — |
+| | `scripts/run-sites.mjs` — หนึ่งโปรเซสต่อหนึ่งเว็บไซต์ | ในตัว |
+
+**ต้องมี:** Node.js 22+ · npm 10+ · Docker · PostgreSQL 17 (มาพร้อม compose)
+
+### เลือกอย่างนี้เพราะอะไร
+
+- **Server Components เป็นค่าเริ่มต้น** — เว็บของหน่วยงานต้องถูก Google หาเจอ HTML
+  จึงต้องสมบูรณ์ตั้งแต่ response แรก ไม่ใช่รอ JavaScript วาด
+- **Bootstrap เป็นโครงหลัก ไม่ใช่ Tailwind** — ธีมของแต่ละเว็บสลับด้วย CSS Variables
+  ของ Bootstrap ตอน runtime ซึ่ง utility class ที่ compile ไว้ล่วงหน้าทำแทนไม่ได้
+  Tailwind ใช้เสริมเฉพาะ layout ภายใน component
+- **PostgreSQL ล้วน ไม่มี ORM** — ระบบสร้างตารางและ query แบบ dynamic ตามที่ผู้ใช้ออกแบบใน Studio
+  schema จึงไม่คงที่พอที่ ORM จะช่วยได้ และตรรกะสำคัญ (สร้าง Platform, สิทธิ์, rate limit)
+  อยู่ในฟังก์ชันของฐานข้อมูลเพื่อให้เป็น transaction เดียวและกัน race condition
+- **ไม่มี state library** — สถานะที่ใช้ร่วมกันอยู่ในฐานข้อมูล ส่วนที่เหลือเป็น local state ของ component
+
+### ที่เคยมีแต่ถอดออกแล้ว
+
+| แพ็กเกจ | เหตุผล |
 |---|---|
+| `@supabase/ssr`, `@supabase/supabase-js` | Auth ย้ายไปใช้ PostgreSQL ของระบบเอง โค้ดที่เหลือไม่มีใครเรียก |
+| `react-bootstrap` | ใช้ Bootstrap CSS โดยตรง ไม่ได้ใช้ตัว component wrapper |
+| `clsx`, `tailwind-merge` | ไม่ได้ถูก import จากที่ใดเลย |
+| `autoprefixer` | Tailwind 4 ทำ vendor prefix ให้เองแล้ว |
+
+> [supabase/schema.sql](supabase/schema.sql) ยังอยู่สำหรับผู้ที่ต้องการ deploy บน Supabase
+> พร้อม RLS ครบ แต่ระบบหลักไม่ได้พึ่งพา Supabase อีกต่อไป
+
+---|---|
 | Framework | Next.js 16 (App Router, React 19, TypeScript strict) |
 | UI | Bootstrap 5 + React-Bootstrap + Tailwind CSS 4 + lucide-react |
 | Visual Flow | React Flow (`@xyflow/react` 12) |
