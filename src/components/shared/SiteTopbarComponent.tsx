@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Phone, Mail, Facebook, Youtube, RotateCcw, Plus, Minus } from 'lucide-react';
+import { LanguageSwitchComponent } from './LanguageSwitchComponent';
 
 export interface SiteTopbarComponentProps {
   phone?: string;
@@ -10,6 +11,8 @@ export interface SiteTopbarComponentProps {
   facebookUrl?: string;
   youtubeUrl?: string;
   lineUrl?: string;
+  /** Offers machine translation; the translator loads only when chosen. */
+  showLanguage?: boolean;
   className?: string;
 }
 
@@ -35,6 +38,7 @@ export const SiteTopbarComponent: React.FC<SiteTopbarComponentProps> = ({
   facebookUrl,
   youtubeUrl,
   lineUrl,
+  showLanguage = false,
   className = '',
 }) => {
   const [scale, setScale] = useState(1);
@@ -94,6 +98,10 @@ export const SiteTopbarComponent: React.FC<SiteTopbarComponentProps> = ({
               LINE<span className="visually-hidden"> (เปิดในแท็บใหม่)</span>
             </a>
           )}
+        </div>
+
+        <div className="gov-topbar-tools">
+          {showLanguage && <LanguageSwitchComponent />}
         </div>
 
         <div className="gov-topbar-tools" role="group" aria-label="ปรับขนาดตัวอักษร">

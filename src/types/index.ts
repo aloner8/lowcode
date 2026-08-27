@@ -36,7 +36,12 @@ export type ComponentType =
   | 'NoticeListComponent'
   | 'PartnerStripComponent'
   | 'MediaFeatureComponent'
-  | 'CookieConsentComponent';
+  | 'CookieConsentComponent'
+  | 'PagerComponent'
+  | 'LanguageSwitchComponent'
+  | 'FloatingNoticeComponent'
+  | 'EventCalendarComponent'
+  | 'VisitCounterComponent';
 
 export type ThemePreset =
   | 'thai-municipal'

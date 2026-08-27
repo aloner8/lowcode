@@ -30,6 +30,12 @@ export interface DataSourceBinding {
    * never point the site's own listings at another host.
    */
   linkPattern?: string;
+  /**
+   * Splits the rows across pages. The listing then receives `page`, `pageCount`
+   * and `total` alongside its rows, so it can render a pager. Without it a
+   * listing shows only its first `limit` rows and the rest are unreachable.
+   */
+  paginate?: boolean;
 }
 
 const IDENTIFIER = /^[a-z_][a-z0-9_]{0,62}$/;
@@ -71,10 +77,18 @@ async function readableTables(platformId: string): Promise<Set<string>> {
   return new Set(result.rows[0]?.readable ?? []);
 }
 
+interface PagedRows {
+  rows: Record<string, unknown>[];
+  total: number;
+  /** The page actually served, which may differ from the one asked for. */
+  page: number;
+}
+
 async function fetchRows(
   platformId: string,
   binding: DataSourceBinding,
-): Promise<Record<string, unknown>[]> {
+  page = 1,
+): Promise<PagedRows> {
   const { pool } = await getTenantDb(platformId);
   const table = binding.table as string;
 
@@ -83,7 +97,7 @@ async function fetchRows(
      WHERE table_schema = 'public' AND table_name = $1`,
     [table],
   );
-  if (!columns.rowCount) return [];
+  if (!columns.rowCount) return { rows: [], total: 0, page: 1 };
   const columnNames = new Set(columns.rows.map((row) => row.column_name));
 
   const conditions: string[] = [];
@@ -107,15 +121,37 @@ async function fetchRows(
   const limit = Math.min(Math.max(binding.limit ?? 6, 1), MAX_ROWS);
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-  params.push(limit);
+
+  // Counting only when a pager will be shown keeps the extra query off every
+  // listing on the home page.
+  let total = 0;
+  if (binding.paginate) {
+    const counted = await pool.query<{ total: string }>(
+      `SELECT COUNT(*)::text AS total FROM public.${quote(table)} ${where}`,
+      params,
+    );
+    total = Number(counted.rows[0]?.total ?? 0);
+  }
+
+  // A page past the end shows the last page rather than an empty listing: the
+  // number can come from a stale link or a hand-typed URL, and neither should
+  // look like the archive is gone.
+  const pageCount = binding.paginate ? Math.max(1, Math.ceil(total / limit)) : 1;
+  const served = binding.paginate ? Math.min(Math.max(1, page), pageCount) : 1;
+
+  params.push(limit, (served - 1) * limit);
 
   const result = await pool.query(
     `SELECT * FROM public.${quote(table)} ${where}
      ORDER BY ${quote(orderColumn)} ${direction} NULLS LAST
-     LIMIT $${params.length}`,
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
     params,
   );
-  return result.rows;
+  return {
+    rows: result.rows,
+    total: binding.paginate ? total : result.rows.length,
+    page: served,
+  };
 }
 
 /**
@@ -159,12 +195,13 @@ function serialiseRow(row: Record<string, unknown>): Record<string, unknown> {
 export async function resolveDataBindings(
   platformId: string,
   nodes: ComponentNode[],
+  page = 1,
 ): Promise<ComponentNode[]> {
   const bindings = collectBindings(nodes);
   if (bindings.size === 0) return nodes;
 
   const allowed = await readableTables(platformId).catch(() => new Set<string>());
-  const cache = new Map<string, Record<string, unknown>[]>();
+  const cache = new Map<string, PagedRows>();
 
   await Promise.all(
     [...bindings.entries()].map(async ([table, list]) => {
@@ -173,10 +210,11 @@ export async function resolveDataBindings(
         const key = JSON.stringify(binding);
         if (cache.has(key)) continue;
         try {
-          cache.set(key, (await fetchRows(platformId, binding)).map(serialiseRow));
+          const result = await fetchRows(platformId, binding, page);
+          cache.set(key, { rows: result.rows.map(serialiseRow), total: result.total, page: result.page });
         } catch (error) {
           console.error(`[seo] unable to resolve data binding for '${table}'`, error);
-          cache.set(key, []);
+          cache.set(key, { rows: [], total: 0, page: 1 });
         }
       }
     }),
@@ -184,18 +222,27 @@ export async function resolveDataBindings(
 
   const apply = (node: ComponentNode): ComponentNode => {
     const binding = readBinding(node);
-    const rows = binding ? cache.get(JSON.stringify(binding)) : undefined;
+    const result = binding ? cache.get(JSON.stringify(binding)) : undefined;
 
-    const linked = rows && binding?.linkPattern
-      ? rows.map((row) => {
+    if (!result) {
+      return { ...node, children: node.children?.map(apply) };
+    }
+
+    const rows = binding?.linkPattern
+      ? result.rows.map((row) => {
         const url = rowLink(binding.linkPattern as string, row);
         return url ? { ...row, url } : row;
       })
-      : rows;
+      : result.rows;
+
+    const limit = Math.min(Math.max(binding?.limit ?? 6, 1), MAX_ROWS);
+    const pager = binding?.paginate
+      ? { page: result.page, pageCount: Math.max(1, Math.ceil(result.total / limit)), total: result.total }
+      : {};
 
     return {
       ...node,
-      props: linked ? { ...node.props, items: linked, data: linked } : node.props,
+      props: { ...node.props, items: rows, data: rows, ...pager },
       children: node.children?.map(apply),
     };
   };

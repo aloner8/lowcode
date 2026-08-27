@@ -33,6 +33,11 @@ import {
   PartnerStripComponent,
   MediaFeatureComponent,
   CookieConsentComponent,
+  PagerComponent,
+  LanguageSwitchComponent,
+  FloatingNoticeComponent,
+  EventCalendarComponent,
+  VisitCounterComponent,
 } from '@/components/shared';
 
 // Registry mapping string ComponentType to React Component Implementation
@@ -73,6 +78,11 @@ export const COMPONENT_REGISTRY: Record<ComponentType, React.FC<any>> = {
   PartnerStripComponent,
   MediaFeatureComponent,
   CookieConsentComponent,
+  PagerComponent,
+  LanguageSwitchComponent,
+  FloatingNoticeComponent,
+  EventCalendarComponent,
+  VisitCounterComponent,
 };
 
 // Metadata for available components in DesignMode Studio Palette

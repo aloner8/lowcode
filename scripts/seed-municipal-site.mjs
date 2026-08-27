@@ -96,6 +96,41 @@ const POSTS = [
   },
 ];
 
+
+/**
+ * Enough entries for a listing to page.
+ *
+ * Three articles per category left every pager hidden and page two empty, so
+ * the feature could not be seen working. These are plainly sample text; the
+ * agency replaces them with its own.
+ */
+const FILLER = [
+  [1, 'ประกาศเทศบาลตำบลตัวอย่าง เรื่อง การรับฟังความคิดเห็นของประชาชนในการจัดทำแผนพัฒนาท้องถิ่น', 14],
+  [1, 'ขอเชิญร่วมโครงการคัดแยกขยะต้นทางในครัวเรือน ประจำปี 2569', 18],
+  [1, 'แจ้งหยุดจ่ายน้ำประปาชั่วคราวเพื่อซ่อมบำรุงระบบท่อเมนหลัก หมู่ที่ 5 และ 6', 22],
+  [1, 'ประชาสัมพันธ์การขึ้นทะเบียนผู้สูงอายุเพื่อรับเบี้ยยังชีพ ประจำปีงบประมาณ 2570', 27],
+  [1, 'ประกาศผลการประเมินคุณธรรมและความโปร่งใสในการดำเนินงานของหน่วยงานภาครัฐ (ITA)', 31],
+  [2, 'โครงการเทศบาลเคลื่อนที่พบประชาชน ประจำเดือนสิงหาคม 2569', 12],
+  [2, 'กิจกรรมวันแม่แห่งชาติ ประจำปี 2569 ณ ลานอเนกประสงค์เทศบาล', 16],
+  [2, 'โครงการฝึกอบรมชุดปฏิบัติการจิตอาสาภัยพิบัติประจำองค์กรปกครองส่วนท้องถิ่น', 20],
+  [2, 'กิจกรรมปลูกต้นไม้เฉลิมพระเกียรติ เนื่องในวันเฉลิมพระชนมพรรษา', 25],
+  [2, 'โครงการส่งเสริมสุขภาพผู้สูงอายุ กิจกรรมออกกำลังกายเพื่อสุขภาพ', 29],
+  [3, 'ประกาศผู้ชนะการเสนอราคา จ้างเหมาบริการกำจัดขยะมูลฝอย ประจำปีงบประมาณ 2569', 15],
+  [3, 'ประกาศประกวดราคาจ้างก่อสร้างรางระบายน้ำคอนกรีตเสริมเหล็ก หมู่ที่ 7', 19],
+  [3, 'ประกาศเผยแพร่แผนการจัดซื้อจัดจ้าง ประจำไตรมาสที่ 4 ปีงบประมาณ 2569', 24],
+  [3, 'ประกาศราคากลางงานจัดซื้อครุภัณฑ์คอมพิวเตอร์ สำนักปลัดเทศบาล', 28],
+  [4, 'ประกาศรายชื่อผู้มีสิทธิเข้ารับการสรรหาและเลือกสรรเป็นพนักงานจ้าง', 13],
+  [4, 'ประกาศผลการสรรหาและเลือกสรรบุคคลเป็นพนักงานจ้างตามภารกิจ', 17],
+].map(([category, name, days]) => ({
+  category,
+  name,
+  description:
+    `<p>${name}</p><p>รายละเอียดเพิ่มเติมติดต่อได้ที่สำนักงาน${AGENCY.name} `
+    + `โทรศัพท์ ${AGENCY.phone} ในวันและเวลาราชการ</p>`
+    + '<p><em>ข้อความตัวอย่างสำหรับทดสอบการแสดงผล</em></p>',
+  days,
+}));
+
 /* -------------------------------------------------------------------- pages */
 const CMS_PAGES = [
   {
@@ -677,6 +712,7 @@ const topbar = () => ({
     email: AGENCY.email,
     facebookLabel: AGENCY.name,
     facebookUrl: 'https://www.facebook.com/',
+    showLanguage: true,
   },
 });
 
@@ -708,6 +744,7 @@ const footer = () => ({
     fax: AGENCY.fax,
     email: AGENCY.email,
     officeHours: AGENCY.officeHours,
+    appSlug: 'demo-muni',
     groups: [
       {
         title: 'ข่าวสาร',
@@ -736,6 +773,18 @@ const dock = () => ({
   props: { __chrome: true, phone: AGENCY.phone },
 });
 
+const floatingNotices = () => ({
+  id: 'float_notices',
+  type: 'FloatingNoticeComponent',
+  props: {
+    __chrome: true,
+    items: [
+      { id: 'nacc', sublabel: 'ช่องทางร้องเรียน', label: 'ป.ป.ช.', href: 'https://www.nacc.go.th' },
+      { id: 'paco', sublabel: 'ช่องทางร้องเรียน', label: 'ป.ป.ท.', href: 'https://www.pacc.go.th' },
+    ],
+  },
+});
+
 const cookieBar = () => ({
   id: 'cookie',
   type: 'CookieConsentComponent',
@@ -759,7 +808,7 @@ const linkGrid = (id, { title, subtitle, items, columns = 4, band = 'soft' }) =>
   props: { title, subtitle, columns, items, stylePreset: `gov-band-${band}` },
 });
 
-const postList = (id, { title, subtitle, category, page, limit = 3, columns = 3, more = true }) => ({
+const postList = (id, { title, subtitle, category, page, limit = 3, columns = 3, more = true, paginate = false }) => ({
   id,
   type: 'PostListComponent',
   props: {
@@ -776,6 +825,7 @@ const postList = (id, { title, subtitle, category, page, limit = 3, columns = 3,
       direction: 'desc',
       limit,
       linkPattern: `/${page}/{id}`,
+      ...(paginate ? { paginate: true } : {}),
     },
   },
 });
@@ -803,6 +853,7 @@ const innerPage = (id, title, seo, activeHref, content) => ({
     },
     footer(),
     dock(),
+    floatingNotices(),
     cookieBar(),
   ],
 });
@@ -907,6 +958,25 @@ const PAGES = [
             category: 2, page: 'activity', columns: 3,
           }),
         ],
+      },
+
+      /* 5b · ปฏิทินกิจกรรม */
+      {
+        id: 'calendar',
+        type: 'EventCalendarComponent',
+        props: {
+          title: 'ปฏิทินกิจกรรม',
+          subtitle: 'วันที่มีจุดสีคือวันที่มีกิจกรรม กดเพื่อดูรายการ',
+          emptyText: 'ยังไม่มีกิจกรรมในเดือนนี้',
+          dataSource: {
+            table: 'cms_post',
+            where: { cms_category_id: 2 },
+            orderBy: 'publish_at',
+            direction: 'desc',
+            limit: 50,
+            linkPattern: '/activity/{id}',
+          },
+        },
       },
 
       /* 6 · แจ้งเหตุฉุกเฉิน */
@@ -1079,6 +1149,7 @@ const PAGES = [
 
       footer(),
       dock(),
+      floatingNotices(),
       cookieBar(),
     ],
   },
@@ -1094,9 +1165,10 @@ const PAGES = [
       subtitle: 'ประกาศและข่าวสารทั้งหมด',
       category: 1,
       page: 'news',
-      limit: 24,
-      columns: 2,
+      limit: 6,
+      columns: 3,
       more: false,
+      paginate: true,
     }),
   ]),
 
@@ -1111,9 +1183,10 @@ const PAGES = [
       subtitle: 'กิจกรรมและโครงการทั้งหมด',
       category: 2,
       page: 'activity',
-      limit: 24,
-      columns: 2,
+      limit: 6,
+      columns: 3,
       more: false,
+      paginate: true,
     }),
   ]),
 
@@ -1128,9 +1201,10 @@ const PAGES = [
       subtitle: 'เปิดเผยตามหลักธรรมาภิบาล',
       category: 3,
       page: 'procurement',
-      limit: 24,
-      columns: 2,
+      limit: 6,
+      columns: 3,
       more: false,
+      paginate: true,
     }),
   ]),
 
@@ -1338,7 +1412,7 @@ async function seedTenantContent(client) {
   );
 
   let added = 0;
-  for (const post of POSTS) {
+  for (const post of [...POSTS, ...FILLER]) {
     const exists = await client.query('SELECT 1 FROM public.cms_post WHERE name = $1', [post.name]);
     if (exists.rowCount) continue;
     await client.query(

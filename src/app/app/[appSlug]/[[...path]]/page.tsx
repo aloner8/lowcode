@@ -9,6 +9,7 @@ import { applyBasePath, siteBasePath } from '@/lib/seo/basePath';
 import { resolveDataBindings } from '@/lib/seo/resolveDataBindings';
 import { buildSiteMetadata, notFoundMetadata } from '@/lib/seo/metadata';
 import { resolvePost, type SitePost } from '@/lib/seo/sitePost';
+import type { ComponentNode } from '@/types';
 import {
   loadSiteRuntime,
   pagePath,
@@ -30,7 +31,15 @@ export const dynamic = 'force-dynamic';
 
 type PageProps = {
   params: Promise<{ appSlug: string; path?: string[] }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
+
+/** `?page=` from the URL, clamped so a hand-typed value cannot break a query. */
+function readPage(value: string | string[] | undefined): number {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 10_000 ? parsed : 1;
+}
 
 const excerptOf = (html: string, max = 160) => {
   const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -81,8 +90,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return buildSiteMetadata(site, page, host);
 }
 
-export default async function SitePage({ params }: PageProps) {
+export default async function SitePage({ params, searchParams }: PageProps) {
   const { appSlug, path } = await params;
+  const query = (await searchParams) ?? {};
   const site = await loadSiteRuntime(appSlug);
   if (!site) notFound();
 
@@ -103,9 +113,13 @@ export default async function SitePage({ params }: PageProps) {
   // Data-bound components are filled here so news and announcements are part of
   // the server-rendered HTML rather than a client-side fetch. Links are then
   // prefixed so they resolve on whichever host this request arrived at.
-  const componentTree = applyBasePath(
-    await resolveDataBindings(site.platformId, page.componentTree),
-    siteBasePath(site, host),
+  const basePath = siteBasePath(site, host);
+  const componentTree = withPagerBase(
+    applyBasePath(
+      await resolveDataBindings(site.platformId, page.componentTree, readPage(query.page)),
+      basePath,
+    ),
+    `${basePath}${canonicalPath === '/' ? '' : canonicalPath}`,
   );
 
   const jsonLd = buildJsonLdGraph([
@@ -166,6 +180,19 @@ export default async function SitePage({ params }: PageProps) {
       </div>
     </div>
   );
+}
+
+/**
+ * Tells every pager which URL its page numbers hang off, so a link reads
+ * `/news?page=2` rather than a bare `?page=2` that would reset the path.
+ */
+function withPagerBase(nodes: ComponentNode[], basePath: string): ComponentNode[] {
+  const visit = (node: ComponentNode): ComponentNode => ({
+    ...node,
+    props: node.props?.pageCount ? { ...node.props, basePath } : node.props,
+    children: node.children?.map(visit),
+  });
+  return nodes.map(visit);
 }
 
 /**

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { CalendarDays, ArrowRight } from 'lucide-react';
+import { PagerComponent } from './PagerComponent';
 
 export interface PostItem {
   id?: string | number;
@@ -26,6 +27,11 @@ export interface PostListComponentProps {
   moreHref?: string;
   moreLabel?: string;
   emptyText?: string;
+  /** Filled in by the server when the binding paginates. */
+  page?: number;
+  pageCount?: number;
+  total?: number;
+  basePath?: string;
   className?: string;
 }
 
@@ -57,6 +63,10 @@ export const PostListComponent: React.FC<PostListComponentProps> = ({
   moreHref,
   moreLabel = 'ดูทั้งหมด',
   emptyText = 'ยังไม่มีข้อมูลในขณะนี้',
+  page,
+  pageCount,
+  total,
+  basePath,
   className = '',
 }) => {
   const colClass = { 2: 'col-md-6', 3: 'col-md-6 col-lg-4', 4: 'col-md-6 col-lg-3' }[columns];
@@ -151,6 +161,8 @@ export const PostListComponent: React.FC<PostListComponentProps> = ({
           })}
         </div>
       )}
+
+      <PagerComponent page={page} pageCount={pageCount} total={total} basePath={basePath} />
     </div>
   );
 };

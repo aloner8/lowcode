@@ -34,3 +34,8 @@ export * from './NoticeListComponent';
 export * from './PartnerStripComponent';
 export * from './MediaFeatureComponent';
 export * from './CookieConsentComponent';
+export * from './PagerComponent';
+export * from './LanguageSwitchComponent';
+export * from './FloatingNoticeComponent';
+export * from './EventCalendarComponent';
+export * from './VisitCounterComponent';

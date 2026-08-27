@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { ChevronRight, Eye, FileText } from 'lucide-react';
+import { PagerComponent } from './PagerComponent';
 
 export interface NoticeItem {
   id?: string | number;
@@ -20,6 +21,11 @@ export interface NoticeListComponentProps {
   moreHref?: string;
   moreLabel?: string;
   emptyText?: string;
+  /** Filled in by the server when the binding paginates. */
+  page?: number;
+  pageCount?: number;
+  total?: number;
+  basePath?: string;
   className?: string;
 }
 
@@ -37,6 +43,10 @@ export const NoticeListComponent: React.FC<NoticeListComponentProps> = ({
   moreHref,
   moreLabel = 'ดูทั้งหมด',
   emptyText = 'ยังไม่มีประกาศในขณะนี้',
+  page,
+  pageCount,
+  total,
+  basePath,
   className = '',
 }) => (
   <section className={`gov-notices ${className}`}>
@@ -82,5 +92,7 @@ export const NoticeListComponent: React.FC<NoticeListComponentProps> = ({
         })}
       </ul>
     )}
+
+    <PagerComponent page={page} pageCount={pageCount} total={total} basePath={basePath} />
   </section>
 );

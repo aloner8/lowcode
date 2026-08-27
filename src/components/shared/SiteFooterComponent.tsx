@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { MapPin, Phone, Mail, Clock, Printer } from 'lucide-react';
+import { VisitCounterComponent } from './VisitCounterComponent';
 
 export interface FooterLinkGroup {
   title: string;
@@ -18,6 +19,8 @@ export interface SiteFooterComponentProps {
   /** Google Maps embed URL. Rendered in an iframe, so only https is accepted. */
   mapEmbedUrl?: string | null;
   groups?: FooterLinkGroup[];
+  /** Site whose visits are counted; omit to leave the statistics out. */
+  appSlug?: string;
   copyright?: string;
   className?: string;
 }
@@ -38,6 +41,7 @@ export const SiteFooterComponent: React.FC<SiteFooterComponentProps> = ({
   officeHours,
   mapEmbedUrl = null,
   groups = [],
+  appSlug,
   copyright,
   className = '',
 }) => {
@@ -93,6 +97,12 @@ export const SiteFooterComponent: React.FC<SiteFooterComponentProps> = ({
               </ul>
             </div>
           ))}
+
+          {appSlug && (
+            <div className="col-6 col-lg-2">
+              <VisitCounterComponent appSlug={appSlug} />
+            </div>
+          )}
 
           {safeMap && (
             <div className="col-12 col-lg-4">
