@@ -199,7 +199,10 @@
 
 @media (max-width: 767.98px) {
   .municipal-page {
-    padding-inline: 0.5rem !important;
+    /* Bootstrap rows use a negative margin of half the gutter (12px at g-4), so
+       the page root must keep at least that much padding. At 0.5rem every row
+       hung 4px past the viewport and the whole page scrolled sideways. */
+    padding-inline: calc(var(--bs-gutter-x, 1.5rem) * 0.5) !important;
   }
 
   .municipal-page > .d-flex {
@@ -369,3 +372,29 @@
   .gov-card { transition: none; }
   .gov-card:hover { transform: none; }
 }
+
+/* --- Article page -----------------------------------------------------------
+   One article, reached from a listing. Measure is capped because a full-width
+   line of Thai text at 1440px is very hard to read. */
+.gov-article { max-width: 52rem; }
+.gov-article .breadcrumb-item + .breadcrumb-item::before { content: '›'; }
+.gov-article-category {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  color: #2e5d1c;
+  background: #f0fdf4;
+  border: 1px solid rgba(46, 93, 28, 0.18);
+}
+.gov-article-title { color: #1b3810; line-height: 1.45; }
+.gov-article-content { font-size: 1.02rem; line-height: 1.9; color: #26303c; }
+.gov-article-content > * + * { margin-top: 1rem; }
+.gov-article-content img { max-width: 100%; height: auto; border-radius: 0.75rem; }
+.gov-article-content table { width: 100%; }
+/* Wide content scrolls inside itself rather than widening the page. */
+.gov-article-content table,
+.gov-article-content pre { display: block; overflow-x: auto; }
+.gov-article-content h2 { font-size: 1.35rem; font-weight: 700; color: #1b3810; margin-top: 1.75rem; }
+.gov-article-content h3 { font-size: 1.15rem; font-weight: 700; color: #1b3810; margin-top: 1.5rem; }

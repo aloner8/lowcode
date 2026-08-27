@@ -80,6 +80,53 @@ export function webPageSchema(
   };
 }
 
+/**
+ * An article, for the search result that shows a headline, date and image.
+ * `NewsArticle` rather than `Article`: these are government announcements.
+ */
+export function articleSchema(
+  runtime: SiteRuntime,
+  post: { title: string; body: string; image: string | null; publishedAt: string | null; updatedAt: string | null; categoryName: string | null },
+  baseUrl: string,
+  path: string,
+): JsonLdNode {
+  const url = `${baseUrl}${path}`;
+  const summary = post.body.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300);
+
+  return {
+    '@type': 'NewsArticle',
+    '@id': `${url}#article`,
+    url,
+    headline: post.title,
+    ...(summary ? { description: summary } : {}),
+    ...(post.image ? { image: absoluteUrl(post.image, baseUrl) } : {}),
+    ...(post.publishedAt ? { datePublished: post.publishedAt } : {}),
+    ...(post.updatedAt ? { dateModified: post.updatedAt } : {}),
+    ...(post.categoryName ? { articleSection: post.categoryName } : {}),
+    inLanguage: runtime.seo.language,
+    isPartOf: { '@id': `${baseUrl}/#website` },
+    publisher: { '@id': `${baseUrl}/#organization` },
+  };
+}
+
+/** Breadcrumb for an article, which sits one level below its listing page. */
+export function articleBreadcrumbSchema(
+  parentTitle: string,
+  parentPath: string,
+  title: string,
+  baseUrl: string,
+  path: string,
+): JsonLdNode {
+  return {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'หน้าหลัก', item: baseUrl },
+      { '@type': 'ListItem', position: 2, name: parentTitle, item: `${baseUrl}${parentPath}` },
+      { '@type': 'ListItem', position: 3, name: title, item: `${baseUrl}${path}` },
+    ],
+  };
+}
+
 export function breadcrumbSchema(
   runtime: SiteRuntime,
   page: SitePage,

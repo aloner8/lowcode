@@ -3,9 +3,12 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { SiteRuntimeView } from '@/components/site/SiteRuntimeView';
+import { PostArticleView } from '@/components/site/PostArticleView';
 import { treeHasHeading } from '@/lib/engine/componentTree';
+import { applyBasePath, siteBasePath } from '@/lib/seo/basePath';
 import { resolveDataBindings } from '@/lib/seo/resolveDataBindings';
 import { buildSiteMetadata, notFoundMetadata } from '@/lib/seo/metadata';
+import { resolvePost, type SitePost } from '@/lib/seo/sitePost';
 import {
   loadSiteRuntime,
   pagePath,
@@ -13,6 +16,8 @@ import {
   siteBaseUrl,
 } from '@/lib/seo/siteSeo';
 import {
+  articleBreadcrumbSchema,
+  articleSchema,
   breadcrumbSchema,
   buildJsonLdGraph,
   organizationSchema,
@@ -27,19 +32,48 @@ type PageProps = {
   params: Promise<{ appSlug: string; path?: string[] }>;
 };
 
+const excerptOf = (html: string, max = 160) => {
+  const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  return text.length > max ? `${text.slice(0, max).trimEnd()}…` : text;
+};
+
 /**
  * Server-rendered page of a published site.
  *
  * Content and metadata are resolved on the server, so the HTML that reaches a
- * crawler is already complete — no client fetch, no empty shell.
+ * crawler is already complete — no client fetch, no empty shell. A path of
+ * `/{page}/{id}` resolves to a single article rather than 404: a listing whose
+ * items lead nowhere is not a usable site.
  */
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { appSlug, path } = await params;
   const site = await loadSiteRuntime(appSlug);
   if (!site) return notFoundMetadata;
 
-  const page = resolvePage(site, path ?? []);
-  if (!page) return notFoundMetadata;
+  const segments = path ?? [];
+  const page = resolvePage(site, segments);
+
+  if (!page) {
+    const post = await resolvePost(site, segments);
+    if (!post) return notFoundMetadata;
+
+    const host = (await headers()).get('host') ?? undefined;
+    const base = await buildSiteMetadata(site, post.parent, host);
+    const description = excerptOf(post.body) || base.description || undefined;
+
+    return {
+      ...base,
+      title: { absolute: `${post.title} | ${site.appName}` },
+      description,
+      openGraph: {
+        ...base.openGraph,
+        title: post.title,
+        description,
+        type: 'article',
+        ...(post.image ? { images: [post.image] } : {}),
+      },
+    };
+  }
 
   // Canonical and Open Graph URLs must use the host the visitor actually asked
   // for, not the site's stored default.
@@ -52,16 +86,27 @@ export default async function SitePage({ params }: PageProps) {
   const site = await loadSiteRuntime(appSlug);
   if (!site) notFound();
 
-  const page = resolvePage(site, path ?? []);
-  if (!page) notFound();
+  const segments = path ?? [];
+  const page = resolvePage(site, segments);
 
   const host = (await headers()).get('host') ?? undefined;
   const baseUrl = siteBaseUrl(site, host);
+
+  if (!page) {
+    const post = await resolvePost(site, segments);
+    if (!post) notFound();
+    return <ArticlePage site={site} post={post} baseUrl={baseUrl} host={host} />;
+  }
+
   const canonicalPath = pagePath(site, page);
 
   // Data-bound components are filled here so news and announcements are part of
-  // the server-rendered HTML rather than a client-side fetch.
-  const componentTree = await resolveDataBindings(site.platformId, page.componentTree);
+  // the server-rendered HTML rather than a client-side fetch. Links are then
+  // prefixed so they resolve on whichever host this request arrived at.
+  const componentTree = applyBasePath(
+    await resolveDataBindings(site.platformId, page.componentTree),
+    siteBasePath(site, host),
+  );
 
   const jsonLd = buildJsonLdGraph([
     organizationSchema(site, baseUrl),
@@ -121,4 +166,103 @@ export default async function SitePage({ params }: PageProps) {
       </div>
     </div>
   );
+}
+
+/**
+ * The article view reuses its listing page's header and footer, so an article
+ * is not a bare document detached from the rest of the site. Only the nodes
+ * that are page furniture are kept; the listing itself is replaced by the
+ * article body.
+ */
+async function ArticlePage({
+  site,
+  post,
+  baseUrl,
+  host,
+}: {
+  site: Awaited<ReturnType<typeof loadSiteRuntime>> & object;
+  post: SitePost;
+  baseUrl: string;
+  host?: string;
+}) {
+  const articlePath = `/${post.parent.id}/${post.id}`;
+
+  const jsonLd = buildJsonLdGraph([
+    organizationSchema(site, baseUrl),
+    websiteSchema(site, baseUrl),
+    articleSchema(site, post, baseUrl, articlePath),
+    articleBreadcrumbSchema(post.parent.title, `/${post.parent.id}`, post.title, baseUrl, articlePath),
+  ]);
+
+  const chrome = applyBasePath(
+    post.parent.componentTree.filter(
+      (node) => node.type === 'NavMenuComponent' || node.props?.__chrome === true,
+    ),
+    siteBasePath(site, host),
+  );
+  const [header, ...rest] = chrome;
+  const footer = rest.length ? rest[rest.length - 1] : undefined;
+
+  return (
+    <div className="min-vh-100 bg-light d-flex flex-column">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
+
+      {header && (
+        <SiteRuntimeView
+          appSlug={site.appSlug}
+          appId={site.appId}
+          initialContent={[header]}
+          runtimeData={emptyRuntime(site)}
+          fillViewport={false}
+        />
+      )}
+
+      <div className="flex-grow-1">
+        <PostArticleView post={post} basePath={siteBasePath(site, host)} />
+      </div>
+
+      {footer && footer !== header && (
+        <SiteRuntimeView
+          appSlug={site.appSlug}
+          appId={site.appId}
+          initialContent={[footer]}
+          runtimeData={emptyRuntime(site)}
+          fillViewport={false}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Runtime shell for the chrome nodes, which need no page data of their own. */
+function emptyRuntime(site: NonNullable<Awaited<ReturnType<typeof loadSiteRuntime>>>) {
+  return {
+    appConfig: {
+      id: site.platformId,
+      appSlug: site.appSlug,
+      appName: site.appName,
+      port: 0,
+      subdomain: site.primaryDomain,
+      tenantDbName: `platform_${site.platformSlug.replace(/-/g, '_')}`,
+      themeConfig: site.themeConfig,
+      createdAt: site.updatedAt,
+      updatedAt: site.updatedAt,
+    },
+    pageLayout: {
+      id: `${site.platformId}:article`,
+      appId: site.platformId,
+      pageSlug: 'article',
+      title: site.appName,
+      isDefaultPage: false,
+      componentTree: [],
+      createdAt: site.updatedAt,
+      updatedAt: site.updatedAt,
+    },
+    forms: site.forms,
+    collections: site.collections,
+    routes: site.routes as never,
+    pages: site.pages.map((item) => ({ id: item.id, title: item.title, componentTree: item.componentTree })),
+    services: site.services as never,
+    flows: site.flows as never,
+  };
 }

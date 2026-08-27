@@ -37,6 +37,12 @@ export interface SiteRuntimeViewProps {
    * state means the markup a crawler received is exactly what hydrates.
    */
   readonly initialContent: ComponentNode[];
+  /**
+   * Whether this instance is the whole page. An article renders its listing
+   * page's header and footer through two more instances, and those must not
+   * each claim a viewport's worth of height.
+   */
+  readonly fillViewport?: boolean;
 }
 
 /**
@@ -46,7 +52,13 @@ export interface SiteRuntimeViewProps {
  * the first screen; this component only adds navigation and actions on top of
  * markup the server already produced.
  */
-export function SiteRuntimeView({ appSlug, appId, runtimeData, initialContent }: SiteRuntimeViewProps) {
+export function SiteRuntimeView({
+  appSlug,
+  appId,
+  runtimeData,
+  initialContent,
+  fillViewport = true,
+}: SiteRuntimeViewProps) {
   const pathname = usePathname();
 
   const [lastAction, setLastAction] = useState<string | null>(null);
@@ -281,7 +293,7 @@ export function SiteRuntimeView({ appSlug, appId, runtimeData, initialContent }:
 
   return (
     <StorageScopeProvider scope={{ appId: appId ?? undefined }}>
-    <div className="min-vh-100 bg-light d-flex flex-column municipal-admin-runtime">
+    <div className={`${fillViewport ? 'min-vh-100 bg-light' : ''} d-flex flex-column municipal-admin-runtime`}>
       {/* Runtime diagnostics — development only: never expose tenant DB names publicly. */}
       {process.env.NODE_ENV !== 'production' && (
         <div className="bg-dark text-white py-2 px-3 shadow-sm border-bottom">

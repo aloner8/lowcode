@@ -347,8 +347,14 @@ export default function TenantAppsPage() {
                   </div>
 
                   <div className="d-flex flex-wrap gap-2 mt-auto pt-1">
-                    <Link href={`/app/${app.appSlug}`} className="adm-btn is-quiet is-sm">
+                    <Link
+                      href={`/app/${app.appSlug}`}
+                      className="adm-btn is-quiet is-sm"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
                       <ExternalLink size={14} aria-hidden="true" /> เปิดเว็บไซต์
+                      <span className="visually-hidden">(เปิดในแท็บใหม่)</span>
                     </Link>
                     <button
                       type="button"

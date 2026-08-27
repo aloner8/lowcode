@@ -23,6 +23,13 @@ export interface DataSourceBinding {
   where?: Record<string, string | number | boolean>;
   /** Column used as the display title, defaults to `name`. */
   titleField?: string;
+  /**
+   * Where each row links to, as a relative path with `{column}` placeholders —
+   * `/news/{id}`. Without it a listing renders headings that lead nowhere, which
+   * is what the news cards did before. Absolute URLs are rejected so a row can
+   * never point the site's own listings at another host.
+   */
+  linkPattern?: string;
 }
 
 const IDENTIFIER = /^[a-z_][a-z0-9_]{0,62}$/;
@@ -111,6 +118,29 @@ async function fetchRows(
   return result.rows;
 }
 
+/**
+ * Fills `{column}` placeholders from the row.
+ *
+ * Only same-origin paths are produced: the pattern must start with a single
+ * slash, and each substituted value is URL-encoded, so a row whose column
+ * contains `../` or a full URL cannot escape the site.
+ */
+function rowLink(pattern: string, row: Record<string, unknown>): string | null {
+  if (!pattern.startsWith('/') || pattern.startsWith('//')) return null;
+
+  let missing = false;
+  const path = pattern.replace(/\{(\w+)\}/g, (_match, column: string) => {
+    const value = row[column];
+    if (value === null || value === undefined || value === '') {
+      missing = true;
+      return '';
+    }
+    return encodeURIComponent(String(value));
+  });
+
+  return missing ? null : path;
+}
+
 /** Serialises values Postgres returns as objects (dates, buffers) for the client. */
 function serialiseRow(row: Record<string, unknown>): Record<string, unknown> {
   const output: Record<string, unknown> = {};
@@ -156,9 +186,16 @@ export async function resolveDataBindings(
     const binding = readBinding(node);
     const rows = binding ? cache.get(JSON.stringify(binding)) : undefined;
 
+    const linked = rows && binding?.linkPattern
+      ? rows.map((row) => {
+        const url = rowLink(binding.linkPattern as string, row);
+        return url ? { ...row, url } : row;
+      })
+      : rows;
+
     return {
       ...node,
-      props: rows ? { ...node.props, items: rows, data: rows } : node.props,
+      props: linked ? { ...node.props, items: linked, data: linked } : node.props,
       children: node.children?.map(apply),
     };
   };
