@@ -1,27 +1,47 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 720" role="img" aria-label="">
-  <rect width="1920" height="720" fill="#5f9fd6"/>
-  <rect width="1920" height="330" fill="#1b4f8c"/>
-  <rect y="300" width="1920" height="180" fill="#5f9fd6"/>
-  <rect y="450" width="1920" height="130" fill="#f7c98c"/>
-  <circle cx="1500" cy="430" r="96" fill="#fff2cc" opacity="0.95"/>
-  <path d="M0 470 q240 -70 480 -20 t480 -40 t480 30 t480 -20 v300 H0Z" fill="#2f6b4f"/>
-  <path d="M0 540 q320 -60 640 -10 t640 -30 t640 20 v220 H0Z" fill="#1f4f3a"/>
+  <defs>
+    <linearGradient id="h1sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0f3f78"/><stop offset="0.42" stop-color="#4d95d6"/>
+      <stop offset="0.72" stop-color="#a9d3ef"/><stop offset="1" stop-color="#ffe3b8"/>
+    </linearGradient>
+    <linearGradient id="h1hill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3d8158"/><stop offset="1" stop-color="#1f4f3a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="720" fill="url(#h1sky)"/>
+  <circle cx="1480" cy="430" r="104" fill="#fff4d2" opacity="0.95"/>
+  <g fill="#ffffff" opacity="0.16">
+    <ellipse cx="360" cy="180" rx="190" ry="46"/><ellipse cx="1180" cy="130" rx="150" ry="36"/>
+  </g>
+  <path d="M0 470 q260 -80 520 -34 t520 -46 t520 34 t360 -22 v318 H0Z" fill="#5f9e72" opacity="0.55"/>
+  <path d="M0 530 q300 -66 600 -16 t600 -34 t720 24 v216 H0Z" fill="url(#h1hill)"/>
+  <!-- temple: wide tiered eaves over a hall -->
   <g fill="#123a2b">
-    <path d="M300 470 l60 -92 l60 92 z"/><rect x="322" y="466" width="76" height="120"/>
-    <path d="M1520 480 l70 -106 l70 106 z"/><rect x="1546" y="476" width="88" height="120"/>
+    <rect x="252" y="524" width="196" height="120"/>
+    <path d="M232 524 L350 448 L468 524 Z"/>
+    <path d="M262 470 L350 414 L438 470 Z"/>
+    <rect x="342" y="378" width="16" height="42"/>
+  </g>
+  <g fill="#123a2b">
+    <rect x="1392" y="546" width="152" height="98"/>
+    <path d="M1376 546 L1468 486 L1560 546 Z"/>
+    <rect x="1460" y="452" width="14" height="38"/>
   </g>
   <g fill="#ffd700" opacity="0.9">
-    <path d="M360 372 l7 -30 l7 30 z"/><path d="M1583 368 l7 -34 l7 34 z"/>
+    <path d="M344 378 l6 -30 l6 30 z"/><path d="M1461 452 l7 -32 l7 32 z"/>
   </g>
-  <path d="M840 720 L920 560 h80 L1080 720 Z" fill="#c9a06a"/>
-  <g stroke="#ffffff" stroke-opacity="0.45" stroke-width="4">
-    <path d="M880 690 h160"/><path d="M900 640 h120"/><path d="M918 600 h84"/>
+  <!-- causeway -->
+  <path d="M812 720 L906 588 h108 L1108 720 Z" fill="#cda971"/>
+  <g stroke="#ffffff" stroke-opacity="0.5" stroke-width="5" stroke-linecap="round">
+    <path d="M868 690 h184"/><path d="M894 646 h132"/><path d="M914 612 h92"/>
+  </g>
+  <g fill="#2f4b3c">
+    <rect x="784" y="596" width="9" height="124"/><rect x="1127" y="596" width="9" height="124"/>
   </g>
   <g fill="#f4a6c0">
-    <ellipse cx="170" cy="660" rx="76" ry="26"/>
-    <path d="M170 560 q36 62 0 100 q-36 -38 0 -100Z"/>
-    <path d="M106 612 q56 34 64 78 q-62 -6 -64 -78Z"/>
-    <path d="M234 612 q-56 34 -64 78 q62 -6 64 -78Z"/>
+    <ellipse cx="182" cy="668" rx="84" ry="26"/>
+    <path d="M182 566 q38 64 0 104 q-38 -40 0 -104Z"/>
+    <path d="M112 620 q60 34 68 80 q-66 -6 -68 -80Z"/>
+    <path d="M252 620 q-60 34 -68 80 q66 -6 68 -80Z"/>
   </g>
-  <rect y="700" width="1920" height="20" fill="#d91113" opacity="0.75"/>
 </svg>

@@ -27,10 +27,40 @@
     linear-gradient(180deg, #fbfff8 0%, #fff 28rem);
 }
 
+/*
+ * Full-bleed grid.
+ *
+ * Sections read best in a measured column, but the identity bar, the banner and
+ * the footer are meant to run to the edge of the screen — inside a centred
+ * column they end mid-air with the page colour beside them. A three-column grid
+ * gives each child either the content column or the whole width, which avoids
+ * the `100vw` trick and the horizontal scrollbar it causes.
+ */
+.municipal-page {
+  /* The gutter now belongs to the grid's side columns, not the page root. */
+  padding-inline: 0 !important;
+}
 .municipal-page > .d-flex {
-  gap: 1.75rem !important;
-  max-width: 1440px;
-  margin-inline: auto;
+  display: grid !important;
+  grid-template-columns:
+    [full-start] minmax(0.75rem, 1fr)
+    [content-start] minmax(0, 1440px) [content-end]
+    minmax(0.75rem, 1fr) [full-end];
+  gap: 1.75rem 0 !important;
+  max-width: none;
+  margin-inline: 0;
+}
+.municipal-page > .d-flex > * { grid-column: content; min-width: 0; }
+
+/* Chrome and banners span every column. */
+.municipal-page > .d-flex > :is(
+  :has(> .gov-topbar), :has(> .gov-header), :has(> .gov-ticker),
+  :has(> .gov-hero), :has(> .gov-footer),
+  .gov-topbar, .gov-header, .gov-ticker, .gov-hero, .gov-footer
+) {
+  grid-column: full;
+  /* Cancels half the row gap on each side so a run of chrome sits flush. */
+  margin-block: -0.875rem;
 }
 
 .municipal-page .municipal-component {
@@ -202,11 +232,14 @@
 }
 
 @media (max-width: 767.98px) {
-  .municipal-page {
+  .municipal-page > .d-flex {
     /* Bootstrap rows use a negative margin of half the gutter (12px at g-4), so
-       the page root must keep at least that much padding. At 0.5rem every row
-       hung 4px past the viewport and the whole page scrolled sideways. */
-    padding-inline: calc(var(--bs-gutter-x, 1.5rem) * 0.5) !important;
+       the side columns must be at least that wide or every row hangs past the
+       viewport and the whole page scrolls sideways. */
+    grid-template-columns:
+      [full-start] minmax(calc(var(--bs-gutter-x, 1.5rem) * 0.5), 1fr)
+      [content-start] minmax(0, 1440px) [content-end]
+      minmax(calc(var(--bs-gutter-x, 1.5rem) * 0.5), 1fr) [full-end];
   }
 
   .municipal-page > .d-flex {
@@ -793,7 +826,7 @@ html { font-size: calc(1rem * var(--gov-font-scale, 1)); }
 .gov-person-contact a:focus-visible { outline: 2px solid var(--gov-primary, #d91113); outline-offset: 2px; }
 
 /* --- Footer -------------------------------------------------------------------- */
-.gov-footer { background: var(--gov-secondary-dark, #063b7a); color: rgba(255, 255, 255, 0.85); margin-top: 2rem; }
+.gov-footer { background: var(--gov-secondary-dark, #063b7a); color: rgba(255, 255, 255, 0.85); }
 .gov-footer-main { max-width: 1440px; margin-inline: auto; padding: 2rem 1rem; }
 .gov-footer-heading {
   font-weight: 700;
@@ -1189,6 +1222,7 @@ html { font-size: calc(1rem * var(--gov-font-scale, 1)); }
 
 /* --- Banner ---------------------------------------------------------------- */
 .gov-hero { border-radius: 0; border-bottom: 4px solid var(--gov-gold, #ffd700); }
+.gov-hero, .gov-topbar, .gov-header, .gov-ticker, .gov-footer { border-radius: 0; }
 .gov-hero-image { aspect-ratio: 24 / 9; }
 .gov-hero-caption {
   padding: 3.5rem 1.5rem 2rem;
