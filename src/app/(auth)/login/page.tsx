@@ -1,114 +1,138 @@
 'use client';
 
-import React, { useActionState } from 'react';
+import React, { useActionState, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { loginAction } from '@/lib/auth/authActions';
-import { LogIn, Lock, User, Sparkles } from 'lucide-react';
+import { AlertCircle, ArrowRight, Eye, EyeOff, Loader2, Lock, ShieldCheck, User } from 'lucide-react';
+
+/** Where the user will land, shown so a redirect never feels like a detour. */
+const DESTINATIONS: Record<string, string> = {
+  '/studio': 'DesignStudio',
+  '/flow-studio': 'Flow Studio',
+  '/admin': 'หน้าผู้ดูแลระบบ',
+  '/admin/platforms': 'จัดการ Platform',
+  '/admin/apps': 'จัดการเว็บไซต์',
+  '/admin/users': 'จัดการผู้ใช้',
+  '/audit-logs': 'ประวัติการเปลี่ยนแปลง',
+};
 
 export default function LoginPage() {
   const [state, formAction, isPending] = useActionState(loginAction, {});
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get('redirect') ?? '';
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [capsLock, setCapsLock] = useState(false);
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  // Move focus to the error so it is announced and cannot be missed.
+  useEffect(() => {
+    if (state?.error) errorRef.current?.focus();
+  }, [state?.error]);
+
+  const destination = DESTINATIONS[redirect];
 
   return (
-    <div
-      className="card border-0 shadow-lg"
-      style={{
-        background: 'rgba(255, 255, 255, 0.07)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.15)',
-        borderRadius: '1.25rem',
-        color: '#f8fafc',
-      }}
-    >
+    <section className="auth-card card border-0">
       <div className="card-body p-4 p-sm-5">
-        {/* Header Logo & Title */}
-        <div className="text-center mb-4">
-          <div
-            className="d-inline-flex align-items-center justify-content-center mb-3 shadow"
-            style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '1rem',
-              background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
-            }}
-          >
-            <Sparkles size={32} className="text-white" />
-          </div>
-          <h4 className="fw-bold mb-1 text-white">Low-Code Studio</h4>
-          <p className="text-white-50 small mb-0">เข้าสู่ระบบแม่สำหรับแอดมินและนักพัฒนา (Platform Control)</p>
-        </div>
+        <header className="mb-4">
+          <span className="auth-badge d-inline-flex align-items-center gap-1 mb-3">
+            <ShieldCheck size={13} aria-hidden="true" /> เฉพาะเจ้าหน้าที่
+          </span>
+          <h1 className="auth-title h4 mb-1">เข้าสู่ระบบ</h1>
+          <p className="auth-subtitle mb-0">
+            {destination
+              ? <>เข้าสู่ระบบเพื่อไปยัง <strong>{destination}</strong></>
+              : 'สำหรับผู้ดูแลระบบและเจ้าหน้าที่ของหน่วยงาน'}
+          </p>
+        </header>
 
-        {/* Error Feedback */}
         {state?.error && (
-          <div className="alert alert-danger border-0 bg-danger bg-opacity-25 text-danger-emphasis mb-4 small rounded-3" role="alert">
-            {state.error}
+          <div
+            ref={errorRef}
+            tabIndex={-1}
+            role="alert"
+            className="auth-alert d-flex align-items-start gap-2 mb-4"
+          >
+            <AlertCircle size={17} className="flex-shrink-0 mt-1" aria-hidden="true" />
+            <span>{state.error}</span>
           </div>
         )}
 
-        {/* Form — submitted as a Server Action so credentials never touch client state */}
-        <form action={formAction}>
+        <form action={formAction} noValidate>
           <div className="mb-3">
-            <label htmlFor="identifier" className="form-label small text-white-50 fw-medium">
+            <label htmlFor="identifier" className="auth-label form-label">
               ชื่อผู้ใช้ หรือ อีเมล
             </label>
-            <div className="input-group">
-              <span className="input-group-text bg-dark bg-opacity-50 border-secondary border-opacity-25 text-white-50">
-                <User size={18} />
-              </span>
+            <div className="auth-field">
+              <User size={18} className="auth-field-icon" aria-hidden="true" />
               <input
                 id="identifier"
                 name="identifier"
                 type="text"
                 autoComplete="username"
-                className="form-control bg-dark bg-opacity-50 border-secondary border-opacity-25 text-white placeholder-secondary"
-                placeholder="you@example.com"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
                 required
+                className="form-control"
+                placeholder="you@example.go.th"
+                aria-describedby={state?.error ? 'login-error-hint' : undefined}
               />
             </div>
           </div>
 
-          <div className="mb-4">
-            <label htmlFor="password" className="form-label small text-white-50 fw-medium">
-              รหัสผ่าน
-            </label>
-            <div className="input-group">
-              <span className="input-group-text bg-dark bg-opacity-50 border-secondary border-opacity-25 text-white-50">
-                <Lock size={18} />
-              </span>
+          <div className="mb-2">
+            <label htmlFor="password" className="auth-label form-label">รหัสผ่าน</label>
+            <div className="auth-field">
+              <Lock size={18} className="auth-field-icon" aria-hidden="true" />
               <input
                 id="password"
                 name="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
-                className="form-control bg-dark bg-opacity-50 border-secondary border-opacity-25 text-white"
-                placeholder="••••••••"
                 required
+                className="form-control"
+                placeholder="••••••••"
+                onKeyUp={(event) => setCapsLock(event.getModifierState?.('CapsLock') ?? false)}
+                onBlur={() => setCapsLock(false)}
               />
+              <button
+                type="button"
+                className="auth-reveal"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-pressed={showPassword}
+                aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+              >
+                {showPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
+              </button>
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={isPending}
-            className="btn w-100 py-2.5 fw-semibold shadow-sm text-white mb-2 d-flex align-items-center justify-content-center gap-2"
-            style={{
-              background: 'linear-gradient(135deg, #4f46e5 0%, #9333ea 100%)',
-              border: 'none',
-              borderRadius: '0.75rem',
-            }}
-          >
+          {/* Caps Lock is a common cause of "the password is right but it fails". */}
+          <p className={`auth-caps ${capsLock ? 'is-on' : ''}`} aria-live="polite">
+            {capsLock ? 'เปิด Caps Lock อยู่' : ''}
+          </p>
+
+          <button type="submit" className="auth-submit btn w-100" disabled={isPending} aria-busy={isPending}>
             {isPending ? (
-              <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
+              <>
+                <Loader2 size={17} className="auth-spin" aria-hidden="true" /> กำลังตรวจสอบ…
+              </>
             ) : (
               <>
-                <LogIn size={18} /> เข้าสู่ระบบ (Sign In)
+                เข้าสู่ระบบ <ArrowRight size={17} aria-hidden="true" />
               </>
             )}
           </button>
         </form>
 
-        <p className="text-white-50 extra-small text-center mb-0 mt-3">
-          บัญชีผู้ใช้ถูกจัดเก็บและตรวจสอบที่ฐานข้อมูล — ติดต่อผู้ดูแลระบบหากลืมรหัสผ่าน
+        <p id="login-error-hint" className="auth-help mb-0">
+          ลืมรหัสผ่าน หรือเข้าใช้งานไม่ได้ กรุณาติดต่อผู้ดูแลระบบของหน่วยงาน
         </p>
       </div>
-    </div>
+    </section>
   );
 }

@@ -4,27 +4,12 @@
 @tailwind utilities;
 
 /* Anuphan is loaded by next/font in the root layout and exposed as
-   --font-anuphan. Everything below falls back to it unless a tenant theme
-   sets its own font. */
+   --font-anuphan. It is the single typeface for the whole product; a tenant
+   theme may replace --font-sans for its own site, but nothing else should
+   declare a font stack of its own. */
 :root {
   --app-font-family: var(--font-anuphan), 'Anuphan', 'Noto Sans Thai', 'IBM Plex Sans Thai', system-ui, sans-serif;
-}
-
-html,
-body {
-  font-family: var(--app-font-family);
-}
-
-body {
-  --bs-body-font-family: var(--app-font-family);
-}
-
-.font-monospace,
-code,
-kbd,
-pre,
-samp {
-  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --app-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
 }
 
 :root {
@@ -37,7 +22,9 @@ samp {
   --bs-warning: #ffc107;
   --bs-info: #0dcaf0;
   --bs-border-radius: 0.375rem;
-  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  /* Overridable per tenant site by ThemeEngine; defaults to Anuphan. */
+  --font-sans: var(--app-font-family);
+  --bs-body-font-family: var(--font-sans);
 }
 
 [data-theme="dark"] {
@@ -47,12 +34,37 @@ samp {
   --bs-body-color: #f8fafc;
 }
 
+html,
+body {
+  font-family: var(--font-sans);
+}
+
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans);
+  /* Thai script needs more leading than Latin to stay readable. */
+  line-height: 1.7;
   margin: 0;
   padding: 0;
+}
+
+/*
+ * Bootstrap sets its own stacks on several components, and form controls do not
+ * inherit from `body` in every browser. Naming them here keeps one typeface
+ * across the product instead of Anuphan text next to system-font buttons.
+ */
+h1, h2, h3, h4, h5, h6,
+.btn, .form-control, .form-select, .form-label, .form-check-label,
+.input-group-text, .nav-link, .dropdown-item, .modal, .modal-title,
+.table, .breadcrumb, .badge, .alert, .card, .tooltip, .popover,
+button, input, select, textarea, optgroup {
+  font-family: var(--font-sans);
+}
+
+/* Code and identifiers stay monospace — a proportional font makes them unreadable. */
+.font-monospace,
+code, kbd, pre, samp {
+  font-family: var(--app-font-mono);
 }
 
 /* Custom Utilities for Low-Code Shared Components */
@@ -64,4 +76,192 @@ body {
 
 .card {
   border-radius: var(--bs-border-radius) !important;
+}
+
+/* ==========================================================================
+   Sign-in screens
+   Deep blue with a gold hairline, matching the government design tokens.
+   ========================================================================== */
+.auth-shell {
+  --auth-ink: #0b1f3a;
+  --auth-blue: #0c58a9;
+  --auth-blue-deep: #083a6e;
+  --auth-gold: #ffd700;
+  --auth-surface: #f5f8fc;
+  --auth-border: #dbe3ee;
+  background: var(--auth-surface);
+}
+
+.auth-brand {
+  width: min(46%, 34rem);
+  color: #fff;
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(255, 255, 255, 0.12) 0%, transparent 55%),
+    linear-gradient(160deg, var(--auth-blue) 0%, var(--auth-blue-deep) 60%, var(--auth-ink) 100%);
+  position: relative;
+}
+
+/* Gold hairline separating the two columns — the accent, used sparingly. */
+.auth-brand::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #fff3a3 0%, var(--auth-gold) 40%, #d89000 100%);
+}
+
+/* Abstract mark: deliberately not an official emblem. */
+.auth-mark {
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 1.75rem;
+  border-radius: 0.9rem;
+  background: linear-gradient(135deg, #fff3a3 0%, var(--auth-gold) 45%, #d89000 100%);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+  position: relative;
+}
+.auth-mark::before {
+  content: '';
+  position: absolute;
+  inset: 0.85rem;
+  border-radius: 0.3rem;
+  background: var(--auth-ink);
+}
+
+.auth-brand-eyebrow {
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--auth-gold);
+  font-weight: 600;
+}
+.auth-brand-title { font-size: 1.6rem; font-weight: 700; line-height: 1.45; }
+.auth-brand-lead {
+  font-size: 0.95rem;
+  line-height: 1.8;
+  color: rgba(255, 255, 255, 0.82);
+  max-width: 26rem;
+  margin-bottom: 0;
+}
+
+.auth-points { display: flex; flex-direction: column; gap: 1.15rem; }
+.auth-points li {
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.72);
+  padding-inline-start: 0.9rem;
+  border-inline-start: 2px solid rgba(255, 215, 0, 0.45);
+}
+.auth-point-title { display: block; color: #fff; font-weight: 600; margin-bottom: 0.1rem; }
+.auth-brand-footer { font-size: 0.78rem; color: rgba(255, 255, 255, 0.55); }
+
+.auth-card {
+  border-radius: 1rem;
+  box-shadow: 0 18px 44px rgba(11, 31, 58, 0.09);
+}
+
+.auth-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  color: var(--auth-blue-deep);
+  background: #eaf2fb;
+  border: 1px solid #cfe0f4;
+}
+
+.auth-title { color: var(--auth-ink); font-weight: 700; }
+.auth-subtitle { color: #5a6473; font-size: 0.9rem; }
+
+.auth-alert {
+  font-size: 0.86rem;
+  line-height: 1.65;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.65rem;
+  color: #8a1113;
+  background: #fdecec;
+  border: 1px solid #f6c9c9;
+}
+.auth-alert:focus { outline: 2px solid #d91113; outline-offset: 2px; }
+
+.auth-label { font-size: 0.85rem; font-weight: 600; color: #2a3543; margin-bottom: 0.35rem; }
+
+/* Icon sits inside the field so the control keeps one focus ring. */
+.auth-field { position: relative; display: flex; align-items: center; }
+.auth-field-icon {
+  position: absolute;
+  inset-inline-start: 0.85rem;
+  color: #8d98a8;
+  pointer-events: none;
+}
+.auth-field .form-control {
+  height: 3rem;
+  padding-inline-start: 2.7rem;
+  padding-inline-end: 2.9rem;
+  border-radius: 0.65rem;
+  border-color: var(--auth-border);
+  font-size: 0.95rem;
+}
+.auth-field .form-control:focus {
+  border-color: var(--auth-blue);
+  box-shadow: 0 0 0 0.2rem rgba(12, 88, 169, 0.16);
+}
+
+.auth-reveal {
+  position: absolute;
+  inset-inline-end: 0.35rem;
+  display: grid;
+  place-items: center;
+  /* 44px minimum touch target. */
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: #5a6473;
+}
+.auth-reveal:hover { background: #eef2f7; color: var(--auth-ink); }
+.auth-reveal:focus-visible { outline: 2px solid var(--auth-blue); outline-offset: 1px; }
+
+/* Reserves its line so revealing the warning does not shift the button. */
+.auth-caps {
+  min-height: 1.25rem;
+  margin: 0 0 0.75rem;
+  font-size: 0.78rem;
+  color: transparent;
+}
+.auth-caps.is-on { color: #a86a00; }
+
+.auth-submit {
+  height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: #fff;
+  border: 0;
+  border-radius: 0.65rem;
+  background: linear-gradient(135deg, var(--auth-blue) 0%, var(--auth-blue-deep) 100%);
+}
+.auth-submit:hover:not(:disabled) { color: #fff; filter: brightness(1.08); }
+.auth-submit:focus-visible { outline: 3px solid rgba(12, 88, 169, 0.4); outline-offset: 2px; }
+.auth-submit:disabled { opacity: 0.75; }
+
+.auth-spin { animation: auth-spin 0.9s linear infinite; }
+@keyframes auth-spin { to { transform: rotate(360deg); } }
+
+.auth-help {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--auth-border);
+  font-size: 0.8rem;
+  line-height: 1.7;
+  color: #6b7686;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-spin { animation: none; }
 }

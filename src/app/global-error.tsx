@@ -12,7 +12,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
     window.location.reload();
   }, [error]);
 
-  return <html><body><main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24, fontFamily: 'system-ui, sans-serif', background: '#f8fafc' }}>
+  return <html><body><main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24, fontFamily: 'Anuphan, "Noto Sans Thai", system-ui, sans-serif', background: '#f8fafc' }}>
     <section style={{ width: 'min(680px, 100%)', padding: 28, border: '1px solid #fecaca', borderRadius: 16, background: '#fff', boxShadow: '0 12px 40px rgba(15,23,42,.08)' }}>
       <div style={{ color: '#dc2626', fontWeight: 800, marginBottom: 8 }}>STUDIO RECOVERY</div>
       <h1 style={{ fontSize: 24, margin: '0 0 10px' }}>Studio encountered a client error</h1>
