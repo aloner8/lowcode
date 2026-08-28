@@ -7,6 +7,15 @@ import {
   ScrollText,
   Palette,
   Workflow,
+  ChevronRight,
+  Shapes,
+  PackageOpen,
+  Home,
+  Gauge,
+  PanelsTopLeft,
+  ShieldEllipsis,
+  Network,
+  CalendarDays,
   type LucideIcon,
 } from 'lucide-react';
 import type { GlobalRole } from '@/types';
@@ -30,6 +39,8 @@ export interface AdminNavItem {
   readonly godOnly?: boolean;
   /** Opens a separate tool rather than another console screen. */
   readonly external?: boolean;
+  /** Nested design tools shown below their parent group. */
+  readonly children?: readonly AdminNavItem[];
 }
 
 export const ADMIN_NAV: readonly AdminNavItem[] = [
@@ -77,25 +88,72 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
 
 export const ADMIN_TOOLS: readonly AdminNavItem[] = [
   {
-    href: '/studio',
+    href: '/page-designer/public-home',
     label: 'ออกแบบหน้าเว็บ',
     description: 'จัดวางหน้าเว็บด้วย DesignStudio',
     icon: Palette,
-    external: true,
+    children: [
+      { href: '/page-designer/public-home', label: '1. Public Home', description: 'ออกแบบหน้าแรกสาธารณะ', icon: Home },
+      { href: '/page-designer/dashboard', label: '2. Dashboard', description: 'ออกแบบหน้าสรุปข้อมูลและตัวชี้วัด', icon: Gauge },
+      { href: '/page-designer/master-detail', label: '3. Form Master Detail', description: 'ออกแบบฟอร์มข้อมูลหลักและรายการย่อย', icon: PanelsTopLeft },
+      { href: '/page-designer/admin-page', label: '4. Admin Page', description: 'ออกแบบหน้าจัดการระบบหลังบ้าน', icon: ShieldEllipsis },
+      { href: '/page-designer/diagram', label: '5. Diagram', description: 'ออกแบบหน้าแผนภาพและความสัมพันธ์', icon: Network },
+      { href: '/page-designer/calendar', label: '6. Calendar', description: 'ออกแบบหน้าปฏิทินและตารางนัดหมาย', icon: CalendarDays },
+    ],
   },
   {
-    href: '/flow-studio',
-    label: 'ออกแบบขั้นตอนงาน',
-    description: 'ผูกลำดับงานด้วย Flow Studio',
+    href: '/process-studio',
+    label: 'กระบวนการทำงาน',
+    description: 'รวมเครื่องมือออกแบบกระบวนการและลำดับการทำงาน',
     icon: Workflow,
-    external: true,
+    godOnly: true,
+    children: [
+      {
+        href: '/flow-studio',
+        label: 'ออกแบบขั้นตอน',
+        description: 'ผูกลำดับงานด้วย Flow Studio',
+        icon: ChevronRight,
+        external: true,
+        godOnly: true,
+      },
+    ],
+  },
+  {
+    href: '/svg-studio',
+    label: 'SVG Studio',
+    description: 'สร้าง Visual Object แบบกำหนดพารามิเตอร์และนำกลับมาใช้ซ้ำ',
+    icon: Shapes,
+    godOnly: true,
+    children: [
+      ['background', '1. ออกแบบพื้นหลัง'],
+      ['button', '2. ออกแบบปุ่ม'],
+      ['card', '3. ออกแบบการ์ด + Animation'],
+      ['icon', '4. ออกแบบ ICON'],
+      ['art-text', '5. ข้อความศิลป์'],
+      ['frame', '6. กรอบรูป'],
+      ['auto-form', '7. Form Auto Draw with Field'],
+    ].map(([slug, label]) => ({
+      href: `/svg-studio/${slug}`,
+      label,
+      description: `สร้างแม่แบบ ${label.replace(/^\d+\.\s*/, '')}`,
+      icon: ChevronRight,
+      godOnly: true,
+    })),
+  },
+  {
+    href: '/module-studio',
+    label: 'ออกแบบ Module',
+    description: 'รวม Page, API, Flow และ Object ที่สัมพันธ์กันเป็นแม่แบบเดียว',
+    icon: PackageOpen,
     godOnly: true,
   },
 ];
 
 /** Hides what the role cannot open, so nobody is sent to a 403. */
 export function visibleNav(items: readonly AdminNavItem[], role: GlobalRole): AdminNavItem[] {
-  return items.filter((item) => !item.godOnly || role === 'GOD');
+  return items
+    .filter((item) => !item.godOnly || role === 'GOD')
+    .map((item) => ({ ...item, children: item.children ? visibleNav(item.children, role) : undefined }));
 }
 
 /**
@@ -105,7 +163,9 @@ export function visibleNav(items: readonly AdminNavItem[], role: GlobalRole): Ad
  * rather than falling back to the `/admin` overview.
  */
 export function navItemFor(pathname: string): AdminNavItem | undefined {
-  const all = [...ADMIN_NAV, ...ADMIN_TOOLS];
+  const flatten = (items: readonly AdminNavItem[]): AdminNavItem[] =>
+    items.flatMap((item) => [item, ...flatten(item.children ?? [])]);
+  const all = flatten([...ADMIN_NAV, ...ADMIN_TOOLS]);
   const exact = all.find((item) => item.href === pathname);
   if (exact) return exact;
 

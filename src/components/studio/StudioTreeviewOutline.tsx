@@ -161,6 +161,7 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
   onToggleCollapsed,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [layoutOpen, setLayoutOpen] = useState(true);
   const [openPageSections, setOpenPageSections] = useState<Record<string, boolean>>({});
   const [formsOpen, setFormsOpen] = useState(true);
   const [openFormModules, setOpenFormModules] = useState<Record<string, boolean>>({ cms: true });
@@ -511,6 +512,30 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
 
       {/* Main Treeview Accordion List */}
       <div className="card-body p-2 overflow-auto flex-grow-1" style={{ maxHeight: 'calc(100vh - 220px)', fontSize: '0.78rem' }}>
+
+        {/* The page shell is always the first design level. Components can
+            bind themselves to a region through __layoutRegion/__sectionId. */}
+        <div className="mb-2">
+          <button type="button" className="btn btn-sm w-100 d-flex align-items-center gap-2 px-2 py-1.5 bg-warning bg-opacity-10 text-dark border border-warning border-opacity-50 fw-bold" onClick={() => setLayoutOpen((value) => !value)}>
+            {layoutOpen ? <ChevronDown size={13}/> : <ChevronRight size={13}/>}<Layers size={15} className="text-warning"/><span>Layout</span>
+          </button>
+          {layoutOpen && <div className="ms-3 ps-2 border-start mt-1">{([
+            ['top', '1. Top'],
+            ['sidebar-left', '2. Sidebar Left'],
+            ['content', '3. Content'],
+            ['sidebar-right', '4. Sidebar Right'],
+            ['footer', '5. Footer'],
+          ] as const).map(([region, label]) => {
+            const activePageDefinition = pages.find((page) => page.id === activePage);
+            const regionNodes = (activePageDefinition?.componentTree || []).filter((node) => {
+              const binding = String(node.props?.__layoutRegion || node.props?.__sectionId || '').toLowerCase();
+              return binding === region || (region === 'content' && (!binding || binding === 'main'));
+            });
+            return <button key={region} type="button" className="btn btn-sm border-0 w-100 d-flex align-items-center gap-1 text-start text-secondary py-1 px-1" onClick={() => regionNodes[0] && onSelectPageComponent(activePage, regionNodes[0].id)} disabled={regionNodes.length === 0}>
+              <Box size={10} className={regionNodes.length ? 'text-primary' : 'text-muted'}/><span>{label}</span><span className="badge bg-light text-secondary ms-auto">{regionNodes.length}</span>
+            </button>;
+          })}</div>}
+        </div>
 
         {/* Site Map is the navigation root. Page Layouts exist only as route resources. */}
         <div className="mb-2">

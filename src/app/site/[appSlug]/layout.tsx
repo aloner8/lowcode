@@ -3,7 +3,6 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { ExternalLink, LogOut } from 'lucide-react';
 import { getCurrentUser } from '@/lib/auth/authActions';
-import { logoutAction } from '@/lib/auth/authActions';
 import { getCoreDb } from '@/lib/db/coreDb';
 import { Logo } from '@/components/brand/Logo';
 import SiteConsoleNav, { type SiteNavItem } from '@/components/site/SiteConsoleNav';
@@ -76,7 +75,7 @@ export default async function SiteConsoleLayout({
             >
               <ExternalLink size={15} aria-hidden="true" /> เปิดเว็บไซต์
             </Link>
-            <form action={logoutAction}>
+            <form action="/api/auth/logout" method="post">
               <button type="submit" className="adm-btn is-quiet is-sm">
                 <LogOut size={14} aria-hidden="true" />
                 <span className="d-none d-sm-inline">ออกจากระบบ</span>

@@ -39,7 +39,7 @@ export default function AdminTopbar({ user, onOpenMenu }: AdminTopbarProps) {
       </div>
 
       <div className="d-flex align-items-center gap-2 gap-md-3 flex-shrink-0">
-        <Link href="/studio" className="adm-topbar-btn d-none d-md-inline-flex">
+        <Link href="/page-designer/public-home" className="adm-topbar-btn d-none d-md-inline-flex">
           <Palette size={15} aria-hidden="true" />
           <span>ออกแบบหน้าเว็บ</span>
         </Link>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { StudioMenuBar } from '@/components/studio/StudioMenuBar';
 import { PageFlowDesigner } from '@/components/studio/PageFlowDesigner';
 import { StudioToolBar } from '@/components/studio/StudioToolBar';
@@ -28,6 +29,7 @@ import { createAdminPageTemplate } from '@/lib/studio/adminMenuTemplate';
 import type { StudioCollectionDefinition, StudioFormDefinition } from '@/lib/studio/backendFormDefinitions';
 import { FileText, Database, RefreshCw } from 'lucide-react';
 import { HtmlStudioShell } from '@/components/html-studio';
+import { StudioWorkspacePageList } from '@/components/studio/StudioWorkspacePageList';
 import type { HtmlStudioDocument, StudioNode } from '@/lib/html-studio';
 
 interface StudioPageDefinition {
@@ -117,6 +119,10 @@ const createImageDashboardDraft = (request: Pick<GenPageFromImageRequest, 'image
 };
 
 export default function StudioPage() {
+  const searchParams = useSearchParams();
+  const workspace = searchParams.get('workspace');
+  const [workspaceEditPageId, setWorkspaceEditPageId] = useState<string | null>(null);
+  useEffect(() => setWorkspaceEditPageId(null), [workspace]);
   const [viewportMode, setViewportMode] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [showGrid, setShowGrid] = useState<boolean>(true);
   const [activePage, setActivePage] = useState<string>('index');
@@ -291,17 +297,34 @@ export default function StudioPage() {
   };
 
   useEffect(() => {
-    const selectedPlatformId = new URLSearchParams(window.location.search).get('platformId');
-    setPlatformId(selectedPlatformId);
-
-    if (!selectedPlatformId) {
-      setStudioError('ไม่พบ platformId กรุณาเข้า Studio จากหน้า Platforms');
-      setIsLoadingPlatform(false);
-      return;
-    }
-
     const loadPlatform = async () => {
       try {
+        let selectedPlatformId = new URLSearchParams(window.location.search).get('platformId');
+
+        // The global Studio menu opens /studio without a platformId. Resolve it
+        // from the user's accessible platforms instead of leaving the canvas
+        // detached from its database. Prefer the last platform they opened.
+        if (!selectedPlatformId) {
+          const platformsResponse = await fetch('/api/platforms', { cache: 'no-store' });
+          const platformsData = (await platformsResponse.json()) as {
+            platforms?: Array<{ id: string }>;
+            error?: string;
+          };
+          if (!platformsResponse.ok) throw new Error(platformsData.error || 'ไม่สามารถอ่านรายการ Platform ได้');
+
+          const accessible = platformsData.platforms ?? [];
+          const lastPlatformId = window.localStorage.getItem('matchanu:last-studio-platform-id');
+          selectedPlatformId = accessible.find((item) => item.id === lastPlatformId)?.id ?? accessible[0]?.id ?? null;
+          if (!selectedPlatformId) throw new Error('ไม่พบ Platform ที่บัญชีนี้มีสิทธิ์ใช้งาน');
+
+          const nextUrl = new URL(window.location.href);
+          nextUrl.searchParams.set('platformId', selectedPlatformId);
+          window.history.replaceState(window.history.state, '', nextUrl);
+        }
+
+        setPlatformId(selectedPlatformId);
+        window.localStorage.setItem('matchanu:last-studio-platform-id', selectedPlatformId);
+        setStudioError(null);
         const response = await fetch(`/api/platforms/${selectedPlatformId}/studio`, { cache: 'no-store' });
         const data = (await response.json()) as {
           platform?: {
@@ -905,9 +928,22 @@ export default function StudioPage() {
     return '100%';
   };
 
+  if (workspace && !workspaceEditPageId) {
+    return <StorageScopeProvider scope={{ platformId: platformId ?? undefined }}>
+      <StudioWorkspacePageList
+        workspace={workspace}
+        pages={studioPages}
+        loading={isLoadingPlatform}
+        onEdit={(pageId) => { void handleSelectDesignPage(pageId).then(() => setWorkspaceEditPageId(pageId)); }}
+        onCreate={() => { setWorkspaceEditPageId('__create__'); setIsPageManagerOpen(true); }}
+      />
+    </StorageScopeProvider>;
+  }
+
   return (
     <StorageScopeProvider scope={{ platformId: platformId ?? undefined }}>
     <div className="d-flex flex-column min-vh-100 bg-light select-none position-relative">
+      {workspace && workspaceEditPageId && <button type="button" className="btn btn-sm btn-light border position-fixed" style={{ zIndex: 2050, top: 82, right: 18 }} onClick={() => setWorkspaceEditPageId(null)}>← กลับรายการ {workspace}</button>}
       {studioError && <div className="alert alert-danger rounded-0 py-2 mb-0 small">{studioError}</div>}
       {isLoadingPlatform && <div className="alert alert-info rounded-0 py-2 mb-0 small">Loading platform from database...</div>}
       {/* 1. Visual Studio Top Menu Bar */}

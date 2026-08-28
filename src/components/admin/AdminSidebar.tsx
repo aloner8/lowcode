@@ -2,10 +2,9 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { LogOut, PanelLeftClose, PanelLeftOpen, ExternalLink, X } from 'lucide-react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { ChevronDown, LogOut, PanelLeftClose, PanelLeftOpen, ExternalLink, X } from 'lucide-react';
 import { Logo } from '@/components/brand/Logo';
-import { logoutAction } from '@/lib/auth/authActions';
 import { ADMIN_NAV, ADMIN_TOOLS, visibleNav } from '@/lib/admin/navigation';
 import { UserProfile } from '@/types';
 
@@ -29,12 +28,19 @@ export default function AdminSidebar({
   onToggleCollapse,
 }: AdminSidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const navItems = visibleNav(ADMIN_NAV, user.globalRole);
   const toolItems = visibleNav(ADMIN_TOOLS, user.globalRole);
   const isGod = user.globalRole === 'GOD';
 
-  const isCurrent = (href: string) =>
-    href === '/admin' ? pathname === '/admin' : pathname === href || pathname.startsWith(`${href}/`);
+  const isCurrent = (href: string) => {
+    const [hrefPath, query = ''] = href.split('?');
+    if (query) {
+      const expected = new URLSearchParams(query);
+      return pathname === hrefPath && Array.from(expected.entries()).every(([key, value]) => searchParams.get(key) === value);
+    }
+    return hrefPath === '/admin' ? pathname === '/admin' : pathname === hrefPath || pathname.startsWith(`${hrefPath}/`);
+  };
 
   const renderLink = (item: (typeof ADMIN_NAV)[number]) => {
     const Icon = item.icon;
@@ -63,6 +69,45 @@ export default function AdminSidebar({
             </>
           )}
         </Link>
+      </li>
+    );
+  };
+
+  const renderTool = (item: (typeof ADMIN_TOOLS)[number]) => {
+    const Icon = item.icon;
+    const children = item.children ?? [];
+    const childActive = children.some((child) => isCurrent(child.href));
+    const active = isCurrent(item.href) || childActive;
+
+    return (
+      <li key={item.href}>
+        <Link
+          href={item.href}
+          className={`adm-nav-link ${active ? 'is-active' : ''}`}
+          aria-current={pathname === item.href ? 'page' : undefined}
+          title={isCollapsed ? item.label : undefined}
+          onClick={onClose}
+        >
+          <Icon size={18} aria-hidden="true" />
+          {!isCollapsed && <><span>{item.label}</span>{children.length > 0 && <ChevronDown size={13} className="ms-auto" />}</>}
+        </Link>
+        {!isCollapsed && children.length > 0 && active && (
+          <ul className="adm-nav ms-3 mt-1 border-start border-light border-opacity-25 ps-2">
+            {children.map((child) => {
+              const ChildIcon = child.icon;
+              const current = isCurrent(child.href);
+              return (
+                <li key={child.href}>
+                  <Link href={child.href} className={`adm-nav-link ${current ? 'is-active' : ''}`} onClick={onClose}>
+                    <ChildIcon size={14} aria-hidden="true" />
+                    <span>{child.label}</span>
+                    {child.external && <ExternalLink size={11} className="ms-auto" aria-hidden="true" />}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </li>
     );
   };
@@ -152,13 +197,13 @@ export default function AdminSidebar({
           {toolItems.length > 0 && (
             <>
               {!isCollapsed && <p className="adm-section-label mb-1">เครื่องมือออกแบบ</p>}
-              <ul className="adm-nav">{toolItems.map(renderLink)}</ul>
+              <ul className="adm-nav">{toolItems.map(renderTool)}</ul>
             </>
           )}
         </div>
 
         <div className="pt-2">
-          <form action={logoutAction}>
+          <form action="/api/auth/logout" method="post">
             <button type="submit" className="adm-signout" title={isCollapsed ? 'ออกจากระบบ' : undefined}>
               <LogOut size={15} aria-hidden="true" />
               {!isCollapsed && <span>ออกจากระบบ</span>}

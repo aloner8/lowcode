@@ -8,7 +8,7 @@ import { SESSION_COOKIE, verifySession } from '@/lib/auth/session';
 
 /** Routes that require a valid Web แม่ (Platform) session. */
 const PROTECTED_PREFIXES = [
-  '/admin', '/studio', '/flow-studio', '/audit-logs', '/site', '/account',
+  '/admin', '/studio', '/page-designer', '/flow-studio', '/process-studio', '/svg-studio', '/module-studio', '/audit-logs', '/site', '/account',
   // Developer demos render arbitrary components; they are internal tools.
   '/renderer-demo', '/shared-demo',
 ];
@@ -17,7 +17,7 @@ const PROTECTED_PREFIXES = [
 const CHANGE_PASSWORD_PATH = '/account/password';
 
 /** Routes only the service provider (GOD) may open. */
-const GOD_ONLY_PREFIXES = ['/admin/platforms', '/admin/security'];
+const GOD_ONLY_PREFIXES = ['/admin/platforms', '/admin/security', '/page-designer', '/flow-studio', '/process-studio', '/svg-studio', '/module-studio'];
 
 /** Control-plane surfaces that a public site process must never expose. */
 const CONTROL_PLANE_PREFIXES = [...PROTECTED_PREFIXES];
