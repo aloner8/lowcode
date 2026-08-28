@@ -42,7 +42,9 @@ export type ComponentType =
   | 'FloatingNoticeComponent'
   | 'EventCalendarComponent'
   | 'VisitCounterComponent'
-  | 'TabbedSectionComponent';
+  | 'TabbedSectionComponent'
+  | 'DocumentAccordionComponent'
+  | 'AlertChannelsComponent';
 
 export type ThemePreset =
   | 'thai-municipal'

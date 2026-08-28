@@ -59,6 +59,8 @@ export const SHARED_COMPONENT_PROPERTY_REGISTRY: Record<ComponentType, SharedCom
   EventCalendarComponent: definition('EventCalendarComponent', 'Calendar Properties', 'ปฏิทินกิจกรรมรายเดือน', [content(field('title','หัวข้อ'), field('subtitle','คำอธิบาย'), field('emptyText','ข้อความเมื่อไม่มีกิจกรรม')), data(field('dataSource','แหล่งข้อมูล','json'), field('items','รายการกิจกรรม','json'))]),
   VisitCounterComponent: definition('VisitCounterComponent', 'Visit Counter Properties', 'สถิติผู้เข้าชม นับด้วยระบบเอง ไม่ส่งข้อมูลออกภายนอก', [content(field('title','หัวข้อ')), behavior(field('appSlug','เว็บไซต์ที่นับ'))]),
   TabbedSectionComponent: definition('TabbedSectionComponent', 'Tabbed Section Properties', 'กลุ่มประกาศแบบแท็บ เช่น ประกาศจากระบบ e-GP', [content(field('title','หัวข้อ'), field('subtitle','คำอธิบาย')), data(field('tabs','แท็บและรายการ','json'))]),
+  DocumentAccordionComponent: definition('DocumentAccordionComponent', 'Disclosure Properties', 'รายการเอกสารเปิดเผยแบบพับได้ เช่น ITA', [content(field('title','หัวข้อ'), field('subtitle','คำอธิบาย'), field('emptyText','ข้อความเมื่อไม่มีเอกสาร')), data(field('groups','กลุ่มและเอกสาร','json'))]),
+  AlertChannelsComponent: definition('AlertChannelsComponent', 'Alert Channels Properties', 'ช่องทางแจ้งเหตุแยกตามประเภท', [content(field('title','หัวข้อ'), field('subtitle','คำอธิบาย'), field('ctaLabel','ข้อความปุ่มหลัก')), data(field('channels','ประเภทการแจ้งเหตุ','json')), behavior(field('ctaHref','ลิงก์ปุ่มหลัก'))]),
 };
 
 export const getSharedComponentPropertyDefinition = (type: ComponentType) => SHARED_COMPONENT_PROPERTY_REGISTRY[type];

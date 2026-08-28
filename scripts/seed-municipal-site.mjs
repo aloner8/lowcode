@@ -979,38 +979,95 @@ const PAGES = [
         },
       },
 
-      /* 6 · แจ้งเหตุฉุกเฉิน */
+      /* 6 · ระบบแจ้งเหตุอัจฉริยะ */
       {
         id: 'smart_alert',
-        type: 'MediaFeatureComponent',
+        type: 'AlertChannelsComponent',
         props: {
-          image: '/img/mock/alert-banner.svg',
-          alt: MOCK_ALT,
-          mark: 'alert',
-          title: 'ระบบแจ้งเหตุและสาธารณภัย',
-          subtitle: 'แจ้งเหตุด่วนสาธารณภัยในพื้นที่ ตลอด 24 ชั่วโมง',
-          buttonLabel: 'แจ้งเหตุ',
-          href: '/contact',
+          title: 'ระบบแจ้งเหตุอัจฉริยะ',
+          subtitle: 'แจ้งเหตุและปัญหาในพื้นที่ถึงเจ้าหน้าที่โดยตรง ตลอด 24 ชั่วโมง',
+          ctaLabel: 'เข้าสู่ระบบแจ้งเหตุออนไลน์',
+          ctaHref: '/contact',
+          channels: [
+            { label: 'แจ้งฉุกเฉิน', description: 'เหตุด่วน สาธารณภัย', icon: 'emergency', href: '/contact' },
+            { label: 'แจ้งหลอดไฟถนนเสีย', description: 'ไฟฟ้าสาธารณะ', icon: 'light', href: '/contact' },
+            { label: 'จัดการขยะมูลฝอยและสิ่งแวดล้อม', icon: 'waste', href: '/contact' },
+            { label: 'งานบริการด้านการศึกษาและศูนย์พัฒนาเด็กเล็ก', icon: 'education', href: '/contact' },
+            { label: 'แจ้งเบาะแสการกระทำผิด', icon: 'corruption', href: '/contact' },
+            { label: 'แจ้งเรื่องทั่วไป', icon: 'general', href: '/contact' },
+          ],
         },
       },
 
-      /* 7 · การประเมินคุณธรรมและความโปร่งใส */
-      linkGrid('ita', {
-        title: 'การประเมินคุณธรรมและความโปร่งใส (ITA)',
-        subtitle: 'ข้อมูลที่หน่วยงานเปิดเผยตามเกณฑ์การประเมิน',
-        band: 'formal',
-        columns: 4,
-        items: [
-          { label: 'ข้อมูลพื้นฐานหน่วยงาน', icon: 'agency', href: '/about' },
-          { label: 'อำนาจหน้าที่และกฎหมาย', icon: 'law', href: '/authority' },
-          { label: 'แผนพัฒนาและแผนปฏิบัติการ', icon: 'documents', href: '/documents' },
-          { label: 'รายงานผลการดำเนินงาน', icon: 'documents', href: '/documents' },
-          { label: 'แผนและรายงานการใช้จ่ายงบประมาณ', icon: 'budget', href: '/documents' },
-          { label: 'การจัดซื้อจัดจ้างและการจัดหาพัสดุ', icon: 'procurement', href: '/procurement' },
-          { label: 'การบริหารและพัฒนาทรัพยากรบุคคล', icon: 'people', href: '/documents' },
-          { label: 'คู่มือและมาตรฐานการให้บริการ', icon: 'form', href: '/documents' },
-        ],
-      }),
+      /* 7 · การประเมินคุณธรรมและความโปร่งใส (ITA) */
+      {
+        id: 'ita',
+        type: 'DocumentAccordionComponent',
+        props: {
+          stylePreset: 'gov-band-soft',
+          title: 'การประเมินคุณธรรมและความโปร่งใส (ITA)',
+          subtitle: 'ข้อมูลที่หน่วยงานเปิดเผยตามเกณฑ์การประเมิน ITA',
+          groups: [
+            {
+              label: 'การส่งเสริมความโปร่งใสและป้องกันการทุจริต',
+              open: true,
+              items: [
+                { label: 'ประกาศเจตนารมณ์นโยบาย No Gift Policy (ภาษาไทย)', kind: 'pdf', href: '/documents' },
+                { label: 'ประกาศเจตนารมณ์นโยบาย No Gift Policy (ภาษาอังกฤษ)', kind: 'pdf', href: '/documents' },
+                { label: 'แนวปฏิบัติการจัดการเรื่องร้องเรียนการทุจริตและประพฤติมิชอบ', kind: 'pdf', href: '/documents' },
+                { label: 'ช่องทางแจ้งเรื่องร้องเรียนการทุจริตและประพฤติมิชอบ', kind: 'link', href: '/contact' },
+                { label: 'ข้อมูลเชิงสถิติเรื่องร้องเรียนการทุจริตและประพฤติมิชอบ', kind: 'pdf', href: '/documents' },
+                { label: 'การเปิดโอกาสให้เกิดการมีส่วนร่วม', kind: 'pdf', href: '/documents' },
+                { label: 'รายงานการรับทรัพย์สินหรือประโยชน์อื่นใดโดยธรรมจรรยา', kind: 'pdf', href: '/documents' },
+                { label: 'การประเมินความเสี่ยงที่อาจเกิดการให้หรือรับสินบน', kind: 'pdf', href: '/documents' },
+                { label: 'รายงานผลการดำเนินการเพื่อจัดการความเสี่ยงการทุจริต', kind: 'pdf', href: '/documents' },
+                { label: 'แผนปฏิบัติการป้องกันการทุจริต', kind: 'pdf', href: '/documents' },
+                { label: 'รายงานการกำกับติดตามการป้องกันการทุจริตรายไตรมาส', kind: 'pdf', href: '/documents' },
+                { label: 'รายงานผลการดำเนินการป้องกันการทุจริตประจำปี', kind: 'pdf', href: '/documents' },
+                { label: 'มาตรการส่งเสริมคุณธรรมและความโปร่งใสภายในหน่วยงาน', kind: 'pdf', href: '/documents' },
+                { label: 'รายงานผลตามมาตรการส่งเสริมคุณธรรมและความโปร่งใส', kind: 'pdf', href: '/documents' },
+              ],
+            },
+            {
+              label: 'อำนาจหน้าที่และกฎหมายที่เกี่ยวข้อง',
+              items: [
+                { subgroup: 'อำนาจหน้าที่', label: `ภารกิจและอำนาจหน้าที่ของ${AGENCY.name}`, kind: 'link', href: '/authority' },
+                { label: 'อำนาจหน้าที่คณะผู้บริหาร', kind: 'link', href: '/authority' },
+                { label: 'อำนาจหน้าที่ของสมาชิกสภา', kind: 'link', href: '/authority' },
+                { label: 'อำนาจหน้าที่สำนักปลัดเทศบาล', kind: 'link', href: '/authority' },
+                { label: 'อำนาจหน้าที่กองคลัง', kind: 'link', href: '/authority' },
+                { label: 'อำนาจหน้าที่กองช่าง', kind: 'link', href: '/authority' },
+                { label: 'อำนาจหน้าที่กองการศึกษา', kind: 'link', href: '/authority' },
+                { label: 'อำนาจหน้าที่กองสาธารณสุขและสิ่งแวดล้อม', kind: 'link', href: '/authority' },
+                { subgroup: 'กฎหมายที่เกี่ยวข้อง', label: 'รัฐธรรมนูญแห่งราชอาณาจักรไทย พ.ศ. 2560', kind: 'pdf', href: '/documents' },
+                { label: 'พ.ร.บ. กำหนดแผนและขั้นตอนการกระจายอำนาจฯ พ.ศ. 2542', kind: 'pdf', href: '/documents' },
+                { label: 'พ.ร.บ. วิธีปฏิบัติราชการทางปกครอง พ.ศ. 2539', kind: 'pdf', href: '/documents' },
+                { label: 'กฎหมายอื่นที่เกี่ยวข้อง', kind: 'link', href: '/documents' },
+              ],
+            },
+            {
+              label: 'คู่มือ มาตรฐานการให้บริการและปฏิบัติงาน',
+              items: [
+                { label: 'คู่มือหรือมาตรฐานการปฏิบัติงาน', kind: 'pdf', href: '/documents' },
+                { label: 'คู่มือหรือมาตรฐานการให้บริการ', kind: 'pdf', href: '/documents' },
+                { label: 'ศูนย์บริการ e-Service', kind: 'link', href: '/services' },
+                { label: 'ข้อมูลเชิงสถิติการให้บริการ', kind: 'pdf', href: '/documents' },
+                { label: 'รายงานผลการสำรวจความพึงพอใจการให้บริการ', kind: 'pdf', href: '/documents' },
+              ],
+            },
+            {
+              label: 'แผนพัฒนาและแผนปฏิบัติการ',
+              items: [
+                { subgroup: 'แผนพัฒนาท้องถิ่น', label: 'แผนพัฒนาท้องถิ่น', kind: 'pdf', href: '/documents' },
+                { label: 'ประกาศใช้แผนพัฒนาท้องถิ่น', kind: 'pdf', href: '/documents' },
+                { subgroup: 'แผนการดำเนินงานประจำปี', label: 'แผนการดำเนินงานประจำปี', kind: 'pdf', href: '/documents' },
+                { label: 'รายงานติดตามและประเมินผลแผนพัฒนา', kind: 'pdf', href: '/documents' },
+                { label: 'แผนและรายงานการใช้จ่ายงบประมาณประจำปี', kind: 'pdf', href: '/documents' },
+              ],
+            },
+          ],
+        },
+      },
 
       /* 8 · ศูนย์บริการประชาชนอิเล็กทรอนิกส์ */
       linkGrid('eservice', {

@@ -40,3 +40,5 @@ export * from './FloatingNoticeComponent';
 export * from './EventCalendarComponent';
 export * from './VisitCounterComponent';
 export * from './TabbedSectionComponent';
+export * from './DocumentAccordionComponent';
+export * from './AlertChannelsComponent';
