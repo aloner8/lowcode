@@ -9,7 +9,7 @@ export interface PageSettingsValue {
   globalCss?: string;
   collectionSources?: string[];
   events?: Array<Record<string, unknown>>;
-  generatedFromImage?: { sourceImageUrl: string; sourceImagePath: string; viewport: 'desktop' | 'tablet' | 'mobile'; mode: 'replace' | 'append'; generatedAt: string; sections: Array<Record<string, string>> };
+  generatedFromImage?: { sourceImageUrl: string; sourceImagePath: string; viewport: 'desktop' | 'tablet' | 'mobile'; mode: 'replace' | 'append' | 'custom'; generatedAt: string; sections: Array<Record<string, unknown>> };
 }
 
 interface PageSettingsWorkspaceProps {

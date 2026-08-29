@@ -6,7 +6,6 @@ import {
   ShieldCheck,
   ScrollText,
   Palette,
-  Workflow,
   ChevronRight,
   Shapes,
   PackageOpen,
@@ -102,23 +101,6 @@ export const ADMIN_TOOLS: readonly AdminNavItem[] = [
     ],
   },
   {
-    href: '/process-studio',
-    label: 'กระบวนการทำงาน',
-    description: 'รวมเครื่องมือออกแบบกระบวนการและลำดับการทำงาน',
-    icon: Workflow,
-    godOnly: true,
-    children: [
-      {
-        href: '/flow-studio',
-        label: 'ออกแบบขั้นตอน',
-        description: 'ผูกลำดับงานด้วย Flow Studio',
-        icon: ChevronRight,
-        external: true,
-        godOnly: true,
-      },
-    ],
-  },
-  {
     href: '/svg-studio',
     label: 'SVG Studio',
     description: 'สร้าง Visual Object แบบกำหนดพารามิเตอร์และนำกลับมาใช้ซ้ำ',
@@ -145,7 +127,6 @@ export const ADMIN_TOOLS: readonly AdminNavItem[] = [
     label: 'ออกแบบ Module',
     description: 'รวม Page, API, Flow และ Object ที่สัมพันธ์กันเป็นแม่แบบเดียว',
     icon: PackageOpen,
-    godOnly: true,
   },
 ];
 
