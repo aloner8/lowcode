@@ -1164,3 +1164,24 @@ a.adm-card:hover { border-color: #bdd4ee; box-shadow: 0 10px 24px rgba(11, 31, 5
 }
 .stu-status.is-ok { border-color: rgba(122, 226, 174, 0.5); color: #b7f0d2; }
 .stu-status.is-warn { border-color: rgba(255, 215, 0, 0.5); color: #ffe98a; }
+.platform-page-designer > .d-grid > aside {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.platform-page-designer > .d-grid > aside:last-child > .border:first-child {
+  position: absolute;
+  left: 250px;
+  right: 300px;
+  bottom: 0;
+  z-index: 10;
+  height: 230px;
+  margin: 0 !important;
+  padding: 0.75rem !important;
+  overflow: auto;
+  border-width: 1px 0 0 !important;
+  border-radius: 0 !important;
+  background: #fff;
+  box-shadow: 0 -0.25rem 0.75rem rgba(15, 23, 42, 0.12);
+}

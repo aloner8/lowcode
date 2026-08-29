@@ -3,6 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import { FieldInputComponent, FieldInputProps } from './FieldInputComponent';
 
+// A default object created in the function parameter is a new reference on
+// every render. That made the initialValues effect clear controlled fields
+// after every keystroke on forms that do not provide initialValues (login).
+const EMPTY_FORM_VALUES: Record<string, any> = Object.freeze({});
+
 export interface FormComponentProps {
   id?: string;
   formId?: string;
@@ -27,7 +32,7 @@ export const FormComponent: React.FC<FormComponentProps> = ({
   fields = [],
   submitText = 'Submit',
   resetText,
-  initialValues = {},
+  initialValues = EMPTY_FORM_VALUES,
   onSubmit,
   className = '',
   mode = 'insert',

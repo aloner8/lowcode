@@ -96,6 +96,19 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
 
     const coreUrl = new URL(process.env.CORE_DATABASE_URL || '');
     coreUrl.pathname = `/platform_${platform.platform_slug.replace(/-/g, '_')}`;
+    const routes = Array.isArray(platform.studio_routes) ? platform.studio_routes as Array<{ path?: string; containerName?: string; targetType?: string; targetId?: string; isDefault?: boolean; metadata?: { isStartPoint?: boolean } }> : [];
+    const services = Array.isArray(platform.studio_services) ? platform.studio_services as Array<{ id?: string; bundle?: { loginPageId?: string } }> : [];
+    const startPathFor = (surface: 'frontend' | 'backend') => {
+      const candidates = routes.filter((route) => String(route.containerName || '').endsWith(`-${surface}`));
+      const selected = candidates.find((route) => route.isDefault || route.metadata?.isStartPoint) || candidates[0];
+      const servicePageId = selected?.targetType === 'service'
+        ? services.find((service) => service.id === selected.targetId)?.bundle?.loginPageId
+        : undefined;
+      const pageId = servicePageId || (selected?.targetType === 'page' ? selected.targetId : undefined);
+      if (pageId) return `/${pageId}`;
+      const path = selected?.path?.trim() || '/';
+      return path === '/' ? '' : path.startsWith('/') ? path : `/${path}`;
+    };
     const surfaces: Record<string, { containerName: string; port: number | null; url: string | null }> = {};
     for (const surface of ['frontend', 'backend'] as const) {
       const containerName = `${containerBase}_${surface}`;
@@ -110,7 +123,8 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       if (start.statusCode >= 300) throw new Error(`Unable to start ${surface} runtime`);
       const inspect = await dockerRequest<{ NetworkSettings?: { Ports?: Record<string, Array<{ HostPort: string }> | null> } }>('GET', `/containers/${create.data.Id}/json`);
       const surfacePort = Number(inspect.data.NetworkSettings?.Ports?.['33000/tcp']?.[0]?.HostPort || 0) || null;
-      surfaces[surface] = { containerName, port: surfacePort, url: surfacePort ? `http://localhost:${surfacePort}/app/${platform.platform_slug}` : null };
+      const startPath = startPathFor(surface);
+      surfaces[surface] = { containerName, port: surfacePort, url: surfacePort ? `http://localhost:${surfacePort}/app/${platform.platform_slug}${startPath}` : null };
     }
     const port = surfaces.frontend.port;
 

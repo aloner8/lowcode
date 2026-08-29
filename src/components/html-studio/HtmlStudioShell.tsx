@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Braces, ChevronRight, Code2, Eye, LayoutPanelLeft, Monitor, Save, Smartphone, Tablet, Trash2, X } from 'lucide-react';
+import { Braces, ChevronRight, Code2, ExternalLink, Eye, LayoutPanelLeft, Monitor, Save, Smartphone, Tablet, Trash2, X } from 'lucide-react';
 import { appendNode, cloneDocument, compileDocument, createNodeId, findNode, parseHtmlSource, removeNode, serializeStudioNodes, updateNode, type HtmlStudioDocument, type StudioNode } from '@/lib/html-studio';
 import { COMPONENT_REGISTRY } from '@/lib/engine/ComponentRegistry';
 
-interface HtmlStudioShellProps { document: HtmlStudioDocument; onSave: (document: HtmlStudioDocument) => void; onClose?: () => void; embedded?: boolean; onDirtyChange?: (dirty: boolean) => void; }
+interface HtmlStudioShellProps { document: HtmlStudioDocument; onSave: (document: HtmlStudioDocument) => void; onClose?: () => void; embedded?: boolean; onDirtyChange?: (dirty: boolean) => void; openInNewTabUrl?: string; }
 type ViewMode = 'visual' | 'split' | 'source';
 type DeviceMode = 'desktop' | 'tablet' | 'mobile';
 
@@ -32,7 +32,7 @@ const VisualNode: React.FC<{ node: StudioNode; selectedId: string | null; onSele
   return <Tag {...attributes} className={node.classList?.join(' ')} onClick={(event: React.MouseEvent) => { event.stopPropagation(); onSelect(node.id); }} style={selectedId === node.id ? { outline: '2px solid #0c58a9', outlineOffset: '2px' } : undefined}>{node.children?.map((child) => <VisualNode key={child.id} node={child} selectedId={selectedId} onSelect={onSelect}/>)}</Tag>;
 };
 
-export const HtmlStudioShell: React.FC<HtmlStudioShellProps> = ({ document: initialDocument, onSave, onClose, embedded = false, onDirtyChange }) => {
+export const HtmlStudioShell: React.FC<HtmlStudioShellProps> = ({ document: initialDocument, onSave, onClose, embedded = false, onDirtyChange, openInNewTabUrl }) => {
   const [document, setDocument] = useState(() => cloneDocument(initialDocument));
   const [selectedId, setSelectedId] = useState<string | null>(initialDocument.root[0]?.id || null);
   const [viewMode, setViewMode] = useState<ViewMode>('visual');
@@ -89,7 +89,8 @@ export const HtmlStudioShell: React.FC<HtmlStudioShellProps> = ({ document: init
     onSave(next);
   };
 
-  return <div className={`${embedded ? 'w-100 h-100' : 'position-fixed top-0 start-0 w-100 h-100'} bg-dark d-flex flex-column`} style={embedded ? { minHeight: 'calc(100vh - 340px)' } : { zIndex: 3000 }}>
+  return <div className={`${embedded ? 'w-100 h-100 position-relative' : 'position-fixed top-0 start-0 w-100 h-100'} bg-dark d-flex flex-column`} style={embedded ? { minHeight: 'calc(100vh - 340px)' } : { zIndex: 3000 }}>
+    {openInNewTabUrl && <button type="button" className="btn btn-warning btn-sm position-absolute d-flex align-items-center gap-1" style={{ zIndex: 5, top: 7, right: 350 }} onClick={() => window.open(openInNewTabUrl, '_blank', 'noopener,noreferrer')}><ExternalLink size={13}/> แก้ไข Page</button>}
     <div className="d-flex align-items-center justify-content-between px-3 py-2 text-white border-bottom border-secondary"><div><strong>แก้ไขหน้าเว็บ</strong><span className="text-white-50 ms-2 small">{document.name}</span></div><div className="d-flex gap-2"><div className="btn-group btn-group-sm"><button className={`btn ${viewMode === 'visual' ? 'btn-primary' : 'btn-outline-light'}`} onClick={() => setViewMode('visual')}><Eye size={13}/> ภาพ</button><button className={`btn ${viewMode === 'split' ? 'btn-primary' : 'btn-outline-light'}`} onClick={() => setViewMode('split')}><LayoutPanelLeft size={13}/> สองฝั่ง</button><button className={`btn ${viewMode === 'source' ? 'btn-primary' : 'btn-outline-light'}`} onClick={() => setViewMode('source')}><Code2 size={13}/> โค้ด</button></div><div className="btn-group btn-group-sm"><button className={`btn ${device === 'desktop' ? 'btn-light' : 'btn-outline-light'}`} onClick={() => setDevice('desktop')}><Monitor size={13}/></button><button className={`btn ${device === 'tablet' ? 'btn-light' : 'btn-outline-light'}`} onClick={() => setDevice('tablet')}><Tablet size={13}/></button><button className={`btn ${device === 'mobile' ? 'btn-light' : 'btn-outline-light'}`} onClick={() => setDevice('mobile')}><Smartphone size={13}/></button></div><button className="btn btn-success btn-sm" onClick={saveDocument}><Save size={13}/> บันทึกหน้า</button>{!embedded && onClose && <button className="btn btn-outline-light btn-sm" onClick={onClose}><X size={15}/></button>}</div></div>
     <div className="d-flex flex-grow-1 overflow-hidden">
       <main className="flex-grow-1 bg-secondary bg-opacity-25 overflow-auto d-flex gap-2 p-2" onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; }} onDrop={(event) => { event.preventDefault(); if (!addExternalDrop(event) && draggedLibraryLabel) addLibraryItem(draggedLibraryLabel); setDraggedLibraryLabel(null); }}>{viewMode !== 'source' && <div className="bg-white shadow-sm mx-auto overflow-auto position-relative" style={{ width, maxWidth: viewMode === 'split' ? '50%' : '100%', transition: 'width .2s', minHeight: '100%' }}><div className="position-absolute top-0 start-50 translate-middle-x badge bg-dark bg-opacity-50 mt-2">ลากส่วนประกอบหรือไฟล์มาวางที่นี่</div><div className="p-3 pt-5" data-hs-scope={document.styleSheet.scopeId}>{artifact.cssText && <style>{artifact.cssText}</style>}{document.root.map((node) => <VisualNode key={node.id} node={node} selectedId={selectedId} onSelect={setSelectedId}/>)}</div></div>}{viewMode !== 'visual' && <div className="d-flex flex-column bg-white" style={{ width: viewMode === 'split' ? '50%' : '100%' }}><div className="d-flex justify-content-between align-items-center p-2 border-bottom"><span className="small fw-bold"><Braces size={13}/> โค้ด HTML</span><button className="btn btn-primary btn-sm" onClick={applySource}>ใช้โค้ดนี้</button></div><textarea className="form-control border-0 rounded-0 font-monospace flex-grow-1" value={source} onChange={(event) => setSource(event.target.value)} spellCheck={false}/>{sourceErrors.length ? <div className="alert alert-danger rounded-0 mb-0 py-2 small">{sourceErrors.join(' ')}</div> : null}</div>}</main>

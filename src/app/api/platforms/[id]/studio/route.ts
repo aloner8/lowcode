@@ -49,10 +49,42 @@ function toStudioPlatform(row: StudioPlatformRow) {
   };
 }
 
+async function syncPlatformPages(platformId: string, pages: unknown[]) {
+  const db = getCoreDb();
+  await db.query('UPDATE public.platform_pages SET is_entry_page=FALSE WHERE platform_id=$1', [platformId]);
+  for (const [index, rawPage] of pages.entries()) {
+    if (!rawPage || typeof rawPage !== 'object' || Array.isArray(rawPage)) continue;
+    const page = rawPage as Record<string, unknown>;
+    const pageId = typeof page.id === 'string' ? page.id.trim() : '';
+    if (!pageId) continue;
+    const title = typeof page.title === 'string' && page.title.trim() ? page.title.trim() : typeof page.name === 'string' ? page.name : pageId;
+    const containerName = typeof page.containerName === 'string' ? page.containerName : '';
+    const componentTree = Array.isArray(page.componentTree) ? page.componentTree : [];
+    const pageConfig = { ...page }; delete pageConfig.componentTree;
+    await db.query(
+      `INSERT INTO public.platform_pages (platform_id,page_slug,title,access_level,is_entry_page,component_tree,page_config,seo)
+       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,COALESCE($8::jsonb,'{}'::jsonb))
+       ON CONFLICT (platform_id,page_slug) DO UPDATE SET title=EXCLUDED.title,access_level=EXCLUDED.access_level,
+         is_entry_page=EXCLUDED.is_entry_page,component_tree=EXCLUDED.component_tree,page_config=EXCLUDED.page_config,seo=EXCLUDED.seo`,
+      [platformId, pageId, title, /backend|admin/i.test(containerName) ? 'PRIVATE' : 'PUBLIC', Boolean(page.isDefaultPage) || (index === 0 && !pages.some((item) => Boolean((item as Record<string, unknown>)?.isDefaultPage))), JSON.stringify(componentTree), JSON.stringify(pageConfig), page.seo === undefined ? null : JSON.stringify(page.seo)],
+    );
+  }
+  await db.query(`DELETE FROM public.platform_pages WHERE platform_id=$1 AND NOT (page_slug = ANY($2::text[]))`, [platformId, pages.map((page) => String((page as Record<string, unknown>)?.id || '')).filter(Boolean)]);
+}
+
 const selectStudioPlatform = `
   SELECT p.id, p.platform_slug, p.platform_name, p.description,
          c.category_name, p.master_theme_config, p.studio_layout,
-         p.studio_pages, p.studio_forms, p.studio_collections, p.studio_routes, p.studio_services, p.studio_initialized,
+         COALESCE(
+           (SELECT jsonb_agg(pp.page_config || jsonb_build_object(
+             'id', pp.page_slug,
+             'name', COALESCE(NULLIF(pp.page_config->>'name', ''), pp.title || ' (' || pp.page_slug || '.page)'),
+             'title', pp.title, 'componentTree', pp.component_tree,
+             'isDefaultPage', pp.is_entry_page, 'seo', pp.seo
+           ) ORDER BY pp.created_at) FROM public.platform_pages pp WHERE pp.platform_id=p.id),
+           p.studio_pages
+         ) AS studio_pages,
+         p.studio_forms, p.studio_collections, p.studio_routes, p.studio_services, p.studio_initialized,
          p.is_published, p.updated_at
   FROM public.platforms p
   LEFT JOIN public.platform_categories c ON c.id = p.category_id
@@ -106,6 +138,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
       [id, JSON.stringify(body.studioLayout), body.studioPages === undefined ? null : JSON.stringify(body.studioPages), body.studioForms === undefined ? null : JSON.stringify(body.studioForms), body.studioCollections === undefined ? null : JSON.stringify(body.studioCollections), body.studioServices === undefined ? null : JSON.stringify(body.studioServices)],
     );
     if (!update.rowCount) return NextResponse.json({ error: 'ไม่พบ Platform ที่เลือก' }, { status: 404 });
+    if (Array.isArray(body.studioPages)) await syncPlatformPages(id, body.studioPages);
 
     const result = await getCoreDb().query<StudioPlatformRow>(selectStudioPlatform, [id]);
     await recordPlatformAudit({
@@ -156,6 +189,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       const nextServices = [...services.filter((service) => service.id !== authService.id), markAuthBundleReady(authService, adminPage.id)];
       const flowNodes = AUTH_LOGIN_FLOW.nodes.map((node) => node.id === 'login.success' ? { ...node, data: { ...node.data, targetPageId: adminPage.id } } : node);
       await getCoreDb().query(`UPDATE public.platforms SET studio_pages=$2::jsonb, studio_collections=$3::jsonb, studio_routes=$4::jsonb, studio_services=$5::jsonb, studio_initialized=TRUE, content_updated_at=NOW(), runtime_status=CASE WHEN runtime_built_at IS NULL THEN 'not_created' ELSE 'stale' END WHERE id=$1`, [id, JSON.stringify(nextPages), JSON.stringify(nextCollections), JSON.stringify(nextRoutes), JSON.stringify(nextServices)]);
+      await syncPlatformPages(id, nextPages);
       await getCoreDb().query(`INSERT INTO public.platform_page_flows (platform_id, route_path, route_label, template_type, nodes, edges) VALUES ($1,$2,$3,$4,$5::jsonb,$6::jsonb) ON CONFLICT (platform_id, route_path) DO UPDATE SET route_label=EXCLUDED.route_label, template_type=EXCLUDED.template_type, nodes=EXCLUDED.nodes, edges=EXCLUDED.edges`, [id, AUTH_LOGIN_FLOW.routePath, AUTH_LOGIN_FLOW.routeLabel, AUTH_LOGIN_FLOW.templateType, JSON.stringify(flowNodes), JSON.stringify(AUTH_LOGIN_FLOW.edges)]);
       await getCoreDb().query(`INSERT INTO public.platform_page_flows (platform_id, route_path, route_label, template_type, nodes, edges) VALUES ($1,'/logout','JWT Logout','public_page',$2::jsonb,$3::jsonb) ON CONFLICT (platform_id, route_path) DO UPDATE SET nodes=EXCLUDED.nodes, edges=EXCLUDED.edges`, [id, JSON.stringify([{ id: 'logout.click', type: 'trigger', data: { label: 'Click Logout', nodeType: 'trigger', actionType: 'click', componentId: 'auth.logout.button' } }, { id: 'logout.clear', type: 'action', data: { label: 'Clear JWT', nodeType: 'action', actionType: 'service', serviceId: 'service.auth.jwt' } }, { id: 'logout.login', type: 'action', data: { label: 'Open Login Page', nodeType: 'action', actionType: 'navigate', targetPageId: loginPage.id } }]), JSON.stringify([{ id: 'logout.e1', source: 'logout.click', target: 'logout.clear' }, { id: 'logout.e2', source: 'logout.clear', target: 'logout.login' }])]);
       return NextResponse.json({ pages: nextPages, collections: nextCollections, routes: nextRoutes, services: nextServices, bundle: { serviceId: authService.id, loginPageId: loginPage.id, collectionIds: [...authIds], flowPath: AUTH_LOGIN_FLOW.routePath } });
@@ -206,6 +240,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
        WHERE id = $1`,
       [id, JSON.stringify(componentTree), JSON.stringify(studioPages)],
     );
+    await syncPlatformPages(id, studioPages);
     await recordPlatformAudit({
       platformId: id,
       entityType: 'PAGE',

@@ -355,7 +355,8 @@ export default function StudioPage() {
         }));
         if (platform.studioPages.length > 0) {
           const databasePages = platform.studioPages;
-          const initialPage = databasePages.find((page) => page.id === activePage) || databasePages.find((page) => page.isDefaultPage) || databasePages[0];
+          const requestedPageId = new URLSearchParams(window.location.search).get('pageId');
+          const initialPage = databasePages.find((page) => page.id === requestedPageId) || databasePages.find((page) => page.id === activePage) || databasePages.find((page) => page.isDefaultPage) || databasePages[0];
           const initialTree = initialPage.componentTree || [];
           setStudioPages(databasePages); setActivePage(initialPage.id); setNodes(initialTree);
           historyRef.current = new HistoryStackManager(initialTree);
@@ -1116,7 +1117,7 @@ export default function StudioPage() {
                   </div>
                 ) : activeStudioPage && pageStudioDocument && !isPreviewMode ? (
                   <div className="card-body p-0 overflow-hidden bg-dark" style={{ minHeight: 'calc(100vh - 340px)', maxHeight: 'calc(100vh - 260px)' }}>
-                    {isLoadingPage ? <div className="h-100 d-flex align-items-center justify-content-center text-white"><div className="spinner-border spinner-border-sm me-2"/>Loading Page from database...</div> : <HtmlStudioShell key={`${activePage}:${pageStudioDocument.id}`} embedded document={pageStudioDocument} onSave={(document) => void handleSavePageStudioDocument(document)} onDirtyChange={setIsPageDirty} />}
+                    {isLoadingPage ? <div className="h-100 d-flex align-items-center justify-content-center text-white"><div className="spinner-border spinner-border-sm me-2"/>Loading Page from database...</div> : <HtmlStudioShell key={`${activePage}:${pageStudioDocument.id}`} embedded document={pageStudioDocument} openInNewTabUrl={platformId ? `/page-designer/platform/${encodeURIComponent(platformId)}/${encodeURIComponent(activePage)}` : undefined} onSave={(document) => void handleSavePageStudioDocument(document)} onDirtyChange={setIsPageDirty} />}
                   </div>
                 ) : <div
                   className="card-body p-3 overflow-auto bg-light d-flex justify-content-center position-relative"

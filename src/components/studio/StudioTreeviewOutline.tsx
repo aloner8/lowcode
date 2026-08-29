@@ -245,20 +245,22 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
       });
       const linkedPageIds = new Set(routes.filter((route) => route.targetType === 'page' && route.targetId).map((route) => route.targetId));
       const unlinkedPages = pages.filter((page) => !linkedPageIds.has(page.id) && !page.siteMapMaterialized).map((page) => {
-        const inferredSurface = /admin|backend/i.test(`${page.id} ${page.name}`) ? 'backend' : 'frontend';
+        const pageName = page.name || page.id;
+        const inferredSurface = /admin|backend/i.test(`${page.id} ${pageName}`) ? 'backend' : 'frontend';
         const containerName = page.containerName?.trim() || `${appInfo.appSlug}-${inferredSurface}`;
-        return { id: `route.page.${page.id}`, path: page.routePath || (page.isDefaultPage ? '/' : `/${page.id}`), label: page.name.replace(/\s*\([^)]*\)\s*$/, '') || page.id, type: 'public_page' as const, nodeType: 'page' as const, isStartPoint: Boolean(page.isDefaultPage), outlinePath: [], page: { ...page, containerName } };
+        return { id: `route.page.${page.id}`, path: page.routePath || (page.isDefaultPage ? '/' : `/${page.id}`), label: pageName.replace(/\s*\([^)]*\)\s*$/, '') || page.id, type: 'public_page' as const, nodeType: 'page' as const, isStartPoint: Boolean(page.isDefaultPage), outlinePath: [], page: { ...page, name: pageName, containerName } };
       });
       return [...generated, ...unlinkedPages];
     }
     if (pages.some((page) => page.siteMapMaterialized)) return [];
     const seenContainers = new Set<string>();
     return pages.map((page) => {
-      const inferredSurface = /admin|backend/i.test(`${page.id} ${page.name}`) ? 'backend' : 'frontend';
+      const pageName = page.name || page.id;
+      const inferredSurface = /admin|backend/i.test(`${page.id} ${pageName}`) ? 'backend' : 'frontend';
       const containerName = page.containerName?.trim() || `${appInfo.appSlug}-${inferredSurface}`;
       const isFirstInContainer = !seenContainers.has(containerName);
       seenContainers.add(containerName);
-      return { path: page.routePath || (page.isDefaultPage || isFirstInContainer ? '/' : `/${page.id}`), label: page.name.replace(/\s*\([^)]*\)\s*$/, '') || page.id, type: 'public_page' as const, nodeType: 'page' as const, isStartPoint: Boolean(page.isDefaultPage || isFirstInContainer), outlinePath: [], page: { ...page, containerName } };
+      return { path: page.routePath || (page.isDefaultPage || isFirstInContainer ? '/' : `/${page.id}`), label: pageName.replace(/\s*\([^)]*\)\s*$/, '') || page.id, type: 'public_page' as const, nodeType: 'page' as const, isStartPoint: Boolean(page.isDefaultPage || isFirstInContainer), outlinePath: [], page: { ...page, name: pageName, containerName } };
     });
   }, [appInfo.appSlug, pages, routes]);
   const siteRoutesByContainer = useMemo(() => platformSiteRoutes.reduce<Record<string, typeof platformSiteRoutes>>((result, route) => {
