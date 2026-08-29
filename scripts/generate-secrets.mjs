@@ -52,7 +52,7 @@ const DEFAULTS = {
   CORE_POSTGRES_PASSWORD: 'lowcode_dev_password',
   PGADMIN_DEFAULT_EMAIL: 'admin@lowcode.dev',
   PGADMIN_DEFAULT_PASSWORD: 'pgadmin_dev_password',
-  MAX_UPLOAD_BYTES: '10485760',
+  MAX_UPLOAD_BYTES: '104857600',
   SITES_HOSTNAME: '0.0.0.0',
 };
 

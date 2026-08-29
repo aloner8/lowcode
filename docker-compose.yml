@@ -71,7 +71,7 @@ services:
       # Sessions are HMAC-signed. There is deliberately no default: a published
       # default is the same as no secret at all. Run `npm run secrets` to create one.
       AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required — run "npm run secrets" to generate .env}
-      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-10485760}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-104857600}
       DOCKER_SOCKET_PATH: /var/run/docker.sock
       PLATFORM_RUNTIME_NETWORK: lowcode_network
       PLATFORM_RUNTIME_BASE_IMAGE: lowcode-app:latest
@@ -105,7 +105,7 @@ services:
       CORE_DATABASE_URL: postgresql://${CORE_POSTGRES_USER:-lowcode_admin}:${CORE_POSTGRES_PASSWORD:-lowcode_dev_password}@core-db:5432/${CORE_POSTGRES_DB:-lowcode_core}
       AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required — run "npm run secrets" to generate .env}
       PLATFORM_JWT_SECRET: ${PLATFORM_JWT_SECRET:?PLATFORM_JWT_SECRET is required — run "npm run secrets" to generate .env}
-      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-10485760}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-104857600}
       TENANT_STORAGE_ROOT: /app/storage/tenants
     volumes:
       # Same store as the control plane, so a file uploaded in Studio is the

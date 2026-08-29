@@ -436,7 +436,7 @@ title/description) หรือระดับ Platform ผ่าน `PUT /api/p
 | `AUTH_SECRET` | ✅ | กุญแจเซ็น session อย่างน้อย 32 ตัวอักษร — compose ไม่สตาร์ทถ้าไม่มี และค่าที่ publish แล้วถูกปฏิเสธ |
 | `PLATFORM_JWT_SECRET` | ✅ | กุญแจเซ็น JWT ของ tenant service auth |
 | `TENANT_STORAGE_ROOT` | ⭕ | โฟลเดอร์เก็บไฟล์อัปโหลด แยกไดเรกทอรีต่อ tenant (compose ใช้ named volume `lowcode_tenant_storage`) |
-| `MAX_UPLOAD_BYTES` | ⭕ | ขนาดไฟล์อัปโหลดสูงสุด (default 10 MB) |
+| `MAX_UPLOAD_BYTES` | ⭕ | ขนาดไฟล์อัปโหลดสูงสุด (default 100 MB) |
 | `SITES_HOSTNAME` | ⭕ | interface ที่ Site bind (default `0.0.0.0`) |
 | `SITE_SLUG` | อัตโนมัติ | Site ที่โปรเซสนี้ให้บริการ — ตั้งโดย `run-sites.mjs` |
 | `SITE_DOMAIN_MAP` | อัตโนมัติ | JSON map `hostname → slug` — ตั้งโดย `run-sites.mjs` |

@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Box, Edit3, FileText, Layers, Plus, Save, Search, Trash2 } from 'lucide-react';
+import { ArrowLeft, Box, Edit3, FileText, Layers, Plus, Save, Search, Sparkles, Trash2 } from 'lucide-react';
 import { DynamicPageRenderer } from '@/components/engine/DynamicPageRenderer';
+import { GenPageFromImageWizard, type GenPageFromImageRequest } from '@/components/studio/GenPageFromImageWizard';
+import { StorageScopeProvider } from '@/components/shared/StorageScopeContext';
 import { COMPONENT_PALETTE, type ComponentPaletteItem } from '@/lib/engine/ComponentRegistry';
 import type { AppConfig, ComponentNode } from '@/types';
 
@@ -26,9 +28,11 @@ export default function PageDesigner({ workspace }: { readonly workspace: string
   const [editingId, setEditingId] = useState<string | null>(null);
   const [nodes, setNodes] = useState<ComponentNode[]>([]);
   const [region, setRegion] = useState<string>('content');
+  const [hoveredRegion, setHoveredRegion] = useState<string | null>(null);
   const [regionEnabled, setRegionEnabled] = useState<Record<string, boolean>>(() => Object.fromEntries(REGIONS.map(([id]) => [id, true])));
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [componentSearch, setComponentSearch] = useState('');
+  const [showImageWizard, setShowImageWizard] = useState(false);
   const [status, setStatus] = useState('กำลังโหลด Platform...');
 
   useEffect(() => {
@@ -43,7 +47,10 @@ export default function PageDesigner({ workspace }: { readonly workspace: string
         const response = await fetch(`/api/platforms/${platformId}/studio`, { cache: 'no-store' });
         const data = await response.json() as { platform?: PlatformData; error?: string };
         if (!response.ok || !data.platform) throw new Error(data.error || 'โหลดข้อมูล Page ไม่สำเร็จ');
-        setPlatform(data.platform); setPages(data.platform.studioPages || []); setStatus('');
+        setPlatform(data.platform); setPages(data.platform.studioPages || []);
+        const shareResponse = await fetch(`/api/file-manager?platformId=${encodeURIComponent(data.platform.id)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create-directory', path: '/uploads', name: 'Share' }) });
+        if (!shareResponse.ok) { const shareData = await shareResponse.json() as { error?: string }; throw new Error(shareData.error || 'สร้างโฟลเดอร์ Share ไม่สำเร็จ'); }
+        setStatus('');
       } catch (error) { setStatus(error instanceof Error ? error.message : 'โหลดข้อมูลไม่สำเร็จ'); }
     };
     void load();
@@ -64,6 +71,34 @@ export default function PageDesigner({ workspace }: { readonly workspace: string
     const page: Page = { id, name: `${definition.title} (${id}.page)`, title: `${definition.title} ใหม่`, routePath: `/${id}`, templateType: workspace, componentTree: [], layoutRegions: Object.fromEntries(REGIONS.map(([regionId]) => [regionId, true])) };
     setPages((current) => [...current, page]); edit(page);
   };
+  const createPageFromImage = async (request: GenPageFromImageRequest) => {
+    if (!platform) throw new Error('ยังโหลด Platform ไม่สำเร็จ');
+    const createdAt = Date.now();
+    const layoutFor = (sectionId: string) => sectionId === 'header' || sectionId === 'breadcrumb' ? 'top' : sectionId === 'sidebar' ? 'sidebar-right' : sectionId === 'footer' ? 'footer' : 'content';
+    const generatedNodes: ComponentNode[] = request.analysis.sections.map((section, index) => {
+      const layoutRegion = layoutFor(section.id);
+      return {
+        id: `image_${section.id}_${createdAt}_${index}`,
+        type: 'DynamicHtmlComponent',
+        label: `${section.label} · Generated from Image`,
+        props: {
+          __layoutRegion: layoutRegion, __sectionId: layoutRegion, __sectionName: REGIONS.find(([id]) => id === layoutRegion)?.[1],
+          componentRole: 'GeneratedFromImageSection', sourceImageUrl: request.image.url, sourceImagePath: request.image.path,
+          viewport: request.viewport, detectedGrid: section.grid, suggestedComponent: section.component, collection: section.collection,
+          content: `<section class="p-4 border rounded-3 bg-white"><div class="small text-primary fw-semibold">Generated from image</div><h2>${section.label}</h2><p class="text-secondary mb-0">${section.grid} · ${section.component}</p></section>`,
+        },
+      };
+    });
+    const id = `${workspace}-image-${createdAt.toString(36)}`;
+    const usedRegions = new Set(generatedNodes.map((node) => String(node.props?.__layoutRegion)));
+    const page: Page = { id, name: `${request.pageTitle} (${id}.page)`, title: request.pageTitle, routePath: `/${id}`, templateType: `${workspace}-generated-from-image`, componentTree: generatedNodes, layoutRegions: Object.fromEntries(REGIONS.map(([regionId]) => [regionId, usedRegions.has(regionId)])) };
+    const nextPages = [...pages, page];
+    setStatus('กำลังสร้าง Page จากรูปภาพ...');
+    const response = await fetch(`/api/platforms/${platform.id}/studio`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studioLayout: generatedNodes, studioPages: nextPages }) });
+    const data = await response.json() as { error?: string };
+    if (!response.ok) { setStatus(data.error || 'สร้าง Page จากรูปภาพไม่สำเร็จ'); throw new Error(data.error || 'สร้าง Page จากรูปภาพไม่สำเร็จ'); }
+    setPages(nextPages); setStatus('สร้าง Page จากรูปภาพและจัดวาง Layout แล้ว'); edit(page);
+  };
   const addComponent = (item: ComponentPaletteItem) => {
     const node: ComponentNode = { id: `${item.type}_${Date.now().toString(36)}`, type: item.type, label: item.label, props: { ...structuredClone(item.defaultProps), __layoutRegion: region, __sectionId: region, __sectionName: REGIONS.find(([id]) => id === region)?.[1] || region } };
     setNodes((current) => [...current, node]); setSelectedNodeId(node.id);
@@ -78,17 +113,17 @@ export default function PageDesigner({ workspace }: { readonly workspace: string
     setPages(nextPages); setStatus('บันทึก Page แล้ว');
   };
 
-  if (!editingId) return <div className="p-3 p-md-4 bg-light min-vh-100">
-    <div className="d-flex justify-content-between align-items-start gap-3 mb-4"><div><div className="text-primary small fw-semibold">Page Designer ตัวใหม่</div><h2>{definition.title}</h2><p className="text-secondary mb-0">เลือก Page เพื่อแก้ไขโดยไม่ผ่าน DevStudio Explorer</p></div><button className="btn btn-primary" onClick={createPage}><Plus size={16} className="me-2"/>สร้าง Page</button></div>
+  if (!editingId) return <StorageScopeProvider scope={{ platformId: platform?.id }}><><div className="p-3 p-md-4 bg-light min-vh-100">
+    <div className="d-flex justify-content-between align-items-start gap-3 mb-4"><div><div className="text-primary small fw-semibold">Page Designer ตัวใหม่</div><h2>{definition.title}</h2><p className="text-secondary mb-0">เลือก Page เพื่อแก้ไขโดยไม่ผ่าน DevStudio Explorer</p></div><div className="d-flex gap-2"><button className="btn btn-outline-primary" onClick={() => setShowImageWizard(true)}><Sparkles size={16} className="me-2"/>สร้าง Page ใหม่จากรูปภาพ</button><button className="btn btn-primary" onClick={createPage}><Plus size={16} className="me-2"/>สร้าง Page</button></div></div>
     {status && <div className={`alert ${platform ? 'alert-info' : 'alert-warning'}`}>{status}</div>}
     <div className="card border-0 shadow-sm"><div className="table-responsive"><table className="table table-hover align-middle mb-0"><thead className="table-light"><tr><th>Page</th><th>Route</th><th>Template</th><th className="text-end">จัดการ</th></tr></thead><tbody>
       {filteredPages.map((page) => <tr key={page.id}><td><FileText size={16} className="text-primary me-2"/><b>{page.title}</b><div><code>{page.id}</code></div></td><td><code>{page.routePath || `/${page.id}`}</code></td><td>{page.templateType || 'custom'}</td><td className="text-end"><button className="btn btn-sm btn-outline-primary" onClick={() => edit(page)}><Edit3 size={14} className="me-1"/>Edit</button></td></tr>)}
       {!status && filteredPages.length === 0 && <tr><td colSpan={4} className="text-center text-secondary py-5">ยังไม่มี Page ประเภท {definition.title}</td></tr>}
     </tbody></table></div></div>
-  </div>;
+  </div>{showImageWizard && <GenPageFromImageWizard pageTitle={`${definition.title} จากรูปภาพ`} initialPickerPath="/uploads/Share" onClose={() => setShowImageWizard(false)} onGenerate={createPageFromImage}/>}</></StorageScopeProvider>;
 
   const currentPage = pages.find((page) => page.id === editingId);
-  return <div className="d-flex flex-column bg-light" style={{ minHeight: 'calc(100vh - 64px)' }}>
+  return <StorageScopeProvider scope={{ platformId: platform?.id }}><div className="d-flex flex-column bg-light" style={{ minHeight: 'calc(100vh - 64px)' }}>
     <div className="d-flex align-items-center gap-2 px-3 py-2 bg-white border-bottom"><button className="btn btn-sm btn-outline-secondary" onClick={() => setEditingId(null)}><ArrowLeft size={15}/> กลับรายการ</button><div className="ms-2"><b>{currentPage?.title}</b><div className="small text-secondary">Page Designer · {definition.title}</div></div><span className="ms-auto small text-success">{status}</span><button className="btn btn-sm btn-success" onClick={() => void save()}><Save size={15} className="me-1"/>บันทึก</button></div>
     <div className="d-grid flex-grow-1" style={{ gridTemplateColumns: '250px minmax(0,1fr) 300px', minHeight: 0 }}>
       <aside className="bg-white border-end p-3 overflow-auto">
@@ -111,14 +146,15 @@ export default function PageDesigner({ workspace }: { readonly workspace: string
             const regionNodes = nodes.filter((node) => String(node.props?.__layoutRegion || node.props?.__sectionId || 'content') === id);
             const placement = id === 'top' ? { gridColumn: '1 / 4', gridRow: '1' } : id === 'sidebar-left' ? { gridColumn: '1', gridRow: '2' } : id === 'content' ? { gridColumn: '2', gridRow: '2' } : id === 'sidebar-right' ? { gridColumn: '3', gridRow: '2' } : { gridColumn: '1 / 4', gridRow: '3' };
             const focused = region === id;
-            return <section key={id} onClick={() => setRegion(id)} style={{ ...placement, minHeight: id === 'content' ? 430 : 90, border: focused ? '2px solid #0d6efd' : '1px dashed #adb5bd', opacity: focused ? 1 : 0.22, pointerEvents: focused && enabled ? 'auto' : 'none', filter: enabled ? undefined : 'grayscale(1)', transition: 'opacity .18s, border-color .18s', position: 'relative' }}>
+            const hovered = hoveredRegion === id;
+            return <section key={id} onMouseEnter={() => setHoveredRegion(id)} onMouseLeave={() => setHoveredRegion(null)} onClick={() => { setRegion(id); setSelectedNodeId(null); }} style={{ ...placement, minHeight: id === 'content' ? 430 : 90, border: focused ? '2px solid #0d6efd' : hovered ? '2px solid #6ea8fe' : '1px dashed #adb5bd', opacity: focused ? 1 : hovered ? 0.62 : 0.22, cursor: 'pointer', filter: enabled ? undefined : 'grayscale(1)', transition: 'opacity .18s, border-color .18s, box-shadow .18s', boxShadow: hovered && !focused ? 'inset 0 0 0 2px rgba(13,110,253,.12)' : undefined, position: 'relative' }}>
               <span className={`position-absolute badge ${focused ? 'text-bg-primary' : 'text-bg-secondary'}`} style={{ zIndex: 3, top: 4, left: 4 }}>{label}{enabled ? '' : ' · ไม่ใช้'}</span>
-              {enabled && <DynamicPageRenderer nodes={regionNodes} themeConfig={platform?.masterThemeConfig} isDesignMode selectedNodeId={selectedNodeId} onSelectNode={setSelectedNodeId} rootTag={id.includes('sidebar') ? 'aside' : id === 'footer' ? 'section' : 'div'}/>} 
+              <div style={{ pointerEvents: focused && enabled ? 'auto' : 'none' }}>{enabled && <DynamicPageRenderer nodes={regionNodes} themeConfig={platform?.masterThemeConfig} isDesignMode selectedNodeId={selectedNodeId} onSelectNode={setSelectedNodeId} rootTag={id.includes('sidebar') ? 'aside' : id === 'footer' ? 'section' : 'div'}/>}</div>
             </section>;
           })}
         </div>
       </main>
       <aside className="bg-white border-start p-3 overflow-auto"><div className="fw-bold mb-2">Components</div><div className="small text-secondary mb-3">เพิ่มลงใน {REGIONS.find(([id]) => id === region)?.[1]}</div>{regionEnabled[region] === false && <div className="alert alert-warning py-2 small">Layout นี้ถูกปิดใช้งาน กรุณาเลือก Checkbox ก่อนเพิ่ม Component</div>}<div className="position-relative mb-3"><Search size={14} className="position-absolute" style={{ left: 10, top: 10 }}/><input className="form-control form-control-sm ps-4" placeholder="ค้นหา Component" value={componentSearch} onChange={(event) => setComponentSearch(event.target.value)}/></div>{palette.map((item) => <button key={item.type} className="btn btn-light border w-100 text-start mb-2 p-2" disabled={regionEnabled[region] === false} onClick={() => addComponent(item)}><div className="d-flex align-items-center"><Box size={14} className="text-primary me-2"/><b className="small">{item.label}</b><Plus size={13} className="ms-auto"/></div><div className="text-secondary mt-1" style={{ fontSize: '.7rem' }}>{item.category} · {item.description}</div></button>)}</aside>
     </div>
-  </div>;
+  </div></StorageScopeProvider>;
 }

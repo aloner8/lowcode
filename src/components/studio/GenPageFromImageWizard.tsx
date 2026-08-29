@@ -14,7 +14,7 @@ export interface GenPageFromImageRequest {
   };
 }
 
-interface Props { pageTitle: string; onClose: () => void; onGenerate: (request: GenPageFromImageRequest) => Promise<void> | void; }
+interface Props { pageTitle: string; initialPickerPath?: string; onClose: () => void; onGenerate: (request: GenPageFromImageRequest) => Promise<void> | void; }
 
 const detectedSections = [
   { id: 'header', label: 'Header / Account', grid: 'row > col-6 + col-6', component: 'NavMenuComponent · admin-topbar', collection: 'generated.header-actions' },
@@ -24,10 +24,10 @@ const detectedSections = [
   { id: 'sidebar', label: 'Stats & Quick Actions', grid: 'col-12 col-xl-3 > row > col-12 × 2', component: 'ChartComponent + NavMenuComponent', collection: 'generated.visitor + quick-actions' },
 ];
 
-export const GenPageFromImageWizard: React.FC<Props> = ({ pageTitle, onClose, onGenerate }) => {
+export const GenPageFromImageWizard: React.FC<Props> = ({ pageTitle, initialPickerPath = '/uploads', onClose, onGenerate }) => {
   const [step, setStep] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerPath, setPickerPath] = useState('/uploads');
+  const [pickerPath, setPickerPath] = useState(initialPickerPath);
   const [image, setImage] = useState<FileManagerAsset | null>(null);
   const [mode, setMode] = useState<'replace' | 'append'>('replace');
   const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');

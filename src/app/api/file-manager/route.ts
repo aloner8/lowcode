@@ -24,7 +24,7 @@ export const dynamic = 'force-dynamic';
  * delete another agency's uploads.
  */
 
-const MAX_UPLOAD_BYTES = Number(process.env.MAX_UPLOAD_BYTES ?? 10 * 1024 * 1024);
+const MAX_UPLOAD_BYTES = Number(process.env.MAX_UPLOAD_BYTES ?? 100 * 1024 * 1024);
 
 const BLOCKED_EXTENSIONS = new Set([
   '.php', '.phtml', '.php5', '.js', '.mjs', '.cjs', '.jsp', '.asp', '.aspx',
@@ -212,7 +212,9 @@ export async function POST(request: NextRequest) {
     const parent = cleanRelative(body.path || '');
     const name = path.basename(body.name.trim());
     const relative = path.posix.join(parent, name);
-    await mkdir(resolveWritePath(storage, relative), { recursive: false });
+    // Directory creation is idempotent so system folders such as /Share can
+    // be ensured on every designer load without racing another browser tab.
+    await mkdir(resolveWritePath(storage, relative), { recursive: true });
 
     return NextResponse.json({
       directory: {
