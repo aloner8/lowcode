@@ -32,7 +32,7 @@ const compileCss = (document: HtmlStudioDocument) => {
     const selector = scopeCssSelector(`${rule.selector}${rule.state ? `:${rule.state}` : ''}`, scope);
     if (!selector) return;
     const declarations = Object.entries(rule.declarations)
-      .filter(([property, value]) => /^--?[A-Za-z][A-Za-z0-9-]*$/.test(property) && !/[{}]|expression\s*\(|javascript:/i.test(value))
+      .filter(([property, value]) => /^(?:--[A-Za-z][A-Za-z0-9-]*|-?[A-Za-z][A-Za-z0-9-]*)$/.test(property) && !/[{}]|expression\s*\(|javascript:/i.test(value))
       .map(([property, value]) => `${property}:${value}`)
       .join(';');
     if (!declarations) return;

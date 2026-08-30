@@ -1,17 +1,28 @@
-import { NextResponse } from 'next/server';
-import { getCoreDb } from '@/lib/db/coreDb';
-import { mergePlatformMasterWithTenantOverrides } from '@/lib/engine/PlatformMergeEngine';
-import type { ComponentNode, TenantOverrides, ThemeConfig } from '@/types';
+import { NextResponse } from "next/server";
+import { getCoreDb } from "@/lib/db/coreDb";
+import { mergePlatformMasterWithTenantOverrides } from "@/lib/engine/PlatformMergeEngine";
+import type {
+  ComponentNode,
+  PageStyleSheet,
+  TenantOverrides,
+  ThemeConfig,
+} from "@/types";
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 interface RuntimeSnapshot {
   platformId: string;
   platformSlug: string;
   platformName: string;
   themeConfig: ThemeConfig;
-  pages?: Array<{ id: string; title?: string; componentTree?: ComponentNode[] }>;
+  pages?: Array<{
+    id: string;
+    title?: string;
+    componentTree?: ComponentNode[];
+    styleSheet?: PageStyleSheet;
+    layoutRegions?: Record<string, boolean>;
+  }>;
   forms?: unknown[];
   collections?: unknown[];
   routes?: Array<Record<string, any>>;
@@ -39,7 +50,10 @@ interface SnapshotRow {
  * that tenant's overrides (PlatformModule.MD §3) — and falls back to the
  * Platform Master itself when no app owns the slug.
  */
-export async function GET(_request: Request, context: { params: Promise<{ slug: string }> }) {
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ slug: string }> },
+) {
   const { slug } = await context.params;
 
   const result = await getCoreDb().query<SnapshotRow>(
@@ -56,30 +70,46 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
   );
 
   if (!result.rowCount) {
-    return NextResponse.json({ error: 'Published runtime snapshot not found' }, { status: 404 });
+    return NextResponse.json(
+      { error: "Published runtime snapshot not found" },
+      { status: 404 },
+    );
   }
 
   const row = result.rows[0];
   const snapshot = row.runtime_snapshot;
-  const surface = process.env.APP_SURFACE || 'frontend';
+  const surface = process.env.APP_SURFACE || "frontend";
 
   // Routes and services decide the entry page (dev: service/route driven start
   // point); tenant overrides then shape what that page actually renders.
   const routes = Array.isArray(snapshot.routes) ? snapshot.routes : [];
   const services = Array.isArray(snapshot.services) ? snapshot.services : [];
-  const surfaceRoutes = routes.filter((item) => String(item.containerName || '').endsWith(`-${surface}`));
-  const startRoute = surfaceRoutes.find((item) => item.isDefault || item.metadata?.isStartPoint)
-    || routes.find((item) => (item.isDefault || item.metadata?.isStartPoint) && item.targetType === 'service');
-  const startService = startRoute?.targetType === 'service'
-    ? services.find((item) => item.id === startRoute.targetId)
-    : undefined;
-  const startPageId = startService?.bundle?.loginPageId
-    || (startRoute?.targetType === 'page' ? startRoute.targetId : undefined);
+  const surfaceRoutes = routes.filter((item) =>
+    String(item.containerName || "").endsWith(`-${surface}`),
+  );
+  const startRoute =
+    surfaceRoutes.find(
+      (item) => item.isDefault || item.metadata?.isStartPoint,
+    ) ||
+    routes.find(
+      (item) =>
+        (item.isDefault || item.metadata?.isStartPoint) &&
+        item.targetType === "service",
+    );
+  const startService =
+    startRoute?.targetType === "service"
+      ? services.find((item) => item.id === startRoute.targetId)
+      : undefined;
+  const startPageId =
+    startService?.bundle?.loginPageId ||
+    (startRoute?.targetType === "page" ? startRoute.targetId : undefined);
 
   const page =
     snapshot.pages?.find((item) => item.id === startPageId) ||
-    snapshot.pages?.find((item) => item.id === (surface === 'backend' ? 'admin' : 'index')) ||
-    snapshot.pages?.find((item) => item.id === 'index') ||
+    snapshot.pages?.find(
+      (item) => item.id === (surface === "backend" ? "admin" : "index"),
+    ) ||
+    snapshot.pages?.find((item) => item.id === "index") ||
     snapshot.pages?.[0];
 
   // Tenant overrides can disable features and patch component props without
@@ -110,7 +140,7 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
        */
       port: 0,
       subdomain: row.app_subdomain ?? `${snapshot.platformSlug}.localhost`,
-      tenantDbName: '',
+      tenantDbName: "",
       platformId: snapshot.platformId,
       inheritedFrom: isTenantApp ? snapshot.platformName : undefined,
       themeConfig,
@@ -118,12 +148,14 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
       updatedAt: snapshot.generatedAt,
     },
     pageLayout: {
-      id: `${snapshot.platformId}:${page?.id ?? 'index'}`,
+      id: `${snapshot.platformId}:${page?.id ?? "index"}`,
       appId: snapshot.platformId,
-      pageSlug: page?.id || 'index',
-      title: page?.title || 'Home',
+      pageSlug: page?.id || "index",
+      title: page?.title || "Home",
       isDefaultPage: true,
       componentTree,
+      styleSheet: page?.styleSheet,
+      layoutRegions: page?.layoutRegions,
       createdAt: snapshot.generatedAt,
       updatedAt: snapshot.generatedAt,
     },

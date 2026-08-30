@@ -1,4 +1,12 @@
-import { AppConfig, AppRoute, ComponentNode, PageLayout, StudioServiceDefinition, WorkflowTree } from '@/types';
+import {
+  AppConfig,
+  AppRoute,
+  ComponentNode,
+  PageLayout,
+  PageStyleSheet,
+  StudioServiceDefinition,
+  WorkflowTree,
+} from "@/types";
 
 export interface AppRuntimeData {
   appConfig: AppConfig & { inheritedFrom?: string };
@@ -9,7 +17,11 @@ export interface AppRuntimeData {
     id: string;
     name?: string;
     standardFlows?: Record<string, any>;
-    components: Array<{ id: string; type: string; componentTree: ComponentNode[] }>;
+    components: Array<{
+      id: string;
+      type: string;
+      componentTree: ComponentNode[];
+    }>;
   }>;
   routes?: AppRoute[];
   /*
@@ -17,7 +29,13 @@ export interface AppRuntimeData {
    * request — those a route or a service points at. Every other page is reached
    * by an ordinary link and rendered by the server, so its tree is not sent.
    */
-  pages?: Array<{ id: string; title?: string; componentTree?: ComponentNode[] }>;
+  pages?: Array<{
+    id: string;
+    title?: string;
+    componentTree?: ComponentNode[];
+    styleSheet?: PageStyleSheet;
+    layoutRegions?: Record<string, boolean>;
+  }>;
   services?: StudioServiceDefinition[];
   flows?: Array<{
     routePath: string;
@@ -27,9 +45,12 @@ export interface AppRuntimeData {
 }
 
 export class RuntimeUnavailableError extends Error {
-  constructor(readonly appSlug: string, message: string) {
+  constructor(
+    readonly appSlug: string,
+    message: string,
+  ) {
     super(message);
-    this.name = 'RuntimeUnavailableError';
+    this.name = "RuntimeUnavailableError";
   }
 }
 
@@ -40,8 +61,12 @@ export class RuntimeUnavailableError extends Error {
  * published should say so, rather than silently rendering demo content that
  * looks real.
  */
-export async function fetchAppRuntimeData(appSlug: string): Promise<AppRuntimeData> {
-  const response = await fetch(`/api/runtime/${encodeURIComponent(appSlug)}`, { cache: 'no-store' });
+export async function fetchAppRuntimeData(
+  appSlug: string,
+): Promise<AppRuntimeData> {
+  const response = await fetch(`/api/runtime/${encodeURIComponent(appSlug)}`, {
+    cache: "no-store",
+  });
 
   if (response.ok) return (await response.json()) as AppRuntimeData;
 
@@ -52,6 +77,11 @@ export async function fetchAppRuntimeData(appSlug: string): Promise<AppRuntimeDa
     );
   }
 
-  const payload = await response.json().catch(() => ({ error: response.statusText }));
-  throw new RuntimeUnavailableError(appSlug, payload.error || 'ไม่สามารถโหลด Runtime ได้');
+  const payload = await response
+    .json()
+    .catch(() => ({ error: response.statusText }));
+  throw new RuntimeUnavailableError(
+    appSlug,
+    payload.error || "ไม่สามารถโหลด Runtime ได้",
+  );
 }

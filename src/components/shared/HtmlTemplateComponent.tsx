@@ -10,7 +10,7 @@ const RuntimeNode: React.FC<{ node: StudioNode; registry: NonNullable<HtmlTempla
     const Target = registry[node.componentRef?.id as keyof typeof registry];
     if (!Target) return <div className="alert alert-warning mb-2">Shared component &apos;{node.componentRef?.displayName || node.componentRef?.id}&apos; is unavailable.</div>;
     const props = { ...(node.attributes || {}) };
-    return <Target {...props}>{node.children?.map((child) => <RuntimeNode key={child.id} node={child} registry={registry} resolveAsset={resolveAsset}/>)}</Target>;
+    return <div id={typeof node.attributes?.id === 'string' ? node.attributes.id : undefined} data-component-instance-id={node.id} data-layout-region={typeof node.attributes?.__layoutRegion === 'string' ? node.attributes.__layoutRegion : typeof node.attributes?.__sectionId === 'string' ? node.attributes.__sectionId : undefined}><Target {...props}>{node.children?.map((child) => <RuntimeNode key={child.id} node={child} registry={registry} resolveAsset={resolveAsset}/>)}</Target></div>;
   }
   const Tag = (node.tag || 'div') as keyof React.JSX.IntrinsicElements;
   const props: Record<string, unknown> = {};

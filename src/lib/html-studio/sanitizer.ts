@@ -19,7 +19,8 @@ export function sanitizeAttribute(name: string, value: unknown): string | null {
 
 export const scopeCssSelector = (selector: string, scopeId: string) => {
   const safeScope = scopeId.replace(/[^A-Za-z0-9_-]/g, '-');
+  const scopeSelector = `[data-hs-scope="${safeScope}"]`;
   const cleanSelector = selector.trim();
   if (!cleanSelector || /(?:^|[\s,>+~])(?:html|body|:root)(?:$|[\s.#:[>+~])/i.test(cleanSelector)) return null;
-  return cleanSelector.split(',').map((part) => `[data-hs-scope="${safeScope}"] ${part.trim()}`).join(', ');
+  return cleanSelector.split(',').map((part) => part.trim().startsWith('&') ? part.trim().replace(/^&/, scopeSelector) : `${scopeSelector} ${part.trim()}`).join(', ');
 };

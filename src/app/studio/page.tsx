@@ -22,7 +22,7 @@ import type { PageSettingsValue } from '@/components/studio/PageSettingsWorkspac
 import type { GenPageFromImageRequest } from '@/components/studio/GenPageFromImageWizard';
 import { GenAppComponentFromImageWizard, type GenAppComponentFromImageRequest } from '@/components/studio/GenAppComponentFromImageWizard';
 import { DynamicPageRenderer } from '@/components/engine/DynamicPageRenderer';
-import { ComponentNode, AppConfig, AppRoute, AppWorkFlowManifest, StudioServiceDefinition } from '@/types';
+import { ComponentNode, AppConfig, AppRoute, AppWorkFlowManifest, PageStyleSheet, StudioServiceDefinition } from '@/types';
 import { ComponentPaletteItem } from '@/lib/engine/ComponentRegistry';
 import { HistoryStackManager } from '@/lib/engine/HistoryStackService';
 import { createAdminPageTemplate } from '@/lib/studio/adminMenuTemplate';
@@ -40,6 +40,7 @@ interface StudioPageDefinition {
   isDefaultPage?: boolean;
   siteMapMaterialized?: boolean;
   componentTree?: ComponentNode[];
+  styleSheet?: PageStyleSheet;
   settings?: PageSettingsValue;
   layoutHistory?: Array<{ templateType: string; componentTree: ComponentNode[]; savedAt: string }>;
 }
@@ -52,13 +53,35 @@ const componentNodesToStudioNodes = (componentNodes: ComponentNode[]): StudioNod
   children: node.children ? componentNodesToStudioNodes(node.children) : [],
 }));
 
+const reactStylePropertyToCss = (property: string) => property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`).replace(/^ms-/, '-ms-');
+const componentStyleRules = (nodes: ComponentNode[]): HtmlStudioDocument['styleSheet']['rules'] => nodes.flatMap((node) => {
+  const declarations = Object.fromEntries(Object.entries(node.style || {}).map(([property, value]) => [reactStylePropertyToCss(property), String(value)]));
+  return [
+    ...(Object.keys(declarations).length ? [{ selector: `[data-component-instance-id="${node.id.replace(/["\\]/g, '')}"]`, declarations }] : []),
+    ...componentStyleRules(node.children || []),
+  ];
+});
+
 const createPageStudioDocument = (page: StudioPageDefinition, componentNodes: ComponentNode[]): HtmlStudioDocument => {
   const existing = componentNodes.find((node) => node.type === 'HtmlTemplateComponent' && node.props?.document)?.props.document as HtmlStudioDocument | undefined;
   if (existing) return existing;
   const now = new Date().toISOString();
   return {
     id: `page_template_${page.id}`, scope: 'app', kind: 'page-template', name: `${page.title} (${page.id}.page)`, version: 1, schemaVersion: 1,
-    root: componentNodesToStudioNodes(componentNodes), styleSheet: { scopeId: `page-${page.id.replace(/[^A-Za-z0-9_-]/g, '-')}`, rules: [] }, dependencies: [],
+    root: componentNodesToStudioNodes(componentNodes), styleSheet: {
+      scopeId: page.styleSheet?.scopeId || `page-${page.id.replace(/[^A-Za-z0-9_-]/g, '-')}`,
+      rules: [
+        ...componentStyleRules(componentNodes),
+        ...(page.styleSheet?.rules || []).map((rule) => {
+          const target = rule.componentId
+            ? `[data-component-instance-id="${rule.componentId.replace(/["\\]/g, '')}"]`
+            : rule.layoutRegion
+              ? `[data-layout-region="${rule.layoutRegion.replace(/["\\]/g, '')}"]`
+              : '&';
+          return { selector: `${target}${rule.selector ? ` ${rule.selector}` : ''}`, declarations: rule.declarations, breakpoint: rule.breakpoint, state: rule.state };
+        }),
+      ],
+    }, dependencies: [],
     settings: { cssScope: 'page', dataPolicy: 'mock-only', scriptPolicy: 'none' }, createdAt: now, updatedAt: now,
   };
 };
@@ -1143,6 +1166,7 @@ export default function StudioPage() {
                     <DynamicPageRenderer
                       nodes={nodes}
                       themeConfig={appInfo.themeConfig}
+                      styleSheet={activeStudioPage?.styleSheet}
                       isDesignMode={!isPreviewMode}
                       selectedNodeId={selectedNodeId}
                       onSelectNode={(id) => setSelectedNodeId(id)}

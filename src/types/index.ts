@@ -1,63 +1,63 @@
 // Core TypeScript Interfaces for Low-Code Platform Engine
 
 export type ComponentType =
-  | 'FieldInputComponent'
-  | 'FormComponent'
-  | 'TableDataComponent'
-  | 'DataTableComponent'
-  | 'ListComponent'
-  | 'PostListComponent'
-  | 'GalleryComponent'
-  | 'FileManagerComponent'
-  | 'FileManagerPopupComponent'
-  | 'DynamicHtmlComponent'
-  | 'HtmlEditorComponent'
-  | 'HtmlTemplateComponent'
-  | 'NavMenuComponent'
-  | 'SlideMenuComponent'
-  | 'EditMenuComponent'
-  | 'CardComponent'
-  | 'ChartComponent'
-  | 'TabsContainerComponent'
-  | 'AccordionComponent'
-  | 'ModalDialogComponent'
-  | 'SiteTopbarComponent'
-  | 'SiteHeaderComponent'
-  | 'SiteSidebarMenuComponent'
-  | 'SiteFooterComponent'
-  | 'HeroCarouselComponent'
-  | 'ServiceLinksComponent'
-  | 'StatCounterComponent'
-  | 'PeopleGridComponent'
-  | 'FloatingDockComponent'
-  | 'SiteTickerComponent'
-  | 'SiteSearchComponent'
-  | 'ExecutiveCardComponent'
-  | 'NoticeListComponent'
-  | 'PartnerStripComponent'
-  | 'MediaFeatureComponent'
-  | 'CookieConsentComponent'
-  | 'PagerComponent'
-  | 'LanguageSwitchComponent'
-  | 'FloatingNoticeComponent'
-  | 'EventCalendarComponent'
-  | 'VisitCounterComponent'
-  | 'TabbedSectionComponent'
-  | 'DocumentAccordionComponent'
-  | 'AlertChannelsComponent';
+  | "FieldInputComponent"
+  | "FormComponent"
+  | "TableDataComponent"
+  | "DataTableComponent"
+  | "ListComponent"
+  | "PostListComponent"
+  | "GalleryComponent"
+  | "FileManagerComponent"
+  | "FileManagerPopupComponent"
+  | "DynamicHtmlComponent"
+  | "HtmlEditorComponent"
+  | "HtmlTemplateComponent"
+  | "NavMenuComponent"
+  | "SlideMenuComponent"
+  | "EditMenuComponent"
+  | "CardComponent"
+  | "ChartComponent"
+  | "TabsContainerComponent"
+  | "AccordionComponent"
+  | "ModalDialogComponent"
+  | "SiteTopbarComponent"
+  | "SiteHeaderComponent"
+  | "SiteSidebarMenuComponent"
+  | "SiteFooterComponent"
+  | "HeroCarouselComponent"
+  | "ServiceLinksComponent"
+  | "StatCounterComponent"
+  | "PeopleGridComponent"
+  | "FloatingDockComponent"
+  | "SiteTickerComponent"
+  | "SiteSearchComponent"
+  | "ExecutiveCardComponent"
+  | "NoticeListComponent"
+  | "PartnerStripComponent"
+  | "MediaFeatureComponent"
+  | "CookieConsentComponent"
+  | "PagerComponent"
+  | "LanguageSwitchComponent"
+  | "FloatingNoticeComponent"
+  | "EventCalendarComponent"
+  | "VisitCounterComponent"
+  | "TabbedSectionComponent"
+  | "DocumentAccordionComponent"
+  | "AlertChannelsComponent";
 
 export type ThemePreset =
-  | 'thai-municipal'
-  | 'modern-indigo'
-  | 'corporate-emerald'
-  | 'dark-glassmorphism'
-  | 'sunset-warm'
-  | 'cyberpunk'
-  | 'minimal-slate';
+  | "thai-municipal"
+  | "modern-indigo"
+  | "corporate-emerald"
+  | "dark-glassmorphism"
+  | "sunset-warm"
+  | "cyberpunk"
+  | "minimal-slate";
 
 export interface ThemeConfig {
   preset: ThemePreset;
-  mode: 'light' | 'dark';
+  mode: "light" | "dark";
   primaryColor: string;
   secondaryColor?: string;
   borderRadius: string; // e.g. "0.375rem"
@@ -66,17 +66,11 @@ export interface ThemeConfig {
 }
 
 /** CreatePlatform.MD §4 — decides which pages, modules and flows a blueprint gets. */
-export type FirstPublicPageMode = 'PUBLIC_HOME' | 'PUBLIC_HOME_WITH_LOGIN' | 'LOGIN_PAGE';
+export type FirstPublicPageMode =
+  "PUBLIC_HOME" | "PUBLIC_HOME_WITH_LOGIN" | "LOGIN_PAGE";
 
 export type PlatformModuleCode =
-  | 'PAGES'
-  | 'AUTH'
-  | 'FLOW'
-  | 'STYLE'
-  | 'FORM'
-  | 'SERVICE'
-  | 'EVENT'
-  | 'REPORT';
+  "PAGES" | "AUTH" | "FLOW" | "STYLE" | "FORM" | "SERVICE" | "EVENT" | "REPORT";
 
 export interface PlatformModule {
   id: string;
@@ -93,13 +87,14 @@ export interface PlatformPage {
   platformId: string;
   pageSlug: string;
   title: string;
-  accessLevel: 'PUBLIC' | 'PRIVATE';
+  accessLevel: "PUBLIC" | "PRIVATE";
   isEntryPage: boolean;
   componentTree: ComponentNode[];
   pageConfig: Record<string, any>;
 }
 
-export type PlatformFlowType = 'ENTERPRISE' | 'SEQUENCE' | 'APP_MANIFEST' | 'PAGE';
+export type PlatformFlowType =
+  "ENTERPRISE" | "SEQUENCE" | "APP_MANIFEST" | "PAGE";
 
 export interface PlatformWorkflow {
   id: string;
@@ -130,7 +125,10 @@ export interface PlatformConfig {
 export interface TenantOverrides {
   disabledFeatures?: string[]; // IDs or ComponentTypes disabled for this tenant
   themeOverrides?: Partial<ThemeConfig>;
-  componentPropsOverrides?: Record<string, { props?: Record<string, any>; style?: Record<string, any> }>;
+  componentPropsOverrides?: Record<
+    string,
+    { props?: Record<string, any>; style?: Record<string, any> }
+  >;
 }
 
 export interface AppConfig {
@@ -152,29 +150,63 @@ export interface AppConfig {
 export interface StudioServiceDefinition {
   id: string;
   name: string;
-  kind: 'auth';
-  provider: 'jwt';
-  scope: 'container';
+  kind: "auth";
+  provider: "jwt";
+  scope: "container";
   enabled: boolean;
-  implementation: { owner: 'mother'; version: number; module: string };
+  implementation: { owner: "mother"; version: number; module: string };
   config: {
-    algorithm: 'HS256';
+    algorithm: "HS256";
     issuer: string;
     audience: string;
     accessTokenTtlSeconds: number;
     refreshTokenTtlSeconds: number;
     secretEnvKey: string;
   };
-  containerBindings: Array<{ containerName: string; enabled: boolean; configOverrides?: Partial<StudioServiceDefinition['config']> }>;
-  bundle?: { status: 'not_provisioned' | 'ready'; loginPageId: string; adminPageId: string; userCollectionId: string; permissionCollectionId: string; roleCollectionId: string; flowPath: string };
+  containerBindings: Array<{
+    containerName: string;
+    enabled: boolean;
+    configOverrides?: Partial<StudioServiceDefinition["config"]>;
+  }>;
+  bundle?: {
+    status: "not_provisioned" | "ready";
+    loginPageId: string;
+    adminPageId: string;
+    userCollectionId: string;
+    permissionCollectionId: string;
+    roleCollectionId: string;
+    flowPath: string;
+  };
 }
 
-export const createDefaultJwtAuthService = (platformSlug: string): StudioServiceDefinition => ({
-  id: 'service.auth.jwt', name: 'Auth (JWT)', kind: 'auth', provider: 'jwt', scope: 'container', enabled: true,
-  implementation: { owner: 'mother', version: 1, module: 'auth/jwt' },
-  config: { algorithm: 'HS256', issuer: platformSlug, audience: `${platformSlug}-containers`, accessTokenTtlSeconds: 900, refreshTokenTtlSeconds: 604800, secretEnvKey: 'PLATFORM_JWT_SECRET' },
+export const createDefaultJwtAuthService = (
+  platformSlug: string,
+): StudioServiceDefinition => ({
+  id: "service.auth.jwt",
+  name: "Auth (JWT)",
+  kind: "auth",
+  provider: "jwt",
+  scope: "container",
+  enabled: true,
+  implementation: { owner: "mother", version: 1, module: "auth/jwt" },
+  config: {
+    algorithm: "HS256",
+    issuer: platformSlug,
+    audience: `${platformSlug}-containers`,
+    accessTokenTtlSeconds: 900,
+    refreshTokenTtlSeconds: 604800,
+    secretEnvKey: "PLATFORM_JWT_SECRET",
+  },
   containerBindings: [],
-  bundle: { status: 'not_provisioned', loginPageId: 'auth.login', adminPageId: 'auth.admin', userCollectionId: 'auth.user.collection', permissionCollectionId: 'auth.permission.collection', roleCollectionId: 'auth.role.collection', flowPath: '/login' },
+  bundle: {
+    status: "not_provisioned",
+    loginPageId: "auth.login",
+    adminPageId: "auth.admin",
+    userCollectionId: "auth.user.collection",
+    permissionCollectionId: "auth.permission.collection",
+    roleCollectionId: "auth.role.collection",
+    flowPath: "/login",
+  },
 });
 
 export interface ComponentNode {
@@ -189,6 +221,54 @@ export interface ComponentNode {
   actionTriggerId?: string; // Event bound to a workflow trigger
 }
 
+export type PageStyleBreakpoint = "tablet" | "mobile";
+export type PageStyleState = "hover" | "focus" | "active" | "disabled";
+
+export interface PageStyleRule {
+  id: string;
+  /** Omitted for a page rule. Mutually exclusive with layoutRegion. */
+  componentId?: string;
+  /** Applies to every component wrapper in this page layout region. */
+  layoutRegion?: string;
+  /** Optional descendant selector, for example `.form-control`. */
+  selector?: string;
+  declarations: Record<string, string>;
+  breakpoint?: PageStyleBreakpoint;
+  state?: PageStyleState;
+}
+
+export interface PageStyleSheet {
+  scopeId: string;
+  rules: PageStyleRule[];
+}
+
+export interface PlatformComponentDefinition {
+  id: string;
+  platformId: string;
+  ownerUserId: string;
+  key: string;
+  name: string;
+  componentType: ComponentType;
+  definition: Record<string, unknown>;
+  version: number;
+  templateRef: string;
+  updatedAt: string;
+}
+
+export interface SharedComponentDefinition {
+  id: string;
+  platformId: string;
+  sourceComponentId: string | null;
+  sharedByUserId: string;
+  key: string;
+  name: string;
+  componentType: ComponentType;
+  definition: Record<string, unknown>;
+  sourceVersion: number;
+  templateRef: string;
+  createdAt: string;
+}
+
 export interface PageLayout {
   id: string;
   appId: string;
@@ -196,16 +276,19 @@ export interface PageLayout {
   title: string;
   isDefaultPage?: boolean;
   componentTree: ComponentNode[]; // Root component array
+  styleSheet?: PageStyleSheet;
+  layoutRegions?: Record<string, boolean>;
   createdAt: string;
   updatedAt: string;
 }
 
-export type WorkflowNodeType = 'trigger' | 'action' | 'condition';
+export type WorkflowNodeType = "trigger" | "action" | "condition";
 
 export interface WorkflowNodeData {
   label: string;
   nodeType: WorkflowNodeType;
-  actionType?: 'navigate' | 'apiCall' | 'dbMutation' | 'showAlert' | 'openModal';
+  actionType?:
+    "navigate" | "apiCall" | "dbMutation" | "showAlert" | "openModal";
   config?: Record<string, any>;
 }
 
@@ -234,32 +317,40 @@ export interface WorkflowTree {
   updatedAt: string;
 }
 
-export type AuditLogEntityType = 'PLATFORM' | 'APP' | 'PAGE' | 'FLOW' | 'THEME' | 'USER' | 'DATABASE' | 'RUNTIME';
+export type AuditLogEntityType =
+  | "PLATFORM"
+  | "APP"
+  | "PAGE"
+  | "FLOW"
+  | "THEME"
+  | "USER"
+  | "DATABASE"
+  | "RUNTIME";
 
 export type AuditLogAction =
-  | 'CREATE_PLATFORM'
-  | 'UPDATE_PLATFORM'
-  | 'DELETE_PLATFORM'
-  | 'CREATE_APP'
-  | 'UPDATE_APP'
-  | 'DELETE_APP'
-  | 'UPDATE_PAGE'
-  | 'UPDATE_THEME'
-  | 'UPDATE_FLOW'
-  | 'DELETE_PAGE'
-  | 'PROVISION_MODULE'
-  | 'PUBLISH_DATABASE'
-  | 'BUILD_RUNTIME'
-  | 'RECORD_INSERT'
-  | 'RECORD_UPDATE'
-  | 'RECORD_DELETE'
-  | 'UPLOAD_ASSET'
-  | 'DELETE_ASSET'
-  | 'CREATE_USER'
-  | 'UPDATE_USER'
-  | 'DELETE_USER'
-  | 'CHANGE_PASSWORD'
-  | 'LOGIN';
+  | "CREATE_PLATFORM"
+  | "UPDATE_PLATFORM"
+  | "DELETE_PLATFORM"
+  | "CREATE_APP"
+  | "UPDATE_APP"
+  | "DELETE_APP"
+  | "UPDATE_PAGE"
+  | "UPDATE_THEME"
+  | "UPDATE_FLOW"
+  | "DELETE_PAGE"
+  | "PROVISION_MODULE"
+  | "PUBLISH_DATABASE"
+  | "BUILD_RUNTIME"
+  | "RECORD_INSERT"
+  | "RECORD_UPDATE"
+  | "RECORD_DELETE"
+  | "UPLOAD_ASSET"
+  | "DELETE_ASSET"
+  | "CREATE_USER"
+  | "UPDATE_USER"
+  | "DELETE_USER"
+  | "CHANGE_PASSWORD"
+  | "LOGIN";
 
 export interface AuditLog {
   id: string;
@@ -285,20 +376,20 @@ export interface AuditLog {
 //
 // GOD is global; ADMIN/STAFF/VIEWER are always scoped to one Site.
 
-export type GlobalRole = 'GOD' | 'TENANT_USER';
-export type SiteRole = 'ADMIN' | 'STAFF' | 'VIEWER';
+export type GlobalRole = "GOD" | "TENANT_USER";
+export type SiteRole = "ADMIN" | "STAFF" | "VIEWER";
 
 /** Effective role on a given Site — GOD outranks every site membership. */
-export type EffectiveRole = 'GOD' | SiteRole;
+export type EffectiveRole = "GOD" | SiteRole;
 
 /** @deprecated ใช้ SiteRole แทน — คงไว้เพื่อความเข้ากันได้ */
 export type AppRole = SiteRole;
 
 export const ROLE_LABELS: Record<EffectiveRole, string> = {
-  GOD: 'ผู้ให้บริการ (หนุมานไอที)',
-  ADMIN: 'ผู้ดูแลระบบหน่วยงาน',
-  STAFF: 'พนักงานหน่วยงาน',
-  VIEWER: 'ผู้อ่านอย่างเดียว',
+  GOD: "ผู้ให้บริการ (หนุมานไอที)",
+  ADMIN: "ผู้ดูแลระบบหน่วยงาน",
+  STAFF: "พนักงานหน่วยงาน",
+  VIEWER: "ผู้อ่านอย่างเดียว",
 };
 
 export interface UserProfile {
@@ -338,7 +429,16 @@ export interface AppMembership {
   updatedAt: string;
 }
 
-export type AppRouteTargetType = 'page' | 'form' | 'collection' | 'component' | 'service' | 'api' | 'start-point' | 'legacy' | 'external';
+export type AppRouteTargetType =
+  | "page"
+  | "form"
+  | "collection"
+  | "component"
+  | "service"
+  | "api"
+  | "start-point"
+  | "legacy"
+  | "external";
 
 export interface AppRouteMigrationMetadata {
   sourceSystemId: string;
@@ -362,31 +462,49 @@ export interface AppRoute {
   isPublic?: boolean;
   isDefault?: boolean;
   redirectToRouteId?: string;
-  metadata?: Record<string, unknown> & { migration?: AppRouteMigrationMetadata };
+  metadata?: Record<string, unknown> & {
+    migration?: AppRouteMigrationMetadata;
+  };
 }
 
 export type RuntimeMenuAction =
-  | { type: 'switchContent'; contentId: string; params?: Record<string, unknown>; refreshIntervalMs?: number }
-  | { type: 'navigatePage'; pageId: string; params?: Record<string, unknown> }
-  | { type: 'navigateRoute'; routeId: string; params?: Record<string, unknown> }
-  | { type: 'openRoute'; routeId: string; params?: Record<string, unknown> }
-  | { type: 'openExternal'; url: string; newTab?: boolean }
-  | { type: 'runService'; serviceId: string; payload?: Record<string, unknown> }
-  | { type: 'callApi'; apiId?: string; url?: string; method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; payload?: Record<string, unknown>; resultContentId?: string }
-  | { type: 'triggerAction'; actionId: string; payload?: Record<string, unknown> }
-  | { type: 'none' };
+  | {
+      type: "switchContent";
+      contentId: string;
+      params?: Record<string, unknown>;
+      refreshIntervalMs?: number;
+    }
+  | { type: "navigatePage"; pageId: string; params?: Record<string, unknown> }
+  | { type: "navigateRoute"; routeId: string; params?: Record<string, unknown> }
+  | { type: "openRoute"; routeId: string; params?: Record<string, unknown> }
+  | { type: "openExternal"; url: string; newTab?: boolean }
+  | { type: "runService"; serviceId: string; payload?: Record<string, unknown> }
+  | {
+      type: "callApi";
+      apiId?: string;
+      url?: string;
+      method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+      payload?: Record<string, unknown>;
+      resultContentId?: string;
+    }
+  | {
+      type: "triggerAction";
+      actionId: string;
+      payload?: Record<string, unknown>;
+    }
+  | { type: "none" };
 
 // ==========================================
 // Top-Level App WorkFlow (App Manifest) Types
 // ==========================================
 
-export type MenuActionType = 'OPEN_PAGE' | 'RUN_SERVICE' | 'TRIGGER_WORKFLOW';
+export type MenuActionType = "OPEN_PAGE" | "RUN_SERVICE" | "TRIGGER_WORKFLOW";
 
 export interface AppMenuAction {
   type: MenuActionType;
   targetPageSlug?: string; // For OPEN_PAGE
   serviceEndpoint?: string; // For RUN_SERVICE
-  httpMethod?: 'GET' | 'POST' | 'PUT' | 'DELETE'; // For RUN_SERVICE
+  httpMethod?: "GET" | "POST" | "PUT" | "DELETE"; // For RUN_SERVICE
   workflowTreeId?: string; // For TRIGGER_WORKFLOW
   params?: Record<string, any>;
 }
@@ -404,7 +522,7 @@ export interface AppMenuItem {
 export interface AppBootService {
   id: string;
   serviceName: string;
-  type: 'AUTH_CHECK' | 'THEME_INJECT' | 'DB_CONNECT' | 'API_INIT';
+  type: "AUTH_CHECK" | "THEME_INJECT" | "DB_CONNECT" | "API_INIT";
   required: boolean;
   config?: Record<string, any>;
 }
@@ -425,14 +543,14 @@ export interface AppWorkFlowManifest {
 // ==========================================
 
 export type EnterpriseNodeType =
-  | 'start'
-  | 'auth_check'
-  | 'route_guard'
-  | 'event_listener'
-  | 'sub_flow'
-  | 'close';
+  | "start"
+  | "auth_check"
+  | "route_guard"
+  | "event_listener"
+  | "sub_flow"
+  | "close";
 
-export type SubFlowCategory = 'page' | 'menu' | 'route' | 'action' | 'timer';
+export type SubFlowCategory = "page" | "menu" | "route" | "action" | "timer";
 
 export interface SubFlowConfig {
   category: SubFlowCategory;
@@ -463,9 +581,10 @@ export interface EnterpriseWorkflowAST {
 // Visual Sequence Diagram Studio Types
 // ==========================================
 
-export type LifelineParticipant = 'user' | 'browser' | 'api' | 'server' | 'db' | 'file';
+export type LifelineParticipant =
+  "user" | "browser" | "api" | "server" | "db" | "file";
 
-export type SequenceMessageType = 'request' | 'response' | 'async' | 'decision';
+export type SequenceMessageType = "request" | "response" | "async" | "decision";
 
 export interface SequenceStepData {
   stepNumber: number;
@@ -480,7 +599,7 @@ export interface SequenceStepData {
 // Tenant DB Schema Explorer Types
 export interface DbColumnDefinition {
   columnName: string;
-  dataType: 'varchar' | 'integer' | 'boolean' | 'timestamp' | 'uuid' | 'jsonb';
+  dataType: "varchar" | "integer" | "boolean" | "timestamp" | "uuid" | "jsonb";
   isNullable: boolean;
   isPrimaryKey?: boolean;
 }

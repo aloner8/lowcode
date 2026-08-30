@@ -169,6 +169,7 @@ export default async function SitePage({ params, searchParams }: PageProps) {
               title: page.title,
               isDefaultPage: page.isDefaultPage,
               componentTree,
+              styleSheet: page.styleSheet,
               createdAt: site.updatedAt,
               updatedAt: site.updatedAt,
             },
@@ -209,7 +210,7 @@ function clientPages(site: NonNullable<Awaited<ReturnType<typeof loadSiteRuntime
   }
 
   return site.pages.map((item) => (reachable.has(item.id)
-    ? { id: item.id, title: item.title, componentTree: item.componentTree }
+    ? { id: item.id, title: item.title, componentTree: item.componentTree, styleSheet: item.styleSheet }
     : { id: item.id, title: item.title }));
 }
 

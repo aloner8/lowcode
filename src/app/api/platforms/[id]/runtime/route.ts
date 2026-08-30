@@ -17,7 +17,12 @@ interface RuntimeRow {
   runtime_surfaces: Record<string, { containerName: string; port: number | null; url: string | null }>;
 }
 
-const selectRuntime = `SELECT id, platform_slug, platform_name, master_theme_config, studio_pages, studio_forms, studio_collections, studio_routes, studio_services,
+const selectRuntime = `SELECT id, platform_slug, platform_name, master_theme_config,
+ COALESCE((SELECT jsonb_agg(pp.page_config || jsonb_build_object(
+   'id', pp.page_slug, 'title', pp.title, 'componentTree', pp.component_tree,
+   'isDefaultPage', pp.is_entry_page, 'seo', pp.seo
+ ) ORDER BY pp.created_at) FROM public.platform_pages pp WHERE pp.platform_id=platforms.id), studio_pages) AS studio_pages,
+ studio_forms, studio_collections, studio_routes, studio_services,
  studio_initialized, content_updated_at, runtime_path, runtime_image, runtime_container_name,
  runtime_status, runtime_built_at, runtime_source_updated_at, runtime_build_revision, runtime_port, runtime_error, runtime_surfaces
  FROM public.platforms WHERE id = $1`;

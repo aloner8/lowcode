@@ -3,7 +3,7 @@ import 'server-only';
 import { cache } from 'react';
 import { getCoreDb } from '@/lib/db/coreDb';
 import { mergePlatformMasterWithTenantOverrides } from '@/lib/engine/PlatformMergeEngine';
-import type { ComponentNode, TenantOverrides, ThemeConfig } from '@/types';
+import type { ComponentNode, PageStyleSheet, TenantOverrides, ThemeConfig } from '@/types';
 
 /**
  * Everything a public site needs to render server-side, resolved in one query.
@@ -43,6 +43,7 @@ export interface SitePage {
   id: string;
   title: string;
   componentTree: ComponentNode[];
+  styleSheet?: PageStyleSheet;
   isDefaultPage: boolean;
   seo: PageSeo;
   updatedAt: string;
@@ -206,7 +207,7 @@ function toRuntime(row: RuntimeRow): SiteRuntime {
 
   const pages: SitePage[] = (snapshot.pages ?? []).map((raw) => {
     const page = raw as {
-      id?: string; title?: string; componentTree?: ComponentNode[];
+      id?: string; title?: string; componentTree?: ComponentNode[]; styleSheet?: PageStyleSheet;
       isDefaultPage?: boolean; seo?: unknown; updatedAt?: string;
     };
     return {
@@ -217,6 +218,7 @@ function toRuntime(row: RuntimeRow): SiteRuntime {
         page.componentTree ?? [],
         row.app_overrides ?? undefined,
       ),
+      styleSheet: page.styleSheet,
       isDefaultPage: page.isDefaultPage === true,
       seo: normalizePageSeo(page.seo),
       updatedAt: page.updatedAt ?? snapshot.generatedAt ?? new Date().toISOString(),
