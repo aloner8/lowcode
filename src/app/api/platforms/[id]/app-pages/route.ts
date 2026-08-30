@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { requirePlatformSession } from "@/lib/auth/apiAuth";
 import { getCoreDb } from "@/lib/db/coreDb";
 import type { ComponentNode, PageStyleSheet } from "@/types";
+import {
+  hydratePlatformPageComponents,
+  stripHydratedPageComponentNodes,
+} from "@/lib/engine/platformPageComponents";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -155,9 +159,13 @@ export async function GET(request: Request, context: RouteContext) {
     id,
     appId,
   ]);
+  const pages = await hydratePlatformPageComponents(
+    id,
+    result.rows.map(resolvePage),
+  );
   return NextResponse.json({
     app: { id: app.id, name: app.app_name, slug: app.app_slug },
-    pages: result.rows.map(resolvePage),
+    pages,
   });
 }
 
@@ -265,7 +273,9 @@ export async function PUT(request: Request, context: RouteContext) {
         master.master_version,
         master.master_updated_at,
         JSON.stringify(pageOverrides),
-        JSON.stringify(page.componentTree),
+        JSON.stringify(
+          stripHydratedPageComponentNodes(page.componentTree as ComponentNode[]),
+        ),
         JSON.stringify(styleOverrides),
         JSON.stringify(layoutOverrides),
       ],
@@ -277,5 +287,8 @@ export async function PUT(request: Request, context: RouteContext) {
     appId,
   ]);
   const page = refreshed.rows.find((row) => row.page_slug === pageId);
-  return NextResponse.json({ page: page ? resolvePage(page) : null });
+  const [resolvedPage] = page
+    ? await hydratePlatformPageComponents(id, [resolvePage(page)])
+    : [];
+  return NextResponse.json({ page: resolvedPage || null });
 }

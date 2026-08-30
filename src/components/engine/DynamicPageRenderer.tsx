@@ -152,10 +152,19 @@ export const DynamicNodeItem: React.FC<{
   const propsWithActions = {
     ...node.props,
     componentRegistry: COMPONENT_REGISTRY,
-    onSubmit: (data: any) => {
-      if (node.props?.onSubmit) node.props.onSubmit(data);
+    onSubmit: async (data: any, requestValues?: Record<string, any>) => {
+      const result = node.props?.onSubmit
+        ? await node.props.onSubmit(data, requestValues)
+        : undefined;
       if (node.actionTriggerId && onActionTrigger) {
         onActionTrigger(node.actionTriggerId, data);
+      }
+      return result;
+    },
+    onResponse: (response: any) => {
+      if (node.props?.onResponse) node.props.onResponse(response);
+      if (onActionTrigger) {
+        onActionTrigger(`${node.id}.response`, response);
       }
     },
     onRowClick: (row: any) => {

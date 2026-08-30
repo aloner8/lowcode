@@ -15,6 +15,7 @@ import {
   ShieldEllipsis,
   Network,
   CalendarDays,
+  ClipboardList,
   type LucideIcon,
 } from 'lucide-react';
 import type { GlobalRole } from '@/types';
@@ -51,8 +52,8 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
   },
   {
     href: '/admin/apps',
-    label: 'เว็บไซต์หน่วยงาน',
-    description: 'สร้างและตั้งค่าเว็บไซต์ ธีม โดเมน และ SEO',
+    label: 'เว็บไซต์ของฉัน',
+    description: 'ดู App ที่กำลังทดสอบและเว็บไซต์ที่ใช้งานจริงของคุณ',
     icon: Box,
   },
   {
@@ -101,6 +102,12 @@ export const ADMIN_TOOLS: readonly AdminNavItem[] = [
     ],
   },
   {
+    href: '/form-designer',
+    label: 'ออกแบบฟอร์มข้อมูล',
+    description: 'สร้างแม่แบบ FormComponent, Collection Set และสัญญา Req/Response',
+    icon: ClipboardList,
+  },
+  {
     href: '/svg-studio',
     label: 'SVG Studio',
     description: 'สร้าง Visual Object แบบกำหนดพารามิเตอร์และนำกลับมาใช้ซ้ำ',
@@ -140,7 +147,7 @@ export function visibleNav(items: readonly AdminNavItem[], role: GlobalRole): Ad
 /**
  * The entry matching a pathname.
  *
- * Longest prefix wins so `/admin/apps/123` still resolves to เว็บไซต์หน่วยงาน
+ * Longest prefix wins so `/admin/apps/123` still resolves to เว็บไซต์ของฉัน
  * rather than falling back to the `/admin` overview.
  */
 export function navItemFor(pathname: string): AdminNavItem | undefined {

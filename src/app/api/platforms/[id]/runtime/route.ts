@@ -95,7 +95,11 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   const containerBase = `lowcode_platform_${platform.platform_slug.replace(/-/g, '_')}`;
 
   try {
-    await getCoreDb().query(`UPDATE public.platforms SET runtime_status='building', runtime_error=NULL WHERE id=$1`, [id]);
+    await getCoreDb().query(
+      `UPDATE public.platforms SET runtime_status='building', runtime_error=NULL,
+         runtime_owner_user_id=$2 WHERE id=$1`,
+      [id, auth.sub],
+    );
     const tag = await dockerRequest('POST', `/images/${encodeURIComponent(process.env.PLATFORM_RUNTIME_BASE_IMAGE || 'lowcode-app:latest')}/tag?repo=${encodeURIComponent(repository)}&tag=${revision}`);
     if (tag.statusCode >= 300) throw new Error(`Unable to tag runtime image: ${JSON.stringify(tag.data)}`);
 

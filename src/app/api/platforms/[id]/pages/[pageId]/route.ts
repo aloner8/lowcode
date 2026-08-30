@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCoreDb } from "@/lib/db/coreDb";
 import { requirePlatformSession } from "@/lib/auth/apiAuth";
+import {
+  hydratePlatformPageComponents,
+  stripHydratedPageComponentNodes,
+} from "@/lib/engine/platformPageComponents";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,8 +36,11 @@ export async function GET(_request: Request, context: RouteContext) {
       { error: "ไม่พบ Page ที่เลือกใน platform_pages" },
       { status: 404 },
     );
+  const [page] = await hydratePlatformPageComponents(id, [
+    result.rows[0].page,
+  ]);
   return NextResponse.json({
-    page: result.rows[0].page,
+    page,
     platform: {
       id,
       platformName: result.rows[0].platform_name,
@@ -70,7 +77,7 @@ export async function PUT(request: Request, context: RouteContext) {
       id,
       slug,
       title,
-      JSON.stringify(body.page.componentTree),
+      JSON.stringify(stripHydratedPageComponentNodes(body.page.componentTree)),
       JSON.stringify(pageConfig),
       body.page.seo === undefined ? null : JSON.stringify(body.page.seo),
     ],

@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  Plus, ExternalLink, Globe, Trash2, Sliders, RefreshCw, Palette, Search, Inbox, AlertCircle,
+  Plus, ExternalLink, Globe, Trash2, Sliders, RefreshCw, Palette, Search, Inbox, AlertCircle, FlaskConical, Rocket,
 } from 'lucide-react';
 import SiteThemeModal from '@/components/admin/SiteThemeModal';
 import SiteSeoModal from '@/components/admin/SiteSeoModal';
@@ -26,8 +26,21 @@ interface SiteApp {
   domains: string[];
 }
 
+interface TestApp {
+  platformId: string;
+  platformSlug: string;
+  platformName: string;
+  status: string;
+  port: number | null;
+  builtAt: string;
+  url: string | null;
+  surfaces: Record<string, { url?: string | null; port?: number | null }>;
+}
+
 export default function TenantAppsPage() {
   const [apps, setApps] = useState<SiteApp[]>([]);
+  const [testApps, setTestApps] = useState<TestApp[]>([]);
+  const [activeTab, setActiveTab] = useState<'testing' | 'production'>('testing');
   const [platforms, setPlatforms] = useState<PlatformConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -62,6 +75,7 @@ export default function TenantAppsPage() {
 
       if (!appsResponse.ok) throw new Error(appsPayload.error || 'ไม่สามารถอ่านรายการเว็บไซต์ได้');
       setApps(appsPayload.apps as SiteApp[]);
+      setTestApps((appsPayload.testApps || []) as TestApp[]);
       if (platformsResponse.ok) {
         setPlatforms(platformsPayload.platforms as PlatformConfig[]);
         if (!platformId && platformsPayload.platforms?.[0]) {
@@ -259,11 +273,90 @@ export default function TenantAppsPage() {
         </div>
       )}
 
+      <div className="d-flex align-items-center gap-2 border-bottom">
+        <button
+          type="button"
+          className={`btn rounded-0 border-0 border-bottom border-3 px-4 py-2 ${activeTab === 'testing' ? 'border-warning fw-semibold text-dark' : 'border-transparent text-secondary'}`}
+          onClick={() => setActiveTab('testing')}
+        >
+          <FlaskConical size={16} className="me-2" aria-hidden="true" />
+          กำลังทดสอบ
+          <span className="badge text-bg-secondary ms-2">{testApps.length}</span>
+        </button>
+        <button
+          type="button"
+          className={`btn rounded-0 border-0 border-bottom border-3 px-4 py-2 ${activeTab === 'production' ? 'border-success fw-semibold text-dark' : 'border-transparent text-secondary'}`}
+          onClick={() => setActiveTab('production')}
+        >
+          <Rocket size={16} className="me-2" aria-hidden="true" />
+          กำลังใช้งานจริง
+          <span className="badge text-bg-secondary ms-2">{apps.length}</span>
+        </button>
+      </div>
+
       {loading ? (
         <div className="adm-card adm-empty">
           <RefreshCw size={22} className="adm-spin mb-2" aria-hidden="true" />
           <p className="adm-empty-text">กำลังโหลด…</p>
         </div>
+      ) : activeTab === 'testing' ? (
+        testApps.length === 0 ? (
+          <div className="adm-card adm-empty">
+            <span className="adm-empty-icon"><FlaskConical size={22} aria-hidden="true" /></span>
+            <p className="adm-empty-title">ยังไม่มี App ที่กำลังทดสอบ</p>
+            <p className="adm-empty-text">Runtime ที่คุณสั่งรันจาก Platform จะปรากฏใน Tab นี้</p>
+          </div>
+        ) : (
+          <div className="row g-3">
+            {testApps.map((app) => (
+              <div className="col-12 col-xxl-6 d-flex" key={app.platformId}>
+                <section className="adm-card h-100 d-flex flex-column">
+                  <div className="adm-card-head">
+                    <div className="min-w-0">
+                      <h2 className="adm-card-title">{app.platformName}</h2>
+                      <p className="adm-cell-sub mb-0 font-monospace">{app.platformSlug}</p>
+                    </div>
+                    <span className={`adm-chip ${app.status === 'running' ? 'is-ok' : app.status === 'error' ? 'is-off' : ''}`}>
+                      <span className="adm-chip-dot" aria-hidden="true" />
+                      {app.status === 'running' ? 'พร้อมทดสอบ' : app.status === 'stale' ? 'มีการแก้ไขใหม่' : app.status}
+                    </span>
+                  </div>
+                  <div className="p-3 flex-grow-1 d-flex flex-column gap-3">
+                    <dl className="adm-facts">
+                      <div><dt>Environment</dt><dd>Testing Runtime</dd></div>
+                      <div><dt>Port</dt><dd className="font-monospace">{app.port || '—'}</dd></div>
+                      <div><dt>Build ล่าสุด</dt><dd>{new Date(app.builtAt).toLocaleString('th-TH')}</dd></div>
+                      <div><dt>Surfaces</dt><dd>{Object.keys(app.surfaces).join(', ') || '—'}</dd></div>
+                    </dl>
+                    <div className="d-flex flex-wrap gap-2 mt-auto">
+                      {Object.entries(app.surfaces).map(([surface, value]) =>
+                        value.url ? (
+                          <Link
+                            key={surface}
+                            href={value.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="adm-btn is-quiet is-sm"
+                          >
+                            <ExternalLink size={14} aria-hidden="true" /> เปิด {surface}
+                          </Link>
+                        ) : null,
+                      )}
+                      {!Object.values(app.surfaces).some((value) => value.url) && app.url && (
+                        <Link href={app.url} target="_blank" rel="noreferrer" className="adm-btn is-quiet is-sm">
+                          <ExternalLink size={14} aria-hidden="true" /> เปิด App ทดสอบ
+                        </Link>
+                      )}
+                      <Link href={`/studio?platformId=${app.platformId}`} className="adm-btn is-sm ms-auto">
+                        เปิด Studio
+                      </Link>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            ))}
+          </div>
+        )
       ) : apps.length === 0 ? (
         <div className="adm-card adm-empty">
           <span className="adm-empty-icon"><Inbox size={22} aria-hidden="true" /></span>

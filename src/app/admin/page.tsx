@@ -151,7 +151,7 @@ export default async function AdminDashboardPage() {
       <div className="row g-3">
         <div className="col-12 col-sm-6 col-xl-3">
           <StatWidgetCard
-            label="เว็บไซต์หน่วยงาน"
+            label="เว็บไซต์ของฉัน"
             value={counts.apps}
             unit="เว็บ"
             hint={isGod ? `แม่แบบระบบ ${counts.platforms} ชุด` : 'ที่เปิดใช้งานอยู่'}
@@ -212,7 +212,7 @@ export default async function AdminDashboardPage() {
                 <p className="adm-empty-text">
                   {isGod ? (
                     <>
-                      เริ่มต้นได้ที่หน้า <Link href="/admin/apps" className="adm-link">เว็บไซต์หน่วยงาน</Link>
+                      เริ่มต้นได้ที่หน้า <Link href="/admin/apps" className="adm-link">เว็บไซต์ของฉัน</Link>
                     </>
                   ) : (
                     'กรุณาติดต่อผู้ดูแลระบบส่วนกลางเพื่อเปิดใช้งานเว็บไซต์'

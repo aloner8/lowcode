@@ -7,6 +7,7 @@ import type {
   TenantOverrides,
   ThemeConfig,
 } from "@/types";
+import { hydratePlatformPageComponents } from "@/lib/engine/platformPageComponents";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -137,7 +138,10 @@ export async function GET(
 
   const row = result.rows[0];
   const snapshot = row.runtime_snapshot;
-  const resolvedPages = await resolveAppPages(row.app_id, snapshot.pages || []);
+  const resolvedPages = await hydratePlatformPageComponents(
+    snapshot.platformId,
+    await resolveAppPages(row.app_id, snapshot.pages || []),
+  );
   const surface = process.env.APP_SURFACE || "frontend";
 
   // Routes and services decide the entry page (dev: service/route driven start

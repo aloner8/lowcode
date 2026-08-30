@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCoreDb } from "@/lib/db/coreDb";
 import { requirePlatformSession } from "@/lib/auth/apiAuth";
+import {
+  hydratePlatformPageComponents,
+  stripHydratedPageComponentNodes,
+} from "@/lib/engine/platformPageComponents";
 import { recordPlatformAudit } from "@/lib/engine/AuditLogService";
 import {
   AppRoute,
@@ -90,7 +94,7 @@ async function syncPlatformPages(platformId: string, pages: unknown[]) {
     const containerName =
       typeof page.containerName === "string" ? page.containerName : "";
     const componentTree = Array.isArray(page.componentTree)
-      ? page.componentTree
+      ? stripHydratedPageComponentNodes(page.componentTree as ComponentNode[])
       : [];
     const pageConfig = { ...page };
     delete pageConfig.componentTree;
@@ -164,7 +168,12 @@ export async function GET(
         { error: "ไม่พบ Platform ที่เลือก" },
         { status: 404 },
       );
-    return NextResponse.json({ platform: toStudioPlatform(result.rows[0]) });
+    const platform = toStudioPlatform(result.rows[0]);
+    platform.studioPages = await hydratePlatformPageComponents(
+      id,
+      platform.studioPages,
+    );
+    return NextResponse.json({ platform });
   } catch (error) {
     console.error("Unable to load platform studio data", error);
     return NextResponse.json(
@@ -273,7 +282,12 @@ export async function PUT(
       performedBy: auth.actor,
       changesSummary: `บันทึก Studio Layout (${(body.studioLayout as unknown[]).length} node)`,
     });
-    return NextResponse.json({ platform: toStudioPlatform(result.rows[0]) });
+    const platform = toStudioPlatform(result.rows[0]);
+    platform.studioPages = await hydratePlatformPageComponents(
+      id,
+      platform.studioPages,
+    );
+    return NextResponse.json({ platform });
   } catch (error) {
     console.error("Unable to save platform studio data", error);
     return NextResponse.json(

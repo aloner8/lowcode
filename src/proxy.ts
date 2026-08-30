@@ -8,7 +8,7 @@ import { SESSION_COOKIE, verifySession } from '@/lib/auth/session';
 
 /** Routes that require a valid Web แม่ (Platform) session. */
 const PROTECTED_PREFIXES = [
-  '/admin', '/studio', '/page-designer', '/flow-studio', '/process-studio', '/svg-studio', '/module-studio', '/audit-logs', '/site', '/account',
+  '/admin', '/studio', '/page-designer', '/form-designer', '/flow-studio', '/process-studio', '/svg-studio', '/module-studio', '/audit-logs', '/site', '/account',
   // Developer demos render arbitrary components; they are internal tools.
   '/renderer-demo', '/shared-demo',
 ];

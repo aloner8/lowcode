@@ -18,7 +18,20 @@ export interface FormComponentProps {
   submitText?: string;
   resetText?: string;
   initialValues?: Record<string, any>;
-  onSubmit?: (formData: Record<string, any>) => void;
+  requestContract?: Array<Record<string, any>>;
+  responseContract?: Array<Record<string, any>>;
+  requestBindings?: Record<string, string>;
+  responseBindings?: Record<string, string>;
+  requestValues?: Record<string, any>;
+  onSubmit?: (
+    formData: Record<string, any>,
+    requestValues?: Record<string, any>,
+  ) => unknown | Promise<unknown>;
+  onResponse?: (response: {
+    formData: Record<string, any>;
+    submitResult: unknown;
+    outputs: Record<string, unknown>;
+  }) => void;
   className?: string;
   mode?: 'insert' | 'update' | 'readOnly';
 }
@@ -34,6 +47,9 @@ export const FormComponent: React.FC<FormComponentProps> = ({
   resetText,
   initialValues = EMPTY_FORM_VALUES,
   onSubmit,
+  onResponse,
+  requestValues = EMPTY_FORM_VALUES,
+  responseBindings = EMPTY_FORM_VALUES,
   className = '',
   mode = 'insert',
 }) => {
@@ -44,11 +60,26 @@ export const FormComponent: React.FC<FormComponentProps> = ({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (onSubmit) {
-      onSubmit(formData);
-    }
+    const submitResult = onSubmit
+      ? await onSubmit(formData, requestValues)
+      : undefined;
+    const standardOutputs: Record<string, unknown> = {
+      formData,
+      submitResult,
+    };
+    const outputs = Object.fromEntries(
+      Object.entries(responseBindings).map(([outputKey, sourceKey]) => [
+        outputKey,
+        standardOutputs[String(sourceKey)],
+      ]),
+    );
+    onResponse?.({
+      formData,
+      submitResult,
+      outputs: Object.keys(outputs).length ? outputs : standardOutputs,
+    });
   };
 
   const handleReset = () => {
