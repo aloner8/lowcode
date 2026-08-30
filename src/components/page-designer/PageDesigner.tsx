@@ -28,10 +28,7 @@ import {
   COMPONENT_PALETTE,
   type ComponentPaletteItem,
 } from "@/lib/engine/ComponentRegistry";
-import {
-  compilePageCss,
-  compilePageStyleSheet,
-} from "@/lib/engine/pageStyleSheet";
+import { compilePageStyleSheet } from "@/lib/engine/pageStyleSheet";
 import type {
   AppConfig,
   ComponentNode,
@@ -725,27 +722,28 @@ function ComponentStyleInspector({
 }
 
 function PageStyleInspector({
-  region,
-  nodes,
   styleSheet,
   onUpdateStyleSheet,
 }: {
-  region: string;
-  nodes: ComponentNode[];
   styleSheet: PageStyleSheet;
   onUpdateStyleSheet: Dispatch<SetStateAction<PageStyleSheet>>;
 }) {
-  const [target, setTarget] = useState<"page" | "layout">("page");
   const [selector, setSelector] = useState("");
   const [breakpoint, setBreakpoint] = useState<"" | PageStyleBreakpoint>("");
   const [state, setState] = useState<"" | PageStyleState>("");
   const cssText = useMemo(
-    () => compilePageCss(styleSheet, nodes),
-    [nodes, styleSheet],
+    () =>
+      compilePageStyleSheet({
+        ...styleSheet,
+        rules: styleSheet.rules.filter(
+          (rule) => !rule.componentId && !rule.layoutRegion,
+        ),
+      }),
+    [styleSheet],
   );
   const matchesTarget = (rule: PageStyleSheet["rules"][number]) =>
     !rule.componentId &&
-    (target === "page" ? !rule.layoutRegion : rule.layoutRegion === region) &&
+    !rule.layoutRegion &&
     (rule.selector || "") === selector.trim() &&
     (rule.breakpoint || "") === breakpoint &&
     (rule.state || "") === state;
@@ -770,10 +768,7 @@ function PageStyleInspector({
         if (ruleIndex >= 0) rules.splice(ruleIndex, 1);
       } else {
         const nextRule = {
-          id:
-            existing?.id ||
-            `style-${target}-${target === "layout" ? region : "root"}-${Date.now().toString(36)}`,
-          ...(target === "layout" ? { layoutRegion: region } : {}),
+          id: existing?.id || `style-page-root-${Date.now().toString(36)}`,
           ...(selector.trim() ? { selector: selector.trim() } : {}),
           ...(breakpoint ? { breakpoint } : {}),
           ...(state ? { state } : {}),
@@ -787,20 +782,12 @@ function PageStyleInspector({
 
   return (
     <div>
-      <div className="small text-success fw-semibold mb-2">
+      <div className="d-none">
         CSS ทั้ง Page, Layout และ Component ใช้ stylesheet เดียวกัน
       </div>
-      <label className="form-label small mb-1">Target</label>
-      <select
-        className="form-select form-select-sm mb-2"
-        value={target}
-        onChange={(event) => setTarget(event.target.value as "page" | "layout")}
-      >
-        <option value="page">Page root</option>
-        <option value="layout">
-          Layout: {REGIONS.find(([id]) => id === region)?.[1] || region}
-        </option>
-      </select>
+      <div className="small text-success fw-semibold mb-2">
+        Page root CSS only
+      </div>
       <div className="row g-1 mb-2">
         <div className="col-6">
           <select
@@ -852,6 +839,169 @@ function PageStyleInspector({
         value={cssText}
         placeholder="ยังไม่มี CSS ใน Page นี้"
       />
+    </div>
+  );
+}
+
+function LayoutStyleInspector({
+  region,
+  styleSheet,
+  onUpdateStyleSheet,
+}: {
+  region: string;
+  styleSheet: PageStyleSheet;
+  onUpdateStyleSheet: Dispatch<SetStateAction<PageStyleSheet>>;
+}) {
+  const [selector, setSelector] = useState("");
+  const [breakpoint, setBreakpoint] = useState<"" | PageStyleBreakpoint>("");
+  const [state, setState] = useState<"" | PageStyleState>("");
+  const matchesTarget = (rule: PageStyleSheet["rules"][number]) =>
+    !rule.componentId &&
+    rule.layoutRegion === region &&
+    (rule.selector || "") === selector.trim() &&
+    (rule.breakpoint || "") === breakpoint &&
+    (rule.state || "") === state;
+  const activeRule = styleSheet.rules.find(matchesTarget);
+
+  const updateValue = (
+    cssProperty: string,
+    value: string,
+    previousProperty?: string,
+  ) =>
+    onUpdateStyleSheet((current) => {
+      const ruleIndex = current.rules.findIndex(matchesTarget);
+      const existing = ruleIndex >= 0 ? current.rules[ruleIndex] : undefined;
+      const declarations = { ...(existing?.declarations || {}) };
+      if (previousProperty && previousProperty !== cssProperty) {
+        delete declarations[previousProperty];
+      }
+      if (cssProperty && value.trim()) declarations[cssProperty] = value;
+      else delete declarations[cssProperty];
+      const rules = [...current.rules];
+      if (!Object.keys(declarations).length) {
+        if (ruleIndex >= 0) rules.splice(ruleIndex, 1);
+      } else {
+        const nextRule = {
+          id:
+            existing?.id || `style-layout-${region}-${Date.now().toString(36)}`,
+          layoutRegion: region,
+          ...(selector.trim() ? { selector: selector.trim() } : {}),
+          ...(breakpoint ? { breakpoint } : {}),
+          ...(state ? { state } : {}),
+          declarations,
+        };
+        if (ruleIndex >= 0) rules[ruleIndex] = nextRule;
+        else rules.push(nextRule);
+      }
+      return { ...current, rules };
+    });
+
+  return (
+    <div>
+      <div className="small text-primary mb-2">
+        Scoped CSS for <code>{region}</code>
+      </div>
+      <div className="row g-2 mb-2">
+        <div className="col-6">
+          <label className="form-label small mb-1">Device</label>
+          <select
+            className="form-select form-select-sm"
+            value={breakpoint}
+            onChange={(event) =>
+              setBreakpoint(event.target.value as "" | PageStyleBreakpoint)
+            }
+          >
+            <option value="">Desktop</option>
+            <option value="tablet">Tablet</option>
+            <option value="mobile">Mobile</option>
+          </select>
+        </div>
+        <div className="col-6">
+          <label className="form-label small mb-1">State</label>
+          <select
+            className="form-select form-select-sm"
+            value={state}
+            onChange={(event) =>
+              setState(event.target.value as "" | PageStyleState)
+            }
+          >
+            <option value="">Default</option>
+            <option value="hover">Hover</option>
+            <option value="focus">Focus</option>
+            <option value="active">Active</option>
+          </select>
+        </div>
+      </div>
+      <label className="form-label small mb-1">Child selector</label>
+      <input
+        className="form-control form-control-sm font-monospace mb-2"
+        value={selector}
+        placeholder="Optional, e.g. .form-control"
+        onChange={(event) => setSelector(event.target.value)}
+      />
+      <CssDeclarationList
+        declarations={activeRule?.declarations || {}}
+        onChange={updateValue}
+      />
+    </div>
+  );
+}
+
+function LayoutPropertiesEditor({
+  region,
+  enabled,
+  componentCount,
+  onEnabledChange,
+}: {
+  region: string;
+  enabled: boolean;
+  componentCount: number;
+  onEnabledChange: (enabled: boolean) => void;
+}) {
+  const label = REGIONS.find(([id]) => id === region)?.[1] || region;
+  return (
+    <div className="row g-3 align-items-end">
+      <div className="col-md-4">
+        <label className="form-label small mb-1">Layout name</label>
+        <input
+          className="form-control form-control-sm"
+          value={label}
+          readOnly
+        />
+      </div>
+      <div className="col-md-4">
+        <label className="form-label small mb-1">Region key</label>
+        <input
+          className="form-control form-control-sm font-monospace"
+          value={region}
+          readOnly
+        />
+      </div>
+      <div className="col-md-2">
+        <label className="form-label small mb-1">Components</label>
+        <input
+          className="form-control form-control-sm"
+          value={componentCount}
+          readOnly
+        />
+      </div>
+      <div className="col-md-2">
+        <div className="form-check form-switch mb-1">
+          <input
+            id={`layout-enabled-${region}`}
+            type="checkbox"
+            className="form-check-input"
+            checked={enabled}
+            onChange={(event) => onEnabledChange(event.target.checked)}
+          />
+          <label
+            className="form-check-label small"
+            htmlFor={`layout-enabled-${region}`}
+          >
+            Enabled
+          </label>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1565,8 +1715,6 @@ export default function PageDesigner({
                 </>
               ) : (
                 <PageStyleInspector
-                  region={region}
-                  nodes={nodes}
                   styleSheet={pageStyleSheet}
                   onUpdateStyleSheet={setPageStyleSheet}
                 />
@@ -1576,7 +1724,7 @@ export default function PageDesigner({
               className="p-3 overflow-x-hidden overflow-y-auto"
               style={{
                 minHeight: 0,
-                paddingBottom: selectedNode ? 316 : 16,
+                paddingBottom: 316,
                 overscrollBehavior: "contain",
               }}
             >
@@ -1651,7 +1799,7 @@ export default function PageDesigner({
                       </span>
                       <div
                         style={{
-                          pointerEvents: focused && enabled ? "auto" : "none",
+                          pointerEvents: enabled ? "auto" : "none",
                         }}
                       >
                         {enabled && (
@@ -1677,6 +1825,59 @@ export default function PageDesigner({
                 })}
               </div>
             </main>
+            {!selectedNode && (
+              <aside
+                className="page-designer-layout-panel position-absolute bottom-0 bg-white border border-2 border-primary shadow-lg p-3 overflow-auto"
+                style={{ zIndex: 6, left: 250, right: 300, height: 300 }}
+              >
+                <div className="btn-group btn-group-sm mb-3" role="tablist">
+                  <button
+                    type="button"
+                    className={`btn ${bottomTab === "properties" ? "btn-primary" : "btn-outline-primary"}`}
+                    onClick={() => setBottomTab("properties")}
+                  >
+                    คุณสมบัติ Layout
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${bottomTab === "componentCss" ? "btn-primary" : "btn-outline-primary"}`}
+                    onClick={() => setBottomTab("componentCss")}
+                  >
+                    <Braces size={13} className="me-1" />
+                    LayoutCss
+                  </button>
+                </div>
+                {bottomTab === "properties" ? (
+                  <LayoutPropertiesEditor
+                    region={region}
+                    enabled={regionEnabled[region] !== false}
+                    componentCount={
+                      nodes.filter(
+                        (node) =>
+                          String(
+                            node.props?.__layoutRegion ||
+                              node.props?.__sectionId ||
+                              "content",
+                          ) === region,
+                      ).length
+                    }
+                    onEnabledChange={(enabled) =>
+                      setRegionEnabled((current) => ({
+                        ...current,
+                        [region]: enabled,
+                      }))
+                    }
+                  />
+                ) : (
+                  <LayoutStyleInspector
+                    key={region}
+                    region={region}
+                    styleSheet={pageStyleSheet}
+                    onUpdateStyleSheet={setPageStyleSheet}
+                  />
+                )}
+              </aside>
+            )}
             {selectedNode && (
               <aside
                 className="page-designer-component-panel position-absolute bottom-0 bg-white border border-2 border-primary shadow-lg p-3 overflow-auto"

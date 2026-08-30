@@ -32,6 +32,7 @@ interface RuntimeSnapshot {
 }
 
 interface SnapshotRow {
+  app_id: string | null;
   runtime_snapshot: RuntimeSnapshot;
   platform_slug: string;
   app_slug: string | null;
@@ -42,6 +43,64 @@ interface SnapshotRow {
   theme_config: ThemeConfig | null;
   tenant_overrides: TenantOverrides | null;
 }
+
+interface RuntimeAppPageRow {
+  page_slug: string;
+  sync_mode: "FOLLOW_MASTER" | "PINNED" | "DETACHED";
+  page_overrides: Record<string, unknown> | null;
+  component_tree_override: ComponentNode[] | null;
+  detached_component_tree: ComponentNode[] | null;
+  style_overrides: PageStyleSheet | null;
+  layout_overrides: Record<string, boolean> | null;
+}
+
+const resolveAppPages = async (
+  appId: string | null,
+  masterPages: NonNullable<RuntimeSnapshot["pages"]>,
+) => {
+  if (!appId) return masterPages;
+  const result = await getCoreDb().query<RuntimeAppPageRow>(
+    `SELECT pp.page_slug, pap.sync_mode, pap.page_overrides,
+            pap.component_tree_override, pap.detached_component_tree,
+            pap.style_overrides, pap.layout_overrides
+     FROM public.platform_app_pages pap
+     JOIN public.platform_pages pp ON pp.id=pap.platform_page_id
+     WHERE pap.app_id=$1`,
+    [appId],
+  );
+  const instances = new Map(result.rows.map((row) => [row.page_slug, row]));
+  return masterPages.map((master) => {
+    const instance = instances.get(master.id);
+    if (!instance) return master;
+    const detached = instance.sync_mode === "DETACHED";
+    const overrideRules = instance.style_overrides?.rules || [];
+    return {
+      ...master,
+      ...(instance.page_overrides || {}),
+      id: master.id,
+      componentTree: detached
+        ? instance.detached_component_tree ||
+          instance.component_tree_override ||
+          master.componentTree
+        : instance.component_tree_override || master.componentTree,
+      styleSheet: detached
+        ? instance.style_overrides || master.styleSheet
+        : master.styleSheet || overrideRules.length
+          ? {
+              scopeId:
+                master.styleSheet?.scopeId ||
+                instance.style_overrides?.scopeId ||
+                `page-${master.id}`,
+              rules: [...(master.styleSheet?.rules || []), ...overrideRules],
+            }
+          : undefined,
+      layoutRegions: {
+        ...(master.layoutRegions || {}),
+        ...(instance.layout_overrides || {}),
+      },
+    };
+  });
+};
 
 /**
  * Runtime payload for a published site.
@@ -57,7 +116,7 @@ export async function GET(
   const { slug } = await context.params;
 
   const result = await getCoreDb().query<SnapshotRow>(
-    `SELECT p.runtime_snapshot, p.platform_slug,
+    `SELECT p.runtime_snapshot, p.platform_slug, a.id AS app_id,
             a.app_slug, a.app_name, a.port AS app_port, a.subdomain AS app_subdomain,
             a.tenant_db_name, a.theme_config, a.tenant_overrides
      FROM public.platforms p
@@ -78,6 +137,7 @@ export async function GET(
 
   const row = result.rows[0];
   const snapshot = row.runtime_snapshot;
+  const resolvedPages = await resolveAppPages(row.app_id, snapshot.pages || []);
   const surface = process.env.APP_SURFACE || "frontend";
 
   // Routes and services decide the entry page (dev: service/route driven start
@@ -105,12 +165,12 @@ export async function GET(
     (startRoute?.targetType === "page" ? startRoute.targetId : undefined);
 
   const page =
-    snapshot.pages?.find((item) => item.id === startPageId) ||
-    snapshot.pages?.find(
+    resolvedPages.find((item) => item.id === startPageId) ||
+    resolvedPages.find(
       (item) => item.id === (surface === "backend" ? "admin" : "index"),
     ) ||
-    snapshot.pages?.find((item) => item.id === "index") ||
-    snapshot.pages?.[0];
+    resolvedPages.find((item) => item.id === "index") ||
+    resolvedPages[0];
 
   // Tenant overrides can disable features and patch component props without
   // forking the master blueprint.
@@ -162,7 +222,7 @@ export async function GET(
     forms: snapshot.forms || [],
     collections: snapshot.collections || [],
     routes: snapshot.routes || [],
-    pages: snapshot.pages || [],
+    pages: resolvedPages,
     services,
     flows: snapshot.flows || [],
   });
