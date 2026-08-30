@@ -43,7 +43,13 @@ import type {
   StudioCollectionDefinition,
   StudioFormDefinition,
 } from "@/lib/studio/backendFormDefinitions";
-import { FileText, Database, GitFork, RefreshCw } from "lucide-react";
+import {
+  Database,
+  ExternalLink,
+  FileText,
+  GitFork,
+  RefreshCw,
+} from "lucide-react";
 import { HtmlStudioShell } from "@/components/html-studio";
 import { StudioWorkspacePageList } from "@/components/studio/StudioWorkspacePageList";
 import type { HtmlStudioDocument, StudioNode } from "@/lib/html-studio";
@@ -1401,8 +1407,6 @@ export default function StudioPage() {
       setNodes(componentTree);
       historyRef.current = new HistoryStackManager(componentTree);
       setIsPageDirty(false);
-      if (!page.templateType || !Array.isArray(page.componentTree))
-        setPageTemplateTarget(page);
     } catch (error) {
       setStudioError(
         error instanceof Error
@@ -2379,15 +2383,8 @@ export default function StudioPage() {
       !activeCollectionView &&
       activePage !== "app_workflow"
     ) {
-      window.dispatchEvent(
-        new CustomEvent("lowcode:add-html-studio-component", {
-          detail: {
-            componentType: paletteItem.type,
-            label: paletteItem.label,
-            defaultProps: paletteItem.defaultProps,
-          },
-        }),
-      );
+      setSaveStatus("Page Preview is read-only — use แก้ไข Page");
+      setTimeout(() => setSaveStatus(null), 3000);
       return;
     }
     const instanceId = `node_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
@@ -2409,6 +2406,11 @@ export default function StudioPage() {
 
   // Add a ready-made node (e.g. generated from a tenant table) to the canvas.
   const handleAddComponentNode = (newNode: ComponentNode) => {
+    if (!activeFormId && !activeCollectionView) {
+      setSaveStatus("Page Preview is read-only — use แก้ไข Page");
+      setTimeout(() => setSaveStatus(null), 3000);
+      return;
+    }
     updateNodesWithHistory([...nodes, newNode], `Add ${newNode.type}`);
     setSelectedNodeId(newNode.id);
   };
@@ -2932,7 +2934,7 @@ export default function StudioPage() {
                             ? `${studioCollections.find((item) => item.id === activeCollectionView.collectionId)?.name || "Collection"} (${activeCollectionView.viewId}) [${activeCollectionView.variant}]`
                             : activeFormId
                               ? `${studioForms.find((form) => form.id === activeFormId)?.name || "Form"} (${activeFormId}) [${activeFormMode}]`
-                              : `${studioPages.find((page) => page.id === activePage)?.title || "Page"} (${activePage}.page) [Design]`}
+                              : `${studioPages.find((page) => page.id === activePage)?.title || "Page"} (${activePage}.page) [Preview]`}
                         </span>
                       </div>
                       {!activeFormId &&
@@ -2984,25 +2986,22 @@ export default function StudioPage() {
                               : "Detach/Fork Page"}
                           </button>
                         )}
-                      {!activeFormId && !activeCollectionView && (
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-warning d-flex align-items-center gap-1.5 ms-2 text-nowrap"
-                          onClick={() => {
-                            const page = studioPages.find(
-                              (item) => item.id === activePage,
-                            );
-                            if (page) setPageTemplateTarget(page);
-                          }}
-                          title="Replace this page design with a new template"
-                        >
-                          <RefreshCw size={13} />
-                          <span>Recreate from Template</span>
-                        </button>
-                      )}
                     </div>
 
                     <div className="d-flex align-items-center gap-2">
+                      {!activeFormId &&
+                        !activeCollectionView &&
+                        activeStudioPage &&
+                        platformId && (
+                          <a
+                            className="btn btn-sm btn-warning d-inline-flex align-items-center gap-1 text-nowrap"
+                            href={`/page-designer/platform/${encodeURIComponent(platformId)}/${encodeURIComponent(activeStudioPage.id)}`}
+                            title="เปิด Page Designer เพื่อแก้ไขหน้านี้"
+                          >
+                            <ExternalLink size={13} />
+                            แก้ไข Page
+                          </a>
+                        )}
                       <ThemeCustomizerPanel
                         themeConfig={appInfo.themeConfig}
                         onChangeTheme={(newTheme) =>
@@ -3054,38 +3053,6 @@ export default function StudioPage() {
                         onDirtyChange={setIsPageDirty}
                       />
                     </div>
-                  ) : activeStudioPage &&
-                    pageStudioDocument &&
-                    !isPreviewMode ? (
-                    <div
-                      className="card-body p-0 overflow-hidden bg-dark"
-                      style={{
-                        minHeight: "calc(100vh - 340px)",
-                        maxHeight: "calc(100vh - 260px)",
-                      }}
-                    >
-                      {isLoadingPage ? (
-                        <div className="h-100 d-flex align-items-center justify-content-center text-white">
-                          <div className="spinner-border spinner-border-sm me-2" />
-                          Loading Page from database...
-                        </div>
-                      ) : (
-                        <HtmlStudioShell
-                          key={`${activePage}:${pageStudioDocument.id}`}
-                          embedded
-                          document={pageStudioDocument}
-                          openInNewTabUrl={
-                            platformId
-                              ? `/page-designer/platform/${encodeURIComponent(platformId)}/${encodeURIComponent(activePage)}`
-                              : undefined
-                          }
-                          onSave={(document) =>
-                            void handleSavePageStudioDocument(document)
-                          }
-                          onDirtyChange={setIsPageDirty}
-                        />
-                      )}
-                    </div>
                   ) : (
                     <div
                       className="card-body p-3 overflow-auto bg-light d-flex justify-content-center position-relative"
@@ -3114,9 +3081,17 @@ export default function StudioPage() {
                           themeConfig={appInfo.themeConfig}
                           styleSheet={activeStudioPage?.styleSheet}
                           layoutRegions={activeStudioPage?.layoutRegions}
-                          isDesignMode={!isPreviewMode}
-                          selectedNodeId={selectedNodeId}
-                          onSelectNode={(id) => setSelectedNodeId(id)}
+                          isDesignMode={
+                            activeStudioPage ? false : !isPreviewMode
+                          }
+                          selectedNodeId={
+                            activeStudioPage ? null : selectedNodeId
+                          }
+                          onSelectNode={
+                            activeStudioPage
+                              ? undefined
+                              : (id) => setSelectedNodeId(id)
+                          }
                         />
                       </div>
                     </div>
