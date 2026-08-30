@@ -1562,10 +1562,24 @@ export default function PageDesigner({
         >
           <div className="d-flex align-items-center gap-2 px-3 py-2 bg-white border-bottom">
             <button
+              type="button"
               className="btn btn-sm btn-outline-secondary"
-              onClick={() =>
-                isPlatformPage ? window.close() : setEditingId(null)
-              }
+              onClick={() => {
+                if (!isPlatformPage) {
+                  setEditingId(null);
+                  return;
+                }
+                if (!requestedPlatformId) return;
+                const search = new URLSearchParams({
+                  platformId: requestedPlatformId,
+                });
+                if (requestedPageId) search.set("pageId", requestedPageId);
+                const appId = new URLSearchParams(window.location.search).get(
+                  "appId",
+                );
+                if (appId) search.set("appId", appId);
+                window.location.assign(`/studio?${search.toString()}`);
+              }}
             >
               <ArrowLeft size={15} />{" "}
               {isPlatformPage ? "กลับ Studio" : "กลับรายการ"}
