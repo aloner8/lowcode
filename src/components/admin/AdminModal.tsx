@@ -35,12 +35,20 @@ export default function AdminModal({
 }: AdminModalProps) {
   const titleId = useId();
   const cardRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+
+  // Consumers commonly pass an inline callback. Keep its latest value without
+  // making the focus-management effect treat every parent render as a newly
+  // opened dialog.
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!isOpen) return;
 
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') onCloseRef.current();
     };
     window.addEventListener('keydown', onKey);
 
@@ -57,7 +65,7 @@ export default function AdminModal({
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = previousOverflow;
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
