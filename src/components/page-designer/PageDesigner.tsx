@@ -16,6 +16,7 @@ import {
   Search,
   Sparkles,
   Trash2,
+  X,
 } from "lucide-react";
 import { DynamicPageRenderer } from "@/components/engine/DynamicPageRenderer";
 import {
@@ -1142,6 +1143,7 @@ export default function PageDesigner({
   const [bottomTab, setBottomTab] = useState<"properties" | "componentCss">(
     "properties",
   );
+  const [isInspectorOpen, setIsInspectorOpen] = useState(false);
   const [hoveredRegion, setHoveredRegion] = useState<string | null>(null);
   const [regionEnabled, setRegionEnabled] = useState<Record<string, boolean>>(
     () => Object.fromEntries(REGIONS.map(([id]) => [id, true])),
@@ -1270,6 +1272,7 @@ export default function PageDesigner({
     setEditingId(page.id);
     setNodes(page.componentTree || []);
     setSelectedNodeId(null);
+    setIsInspectorOpen(false);
     setPageStyleSheet(page.styleSheet || emptyPageStyleSheet(page.id));
     setRegionEnabled(
       Object.fromEntries(
@@ -1394,6 +1397,7 @@ export default function PageDesigner({
     };
     setNodes((current) => [...current, node]);
     setSelectedNodeId(node.id);
+    setIsInspectorOpen(true);
   };
   const updateSelectedNode = (changes: Partial<ComponentNode>) => {
     if (!selectedNodeId) return;
@@ -1664,6 +1668,7 @@ export default function PageDesigner({
                             onClick={() => {
                               setRegion(id);
                               setSelectedNodeId(null);
+                              setIsInspectorOpen(true);
                             }}
                           >
                             <Box size={12} className="me-2" />
@@ -1681,6 +1686,7 @@ export default function PageDesigner({
                             onClick={() => {
                               setRegion(id);
                               setSelectedNodeId(node.id);
+                              setIsInspectorOpen(true);
                             }}
                           >
                             <span className="text-truncate small">
@@ -1722,6 +1728,11 @@ export default function PageDesigner({
             </aside>
             <main
               className="p-3 overflow-x-hidden overflow-y-auto"
+              onClick={(event) => {
+                if (event.target !== event.currentTarget) return;
+                setSelectedNodeId(null);
+                setIsInspectorOpen(false);
+              }}
               style={{
                 minHeight: 0,
                 paddingBottom: 316,
@@ -1766,9 +1777,11 @@ export default function PageDesigner({
                       key={id}
                       onMouseEnter={() => setHoveredRegion(id)}
                       onMouseLeave={() => setHoveredRegion(null)}
-                      onClick={() => {
+                      onClick={(event) => {
+                        event.stopPropagation();
                         setRegion(id);
                         setSelectedNodeId(null);
+                        setIsInspectorOpen(true);
                       }}
                       style={{
                         ...placement,
@@ -1809,7 +1822,10 @@ export default function PageDesigner({
                             layoutRegion={id}
                             isDesignMode
                             selectedNodeId={selectedNodeId}
-                            onSelectNode={setSelectedNodeId}
+                            onSelectNode={(nodeId) => {
+                              setSelectedNodeId(nodeId);
+                              setIsInspectorOpen(true);
+                            }}
                             rootTag={
                               id.includes("sidebar")
                                 ? "aside"
@@ -1825,11 +1841,21 @@ export default function PageDesigner({
                 })}
               </div>
             </main>
-            {!selectedNode && (
+            {isInspectorOpen && !selectedNode && (
               <aside
                 className="page-designer-layout-panel position-absolute bottom-0 bg-white border border-2 border-primary shadow-lg p-3 overflow-auto"
                 style={{ zIndex: 6, left: 250, right: 300, height: 300 }}
               >
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-secondary position-absolute top-0 end-0 m-3 d-inline-flex align-items-center justify-content-center"
+                  style={{ zIndex: 2, width: 32, height: 32 }}
+                  aria-label="ปิดคุณสมบัติ Layout"
+                  title="ปิด"
+                  onClick={() => setIsInspectorOpen(false)}
+                >
+                  <X size={16} />
+                </button>
                 <div className="btn-group btn-group-sm mb-3" role="tablist">
                   <button
                     type="button"
@@ -1878,11 +1904,21 @@ export default function PageDesigner({
                 )}
               </aside>
             )}
-            {selectedNode && (
+            {isInspectorOpen && selectedNode && (
               <aside
                 className="page-designer-component-panel position-absolute bottom-0 bg-white border border-2 border-primary shadow-lg p-3 overflow-auto"
                 style={{ zIndex: 6, left: 250, right: 300, height: 300 }}
               >
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-secondary position-absolute top-0 end-0 m-3 d-inline-flex align-items-center justify-content-center"
+                  style={{ zIndex: 2, width: 32, height: 32 }}
+                  aria-label="ปิดคุณสมบัติ Component"
+                  title="ปิด"
+                  onClick={() => setIsInspectorOpen(false)}
+                >
+                  <X size={16} />
+                </button>
                 <div className="btn-group btn-group-sm mb-3" role="tablist">
                   <button
                     type="button"
