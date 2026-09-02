@@ -163,6 +163,17 @@ export function SiteRuntimeView({
     actionId: string,
     payload: any,
   ): Promise<void> => {
+    if (actionId.startsWith("service:")) {
+      const [, bindingId, operation] = actionId.split(":");
+      if (!bindingId || !operation) { setLastAction("Invalid service action binding"); return; }
+      try {
+        const response = await fetch(`/api/runtime/${encodeURIComponent(appSlug)}/services/${encodeURIComponent(bindingId)}/${encodeURIComponent(operation)}`, { method: "POST", headers: { "Content-Type": "application/json", ...(operation === "sendTemplate" ? { "Idempotency-Key": crypto.randomUUID() } : {}) }, body: JSON.stringify(payload?.formData || payload || {}) });
+        const result = await response.json() as { ok?: boolean; error?: { message?: string } };
+        if (!response.ok || !result.ok) throw new Error(result.error?.message || `Service returned ${response.status}`);
+        setLastAction(`Service '${bindingId}.${operation}' completed`);
+      } catch (error) { setLastAction(error instanceof Error ? error.message : "Service failed"); }
+      return;
+    }
     if (actionId === "auth.login.submit") {
       try {
         setLastAction("Checking credentials...");
@@ -210,10 +221,11 @@ export function SiteRuntimeView({
       return;
     }
     if (actionId === "logout") {
-      window.sessionStorage.removeItem(`auth:${appSlug}:accessToken`);
       const service = runtimeData.services?.find(
-        (item) => item.id === "service.auth.jwt",
+        (item) => item.id === "service.auth.jwt" || item.serviceRef?.serviceKey === "auth.session",
       );
+      if (service?.id) await fetch(`/api/runtime/${encodeURIComponent(appSlug)}/services/${encodeURIComponent(service.id)}/logout`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => undefined);
+      window.sessionStorage.removeItem(`auth:${appSlug}:accessToken`);
       const page = runtimeData.pages?.find(
         (item) => item.id === service?.bundle?.loginPageId,
       );
@@ -288,17 +300,17 @@ export function SiteRuntimeView({
         else window.location.assign(action.url);
         return;
       }
-      if (action?.type === "runService" && action.serviceId) {
-        if (workflowTree)
-          await new WorkflowInterpreter(workflowTree).executeTrigger(
-            action.serviceId,
-            {
-              payload: action.payload,
-              appId: appConfig.id,
-              showAlert: (msg) => alert(msg),
-            },
-          );
-        setLastAction(`Service '${action.serviceId}' executed`);
+      if (action?.type === "runService" && (action.bindingId || action.serviceId)) {
+        const bindingId = action.bindingId || action.serviceId!;
+        const operation = action.operation || "me";
+        try {
+          const response = await fetch(`/api/runtime/${encodeURIComponent(appSlug)}/services/${encodeURIComponent(bindingId)}/${encodeURIComponent(operation)}`, {
+            method: "POST", headers: { "Content-Type": "application/json", ...(operation === "sendTemplate" ? { "Idempotency-Key": crypto.randomUUID() } : {}) }, body: JSON.stringify(action.payload || {}),
+          });
+          const result = await response.json() as { ok?: boolean; data?: unknown; error?: { message?: string } };
+          if (!response.ok || !result.ok) throw new Error(result.error?.message || `Service returned ${response.status}`);
+          setLastAction(`Service '${bindingId}.${operation}' completed`);
+        } catch (error) { setLastAction(error instanceof Error ? error.message : "Service failed"); }
         return;
       }
       if (action?.type === "callApi" && action.url) {
@@ -568,6 +580,7 @@ export function SiteRuntimeView({
       await interpreter.executeTrigger(actionId, {
         payload,
         appId: appConfig.id,
+        appSlug,
         showAlert: (message) => setLastAction(message),
       });
     }

@@ -2174,9 +2174,10 @@ export default function StudioPage() {
     service: StudioServiceDefinition,
   ) => {
     if (!platformId) throw new Error("Platform is not available");
-    const nextServices = studioServices.map((item) =>
-      item.id === service.id ? service : item,
-    );
+    const exists = studioServices.some((item) => item.id === service.id);
+    const nextServices = exists
+      ? studioServices.map((item) => item.id === service.id ? service : item)
+      : [...studioServices, service];
     const logoutButton: ComponentNode = {
       id: "auth.logout.button",
       type: "DynamicHtmlComponent",
@@ -2193,7 +2194,7 @@ export default function StudioPage() {
         },
       },
     };
-    const nextPages = studioPages.map((page) => ({
+    const nextPages = service.kind === "auth" ? studioPages.map((page) => ({
       ...page,
       componentTree:
         page.id === service.bundle?.adminPageId
@@ -2206,7 +2207,7 @@ export default function StudioPage() {
           : (page.componentTree || []).filter(
               (node) => node.id !== logoutButton.id,
             ),
-    }));
+    })) : studioPages;
     const response = await fetch(`/api/platforms/${platformId}/studio`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -2914,10 +2915,16 @@ export default function StudioPage() {
                   routeLabel={selectedPageFlow.label}
                   suggestedType={selectedPageFlow.type}
                   pages={studioPages}
+                  services={studioServices}
                 />
               ) : activePage === "app_workflow" ? (
                 <AppWorkflowDesigner
                   appInfo={appInfo}
+                  platformId={platformId!}
+                  appId={selectedAppId}
+                  services={studioServices}
+                  collections={studioCollections.map((item) => ({ id: item.id, name: item.name, table: item.table }))}
+                  onSaveService={handleUpdateStudioService}
                   onSaveManifest={(manifest) =>
                     void handleSaveManifest(manifest)
                   }

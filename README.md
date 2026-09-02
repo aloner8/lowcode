@@ -473,6 +473,7 @@ title/description) หรือระดับ Platform ผ่าน `PUT /api/p
 | `013` | `platforms.public_data_access` (allow-list ของ runtime สาธารณะ) |
 | `014` | **SEO** — `platforms.seo_defaults`, `apps.seo_settings`, `platform_pages.seo` |
 | `015` | **สิทธิ์ 3 ชั้น** — GOD/ADMIN/STAFF, แพ็กเกจและวันหมดอายุ, `site_role_of()` |
+| `026` | **Shared Services** — Service Catalog/Binding, invocation audit, idempotency keys และ email outbox |
 
 ### Tenant DB — หนึ่งฐานต่อหนึ่ง tenant
 
@@ -754,6 +755,7 @@ CI ที่ [.github/workflows/ci.yml](.github/workflows/ci.yml) รัน migr
 | [PlatformModule.MD](docs/PlatformModule.MD) | ลำดับชั้น Platform Master → Tenant App, กลไก Cascading Inheritance และการ merge master layout กับ tenant overrides | 168 |
 | [CreatePlatform.MD](docs/CreatePlatform.MD) | ข้อกำหนดการสร้าง Platform: ตาราง Category, ฟิลด์ First Public Page 3 โหมด, Module ตั้งต้น, procedure `create_platform_blueprint` และ Acceptance Criteria | 348 |
 | [DeveloperAdminPage.MD](docs/DeveloperAdminPage.MD) | ความต่างระหว่าง Auth ของเว็บแม่กับ Auth ของ App ลูก, การขยาย schema ผู้ใช้ และการออกแบบหน้า `/admin` | 289 |
+| [SHareService.MD](docs/SHareService.MD) | Backend Capability Hub สำหรับให้ Web แม่และ App ลูกใช้ Auth, Query, Upload และ Send Mail ร่วมกันผ่าน Service Binding โดยไม่ต้องแตก Flow | 714 |
 
 ### Studio (เครื่องมือออกแบบ)
 

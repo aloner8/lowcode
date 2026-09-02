@@ -3,6 +3,8 @@ import { WorkflowTree, WorkflowNode } from '@/types';
 export interface ExecutionContext {
   payload?: any;
   appId?: string;
+  appSlug?: string;
+  results?: Record<string, unknown>;
   navigate?: (path: string) => void;
   showAlert?: (msg: string) => void;
 }
@@ -98,6 +100,21 @@ export class WorkflowInterpreter {
         } catch (err) {
           console.error('[WorkflowInterpreter] API Call Error:', err);
         }
+        break;
+      }
+
+      case 'serviceCall':
+      case 'service': {
+        const bindingId = String(config.bindingId || node.data.serviceId || '');
+        const operation = String(config.operation || node.data.operation || '');
+        if (!bindingId || !operation || !ctx.appSlug) throw new Error(`Service node '${node.id}' is missing bindingId, operation or appSlug`);
+        const body = config.input && typeof config.input === 'object' ? config.input : (ctx.payload || {});
+        const response = await fetch(`/api/runtime/${encodeURIComponent(ctx.appSlug)}/services/${encodeURIComponent(bindingId)}/${encodeURIComponent(operation)}`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', ...(config.idempotencyKey || operation === 'sendTemplate' ? { 'Idempotency-Key': String(config.idempotencyKey || crypto.randomUUID()) } : {}) }, body: JSON.stringify(body),
+        });
+        const result = await response.json() as { ok?: boolean; data?: unknown; error?: { message?: string } };
+        if (!response.ok || !result.ok) throw new Error(result.error?.message || `Service returned ${response.status}`);
+        ctx.results = { ...(ctx.results || {}), [String(config.saveResultAs || node.id)]: result.data };
         break;
       }
 

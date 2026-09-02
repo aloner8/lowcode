@@ -76,6 +76,9 @@ services:
       PLATFORM_RUNTIME_NETWORK: lowcode_network
       PLATFORM_RUNTIME_BASE_IMAGE: lowcode-app:latest
       PLATFORM_JWT_SECRET: ${PLATFORM_JWT_SECRET:?PLATFORM_JWT_SECRET is required — run "npm run secrets" to generate .env}
+      SERVICE_WORKER_SECRET: ${SERVICE_WORKER_SECRET:-}
+      MAIL_PROVIDER_ENDPOINT: ${MAIL_PROVIDER_ENDPOINT:-}
+      MAIL_PROVIDER_TOKEN: ${MAIL_PROVIDER_TOKEN:-}
       TENANT_STORAGE_ROOT: /app/storage/tenants
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -98,7 +101,9 @@ services:
     command: ["node", "scripts/run-sites.mjs"]
     ports:
       # One host port per site; widen the range as more sites are provisioned.
-      - "33001-33020:33001-33020"
+      # 33001-33002 are reserved for the two standalone child runtime
+      # containers created by Studio; the shared launcher owns the rest.
+      - "33003-33020:33003-33020"
     environment:
       NODE_ENV: production
       SITES_HOSTNAME: 0.0.0.0

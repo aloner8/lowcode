@@ -4,9 +4,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Edge, Node } from '@xyflow/react';
 import { Database, FileText, Save, Workflow } from 'lucide-react';
 import { FlowCanvas } from '@/components/flow/FlowCanvas';
+import { getServiceDefinition } from '@/lib/services/catalog';
+import { serviceKeyOf } from '@/lib/services/bindings';
+import type { StudioServiceDefinition } from '@/types';
 
 interface StudioPage { id: string; name: string; title: string }
-interface PageFlowDesignerProps { platformId: string; routePath: string; routeLabel: string; suggestedType: 'public_page' | 'form_crud'; pages: StudioPage[] }
+interface PageFlowDesignerProps { platformId: string; routePath: string; routeLabel: string; suggestedType: 'public_page' | 'form_crud'; pages: StudioPage[]; services?: StudioServiceDefinition[] }
 interface StoredFlow { templateType: 'public_page' | 'form_crud'; nodes: Node[]; edges: Edge[] }
 
 const templates = {
@@ -37,7 +40,7 @@ const templates = {
   },
 };
 
-export const PageFlowDesigner: React.FC<PageFlowDesignerProps> = ({ platformId, routePath, routeLabel, suggestedType, pages }) => {
+export const PageFlowDesigner: React.FC<PageFlowDesignerProps> = ({ platformId, routePath, routeLabel, suggestedType, pages, services = [] }) => {
   const [flow, setFlow] = useState<StoredFlow | null>(null);
   const [draft, setDraft] = useState<{ nodes: Node[]; edges: Edge[] } | null>(null);
   const [showTemplates, setShowTemplates] = useState(false);
@@ -121,7 +124,8 @@ export const PageFlowDesigner: React.FC<PageFlowDesignerProps> = ({ platformId, 
       <div className="card border-0 shadow-lg rounded-4" style={{ width: 'min(92vw, 520px)' }} onMouseDown={event => event.stopPropagation()}><div className="card-body p-4">
         <div className="d-flex justify-content-between align-items-start mb-3"><div><div className="text-primary small fw-bold">FLOW NODE CONFIGURATION</div><h5 className="fw-bold mb-0">{String(selectedNode.data.label || 'Node')}</h5></div><button className="btn-close" onClick={() => setSelectedNode(null)} /></div>
         <label className="form-label fw-semibold">Node Label</label><input className="form-control mb-3" value={String(selectedNode.data.label || '')} onChange={(event) => updateSelectedNodeData({ label: event.target.value })}/>
-        {selectedNode.type === 'action' && <><label className="form-label fw-semibold">Action Type</label><select className="form-select mb-3" value={String(selectedNode.data.actionType || '')} onChange={(event) => updateSelectedNodeData({ actionType: event.target.value })}><option value="">Select action...</option><option value="service">Service</option><option value="navigate">Navigate Page</option><option value="apiCall">API Call</option><option value="databaseMutation">Database Mutation</option><option value="showAlert">Show Alert</option></select></>}
+        {selectedNode.type === 'action' && <><label className="form-label fw-semibold">Action Type</label><select className="form-select mb-3" value={String(selectedNode.data.actionType || '')} onChange={(event) => updateSelectedNodeData({ actionType: event.target.value })}><option value="">Select action...</option><option value="serviceCall">Shared Service Call</option><option value="navigate">Navigate Page</option><option value="apiCall">API Call</option><option value="databaseMutation">Database Mutation</option><option value="showAlert">Show Alert</option></select></>}
+        {selectedNode.data.actionType === 'serviceCall' && <div className="row g-2 mb-3"><div className="col-md-7"><label className="form-label fw-semibold">Service Binding</label><select className="form-select" value={String((selectedNode.data.config as any)?.bindingId || '')} onChange={(event) => updateSelectedNodeData({ config: { ...((selectedNode.data.config as object) || {}), bindingId: event.target.value, operation: '' } })}><option value="">Not assigned</option>{services.map((service) => <option key={service.id} value={service.id}>{service.name} ({service.id})</option>)}</select></div><div className="col-md-5"><label className="form-label fw-semibold">Operation</label><select className="form-select" value={String((selectedNode.data.config as any)?.operation || '')} onChange={(event) => updateSelectedNodeData({ config: { ...((selectedNode.data.config as object) || {}), operation: event.target.value } })}><option value="">Not assigned</option>{Object.keys(getServiceDefinition(serviceKeyOf(services.find((item) => item.id === (selectedNode.data.config as any)?.bindingId) || ({ id: '', name: '', kind: 'auth', enabled: false, config: {}, containerBindings: [] } as StudioServiceDefinition)))?.operations || {}).map((operation) => <option key={operation} value={operation}>{operation}</option>)}</select></div><div className="col-12"><label className="form-label fw-semibold">Input JSON</label><textarea className="form-control font-monospace" rows={4} value={JSON.stringify((selectedNode.data.config as any)?.input || {}, null, 2)} onChange={(event) => { try { updateSelectedNodeData({ config: { ...((selectedNode.data.config as object) || {}), input: JSON.parse(event.target.value) } }); } catch { /* retain last valid JSON */ } }}/></div></div>}
         {selectedNode.data.actionType === 'navigate' && <><label className="form-label fw-semibold">Target Page</label><select className="form-select mb-3" value={String(selectedNode.data.targetPageId || '')} onChange={(event) => updateSelectedNodeData({ targetPageId: event.target.value })}><option value="">Not assigned</option>{pages.map((page) => <option key={page.id} value={page.id}>{page.title} ({page.id}.page)</option>)}</select></>}
         {(selectedNode.id === 'read_config' || selectedNode.id === 'form_event') ? <><label className="form-label fw-semibold">Related Page Layout</label><select className="form-select" value={String(selectedNode.data.pageId || '')} onChange={event => updateNodePage(event.target.value)}>
           {pages.map(page => <option key={page.id} value={page.id}>{page.title} ({page.id}.page)</option>)}

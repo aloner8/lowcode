@@ -5,6 +5,9 @@ import { dockerAvailable, dockerRequest } from '@/lib/docker/dockerEngine';
 import { requirePlatformSession } from '@/lib/auth/apiAuth';
 import { recordPlatformAudit } from '@/lib/engine/AuditLogService';
 import { hydratePlatformPageComponents, type HydratablePage } from '@/lib/engine/platformPageComponents';
+import { validateServicesForPublish } from '@/lib/services/publishValidation';
+import { listServiceDefinitions } from '@/lib/services/catalog';
+import type { StudioServiceDefinition } from '@/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -84,6 +87,8 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     `SELECT route_path AS "routePath", route_label AS "routeLabel", template_type AS "templateType", nodes, edges
      FROM public.platform_page_flows WHERE platform_id=$1 ORDER BY route_path`, [id],
   );
+  const serviceValidation = validateServicesForPublish(platform.studio_services, flowResult.rows, { checkSecrets: true });
+  if (!serviceValidation.valid) return NextResponse.json({ error: 'Service bindings are not ready to publish', errors: serviceValidation.errors }, { status: 422 });
   const snapshot = {
     platformId: platform.id,
     platformSlug: platform.platform_slug,
@@ -93,7 +98,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     forms: platform.studio_forms || [],
     collections: platform.studio_collections || [],
     routes: platform.studio_routes || [],
-    services: platform.studio_services || [],
+    services: serviceValidation.services,
     flows: flowResult.rows,
     generatedAt: new Date().toISOString(),
   };
@@ -150,6 +155,18 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       runtime_source_updated_at=content_updated_at, runtime_build_revision=$5,
       runtime_snapshot=$6::jsonb, runtime_port=$7, runtime_surfaces=$8::jsonb, runtime_error=NULL WHERE id=$1`,
       [id, `/platform-runtime/${platform.platform_slug}`, image, containerBase, revision, JSON.stringify(snapshot), port, JSON.stringify(surfaces)]);
+    const catalog = listServiceDefinitions();
+    for (const definition of catalog) await getCoreDb().query(
+      `INSERT INTO public.service_definitions(service_key,version,display_name,kind,lifecycle,definition)
+       VALUES($1,$2,$3,$4,$5,$6::jsonb) ON CONFLICT(service_key,version) DO UPDATE SET display_name=excluded.display_name,kind=excluded.kind,lifecycle=excluded.lifecycle,definition=excluded.definition`,
+      [definition.serviceKey, definition.version, definition.displayName, definition.kind, definition.lifecycle, JSON.stringify(definition)],
+    );
+    await getCoreDb().query('DELETE FROM public.app_service_bindings WHERE platform_id=$1 AND app_id IS NULL', [id]);
+    for (const binding of serviceValidation.services as StudioServiceDefinition[]) await getCoreDb().query(
+      `INSERT INTO public.app_service_bindings(binding_key,platform_id,app_id,service_key,service_version,enabled,config,secret_refs,policy,status,updated_by)
+       VALUES($1,$2,NULL,$3,$4,$5,$6::jsonb,$7::jsonb,$8::jsonb,'published',$9)`,
+      [binding.id, id, binding.serviceRef!.serviceKey, binding.serviceRef!.version, binding.enabled, JSON.stringify(binding.config), JSON.stringify(binding.secretRefs || {}), JSON.stringify(binding.policy || { allowedOperations: [] }), auth.actor],
+    );
     const updated = await getCoreDb().query<RuntimeRow>(selectRuntime, [id]);
     await recordPlatformAudit({
       platformId: id,

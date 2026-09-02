@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { AppConfig, AppWorkFlowManifest, AppBootService, AppMenuItem } from '@/types';
+import { AppConfig, AppWorkFlowManifest, AppBootService, AppMenuItem, StudioServiceDefinition } from '@/types';
+import { SharedServiceManager } from './SharedServiceManager';
 import {
   Workflow,
   Server,
@@ -15,11 +16,16 @@ import {
 
 interface AppWorkflowDesignerProps {
   appInfo: AppConfig;
+  platformId: string;
+  appId?: string | null;
+  services: StudioServiceDefinition[];
+  collections: Array<{ id: string; name: string; table: string }>;
+  onSaveService: (service: StudioServiceDefinition) => Promise<void>;
   onSaveManifest: (manifest: AppWorkFlowManifest) => void;
 }
 
-export const AppWorkflowDesigner: React.FC<AppWorkflowDesignerProps> = ({ appInfo, onSaveManifest }) => {
-  const [activeTab, setActiveTab] = useState<'boot' | 'navigation' | 'json'>('navigation');
+export const AppWorkflowDesigner: React.FC<AppWorkflowDesignerProps> = ({ appInfo, platformId, appId, services, collections, onSaveService, onSaveManifest }) => {
+  const [activeTab, setActiveTab] = useState<'boot' | 'navigation' | 'services' | 'json'>('navigation');
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
   // Initial App WorkFlow Manifest State
@@ -81,8 +87,8 @@ export const AppWorkflowDesigner: React.FC<AppWorkflowDesignerProps> = ({ appInf
         roles: ['admin'],
         action: {
           type: 'RUN_SERVICE',
-          serviceEndpoint: '/api/v1/tenant/sync-data',
-          httpMethod: 'POST',
+          bindingId: 'service.auth.jwt',
+          operation: 'me',
         },
       },
       {
@@ -211,6 +217,14 @@ export const AppWorkflowDesigner: React.FC<AppWorkflowDesignerProps> = ({ appInf
         <div className="btn-group btn-group-sm bg-white p-0.5 rounded-2 border">
           <button
             className={`btn btn-sm py-1 px-3 extra-small fw-semibold ${
+              activeTab === 'services' ? 'bg-primary text-white shadow-sm' : 'text-secondary'
+            }`}
+            onClick={() => setActiveTab('services')}
+          >
+            <Server size={13} className="me-1" /> Shared Services ({services.length})
+          </button>
+          <button
+            className={`btn btn-sm py-1 px-3 extra-small fw-semibold ${
               activeTab === 'navigation' ? 'bg-primary text-white shadow-sm' : 'text-secondary'
             }`}
             onClick={() => setActiveTab('navigation')}
@@ -293,7 +307,7 @@ export const AppWorkflowDesigner: React.FC<AppWorkflowDesignerProps> = ({ appInf
 
                         <div className="extra-small text-opacity-75 text-truncate" style={{ fontSize: '0.7rem' }}>
                           {item.action.type === 'OPEN_PAGE' && `Target Page: /${item.action.targetPageSlug}`}
-                          {item.action.type === 'RUN_SERVICE' && `API: ${item.action.serviceEndpoint}`}
+                          {item.action.type === 'RUN_SERVICE' && `Service: ${item.action.bindingId || item.action.serviceEndpoint || 'Not assigned'}.${item.action.operation || ''}`}
                           {item.action.type === 'TRIGGER_WORKFLOW' && `Flow ID: ${item.action.workflowTreeId}`}
                         </div>
                       </div>
@@ -371,7 +385,7 @@ export const AppWorkflowDesigner: React.FC<AppWorkflowDesignerProps> = ({ appInf
                           }`}
                           onClick={() =>
                             handleUpdateMenuItem(selectedMenuItem.id, {
-                              action: { ...selectedMenuItem.action, type: 'RUN_SERVICE', serviceEndpoint: '/api/v1/tenant/sync', httpMethod: 'POST' },
+                              action: { type: 'RUN_SERVICE', bindingId: services[0]?.id || '', operation: 'me' },
                             })
                           }
                         >
@@ -412,18 +426,9 @@ export const AppWorkflowDesigner: React.FC<AppWorkflowDesignerProps> = ({ appInf
                       )}
 
                       {selectedMenuItem.action.type === 'RUN_SERVICE' && (
-                        <div>
-                          <label className="form-label extra-small fw-semibold text-secondary mb-1">Tenant Service Endpoint</label>
-                          <input
-                            type="text"
-                            className="form-control form-control-sm bg-white font-monospace mb-2"
-                            value={selectedMenuItem.action.serviceEndpoint || ''}
-                            onChange={(e) =>
-                              handleUpdateMenuItem(selectedMenuItem.id, {
-                                action: { ...selectedMenuItem.action, serviceEndpoint: e.target.value },
-                              })
-                            }
-                          />
+                        <div className="row g-2">
+                          <div className="col-md-7"><label className="form-label extra-small fw-semibold text-secondary mb-1">Service Binding</label><select className="form-select form-select-sm bg-white" value={selectedMenuItem.action.bindingId || ''} onChange={(e) => handleUpdateMenuItem(selectedMenuItem.id, { action: { ...selectedMenuItem.action, bindingId: e.target.value } })}><option value="">Not assigned</option>{services.map((service) => <option value={service.id} key={service.id}>{service.name} ({service.id})</option>)}</select></div>
+                          <div className="col-md-5"><label className="form-label extra-small fw-semibold text-secondary mb-1">Operation</label><input className="form-control form-control-sm bg-white font-monospace" value={selectedMenuItem.action.operation || ''} onChange={(e) => handleUpdateMenuItem(selectedMenuItem.id, { action: { ...selectedMenuItem.action, operation: e.target.value } })}/></div>
                         </div>
                       )}
 
@@ -490,6 +495,8 @@ export const AppWorkflowDesigner: React.FC<AppWorkflowDesignerProps> = ({ appInf
             </div>
           </div>
         )}
+
+        {activeTab === 'services' && <SharedServiceManager platformId={platformId} appId={appId} services={services} collections={collections} onSave={onSaveService}/>}
 
         {/* ======================================================== */}
         {/* 3. Manifest JSON AST Tab */}

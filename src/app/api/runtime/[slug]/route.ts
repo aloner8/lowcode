@@ -8,6 +8,7 @@ import type {
   ThemeConfig,
 } from "@/types";
 import { hydratePlatformPageComponents } from "@/lib/engine/platformPageComponents";
+import { resolveAppServiceBindings } from "@/lib/services/appBindings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -147,7 +148,7 @@ export async function GET(
   // Routes and services decide the entry page (dev: service/route driven start
   // point); tenant overrides then shape what that page actually renders.
   const routes = Array.isArray(snapshot.routes) ? snapshot.routes : [];
-  const services = Array.isArray(snapshot.services) ? snapshot.services : [];
+  const services = await resolveAppServiceBindings(snapshot.platformId, row.app_id || undefined, snapshot.services);
   const surfaceRoutes = routes.filter((item) =>
     String(item.containerName || "").endsWith(`-${surface}`),
   );

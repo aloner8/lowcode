@@ -147,22 +147,74 @@ export interface AppConfig {
   updatedAt: string;
 }
 
+export type SharedServiceKind = "auth" | "data" | "storage" | "notification";
+export type SharedServiceBindingStatus = "draft" | "valid" | "invalid" | "published";
+
+export interface ServiceOperationDefinition {
+  inputSchema: JsonSchema;
+  outputSchema: JsonSchema;
+  requiredPermission?: string;
+  execution: "sync" | "async";
+  idempotency: "none" | "supported" | "required";
+}
+
+export interface JsonSchema {
+  type?: "object" | "array" | "string" | "number" | "integer" | "boolean";
+  title?: string;
+  description?: string;
+  properties?: Record<string, JsonSchema>;
+  required?: string[];
+  items?: JsonSchema;
+  enum?: Array<string | number | boolean>;
+  default?: unknown;
+  minimum?: number;
+  maximum?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  additionalProperties?: boolean;
+}
+
+export interface SharedServiceDefinition {
+  serviceKey: string;
+  displayName: string;
+  kind: SharedServiceKind;
+  version: string;
+  lifecycle: "active" | "deprecated" | "retired";
+  operations: Record<string, ServiceOperationDefinition>;
+  propertySchema: JsonSchema;
+  defaultConfig: Record<string, unknown>;
+}
+
+/**
+ * Per-platform service binding. Legacy JWT fields remain optional during the
+ * migration so already-published snapshots continue to run.
+ */
 export interface StudioServiceDefinition {
   id: string;
   name: string;
-  kind: "auth";
-  provider: "jwt";
-  scope: "container";
+  kind: SharedServiceKind;
+  serviceRef?: { serviceKey: string; version: string };
+  provider?: "jwt" | "postgres" | "tenant-storage" | "http-email";
+  scope?: "container" | "platform" | "app";
   enabled: boolean;
-  implementation: { owner: "mother"; version: number; module: string };
-  config: {
-    algorithm: "HS256";
-    issuer: string;
-    audience: string;
-    accessTokenTtlSeconds: number;
-    refreshTokenTtlSeconds: number;
-    secretEnvKey: string;
+  implementation?: { owner: "mother"; version: number; module: string };
+  config: Record<string, any> & {
+    algorithm?: "HS256";
+    issuer?: string;
+    audience?: string;
+    accessTokenTtlSeconds?: number;
+    refreshTokenTtlSeconds?: number;
+    secretEnvKey?: string;
   };
+  secretRefs?: Record<string, string>;
+  policy?: {
+    allowedOperations: string[];
+    requiredPermissions?: Record<string, string[]>;
+    rateLimit?: { requests: number; windowSeconds: number };
+  };
+  status?: SharedServiceBindingStatus;
+  validationErrors?: string[];
   containerBindings: Array<{
     containerName: string;
     enabled: boolean;
@@ -185,6 +237,7 @@ export const createDefaultJwtAuthService = (
   id: "service.auth.jwt",
   name: "Auth (JWT)",
   kind: "auth",
+  serviceRef: { serviceKey: "auth.session", version: "1.0.0" },
   provider: "jwt",
   scope: "container",
   enabled: true,
@@ -197,6 +250,11 @@ export const createDefaultJwtAuthService = (
     refreshTokenTtlSeconds: 604800,
     secretEnvKey: "PLATFORM_JWT_SECRET",
   },
+  secretRefs: { signingKey: "env://PLATFORM_JWT_SECRET" },
+  policy: {
+    allowedOperations: ["login", "logout", "me", "refresh", "changePassword"],
+  },
+  status: "draft",
   containerBindings: [],
   bundle: {
     status: "not_provisioned",
@@ -288,7 +346,9 @@ export interface WorkflowNodeData {
   label: string;
   nodeType: WorkflowNodeType;
   actionType?:
-    "navigate" | "apiCall" | "dbMutation" | "showAlert" | "openModal";
+    "navigate" | "apiCall" | "dbMutation" | "showAlert" | "openModal" | "serviceCall" | "service";
+  serviceId?: string;
+  operation?: string;
   config?: Record<string, any>;
 }
 
@@ -484,7 +544,7 @@ export type RuntimeMenuAction =
   | { type: "navigateRoute"; routeId: string; params?: Record<string, unknown> }
   | { type: "openRoute"; routeId: string; params?: Record<string, unknown> }
   | { type: "openExternal"; url: string; newTab?: boolean }
-  | { type: "runService"; serviceId: string; payload?: Record<string, unknown> }
+  | { type: "runService"; bindingId?: string; serviceId?: string; operation?: string; payload?: Record<string, unknown> }
   | {
       type: "callApi";
       apiId?: string;
@@ -510,6 +570,8 @@ export interface AppMenuAction {
   type: MenuActionType;
   targetPageSlug?: string; // For OPEN_PAGE
   serviceEndpoint?: string; // For RUN_SERVICE
+  bindingId?: string; // Canonical Service Binding for RUN_SERVICE
+  operation?: string; // Operation exposed by the selected binding
   httpMethod?: "GET" | "POST" | "PUT" | "DELETE"; // For RUN_SERVICE
   workflowTreeId?: string; // For TRIGGER_WORKFLOW
   params?: Record<string, any>;
