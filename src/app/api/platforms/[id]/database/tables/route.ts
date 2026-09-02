@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requirePlatformSession } from '@/lib/auth/apiAuth';
-import { describeTenantTable, listTenantTables, TenantRecordError } from '@/lib/db/tenantRecords';
+import { describeTenantTableByDatabase, listTenantTablesByDatabase, TenantRecordError } from '@/lib/db/tenantRecords';
+import { PlatformDatabaseError, resolvePlatformDatabase } from '@/lib/db/platformDatabases';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,12 +12,17 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const auth = await requirePlatformSession(id, 'VIEWER');
   if (auth instanceof NextResponse) return auth;
 
-  const table = new URL(request.url).searchParams.get('table');
+  const params = new URL(request.url).searchParams;
+  const table = params.get('table');
 
   try {
-    if (table) return NextResponse.json({ table: await describeTenantTable(id, table) });
-    return NextResponse.json({ tables: await listTenantTables(id) });
+    const { database } = await resolvePlatformDatabase(id, params.get('database'));
+    if (table) return NextResponse.json({ table: await describeTenantTableByDatabase(database, table), database });
+    return NextResponse.json({ tables: await listTenantTablesByDatabase(database), database });
   } catch (error) {
+    if (error instanceof PlatformDatabaseError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     if (error instanceof TenantRecordError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }

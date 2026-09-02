@@ -4,6 +4,7 @@ import { getCoreDb } from '@/lib/db/coreDb';
 import { dockerAvailable, dockerRequest } from '@/lib/docker/dockerEngine';
 import { requirePlatformSession } from '@/lib/auth/apiAuth';
 import { recordPlatformAudit } from '@/lib/engine/AuditLogService';
+import { hydratePlatformPageComponents, type HydratablePage } from '@/lib/engine/platformPageComponents';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -65,6 +66,13 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   const result = await getCoreDb().query<RuntimeRow>(selectRuntime, [id]);
   if (!result.rowCount) return NextResponse.json({ error: 'Platform not found' }, { status: 404 });
   const platform = result.rows[0];
+  // Reusable FormComponents are normalized into platform_pages_components and
+  // deliberately stripped from platform_pages.component_tree. Runtime must
+  // hydrate those instances again before freezing the publish snapshot.
+  platform.studio_pages = await hydratePlatformPageComponents(
+    id,
+    platform.studio_pages as HydratablePage[],
+  );
   if (!platform.studio_initialized || !Array.isArray(platform.studio_pages) || platform.studio_pages.length === 0) {
     return NextResponse.json({ error: 'Platform ยังไม่มี Page data สำหรับสร้าง Runtime' }, { status: 409 });
   }

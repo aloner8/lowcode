@@ -1,5 +1,5 @@
 import type { Pool } from 'pg';
-import { getTenantDb } from './tenantDb';
+import { getTenantDb, getTenantDbByName } from './tenantDb';
 import type { TenantRecordPage, TenantTableColumn, TenantTableSchema } from '@/types';
 
 /**
@@ -86,6 +86,10 @@ function pickWritableColumns(
 
 export async function listTenantTables(platformId: string): Promise<TenantTableSchema[]> {
   const { pool } = await getTenantDb(platformId);
+  return listTables(pool);
+}
+
+async function listTables(pool: Pool): Promise<TenantTableSchema[]> {
   const tables = await pool.query<{ table_name: string; row_estimate: string }>(
     `SELECT t.table_name,
             COALESCE(s.n_live_tup, 0)::text AS row_estimate
@@ -105,11 +109,23 @@ export async function listTenantTables(platformId: string): Promise<TenantTableS
   );
 }
 
+export async function listTenantTablesByDatabase(database: string): Promise<TenantTableSchema[]> {
+  return listTables(await getTenantDbByName(database));
+}
+
 export async function describeTenantTable(platformId: string, table: string): Promise<TenantTableSchema> {
   const { pool } = await getTenantDb(platformId);
+  return describeTableSchema(pool, table);
+}
+
+async function describeTableSchema(pool: Pool, table: string): Promise<TenantTableSchema> {
   const columns = await describeTable(pool, table);
   const count = await pool.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM public.${quote(table)}`);
   return { tableName: table, columns, rowCount: Number(count.rows[0].count) };
+}
+
+export async function describeTenantTableByDatabase(database: string, table: string): Promise<TenantTableSchema> {
+  return describeTableSchema(await getTenantDbByName(database), table);
 }
 
 export interface ListOptions {

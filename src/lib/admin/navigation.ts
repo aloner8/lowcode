@@ -16,6 +16,7 @@ import {
   Network,
   CalendarDays,
   ClipboardList,
+  DatabaseZap,
   type LucideIcon,
 } from 'lucide-react';
 import type { GlobalRole } from '@/types';
@@ -106,6 +107,12 @@ export const ADMIN_TOOLS: readonly AdminNavItem[] = [
     label: 'ออกแบบฟอร์มข้อมูล',
     description: 'สร้างแม่แบบ FormComponent, Collection Set และสัญญา Req/Response',
     icon: ClipboardList,
+  },
+  {
+    href: '/collection-designer',
+    label: 'Collection Set',
+    description: 'ฐานข้อมูล, Query, Procedure Flow และ Auto Component',
+    icon: DatabaseZap,
   },
   {
     href: '/svg-studio',

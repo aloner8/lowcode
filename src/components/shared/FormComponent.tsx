@@ -22,8 +22,14 @@ export interface FormComponentProps {
   responseContract?: Array<Record<string, any>>;
   requestBindings?: Record<string, string>;
   responseBindings?: Record<string, string>;
+  operationBindings?: Record<string, string>;
   requestValues?: Record<string, any>;
   onSubmit?: (
+    formData: Record<string, any>,
+    requestValues?: Record<string, any>,
+  ) => unknown | Promise<unknown>;
+  onOperation?: (
+    operationId: string,
     formData: Record<string, any>,
     requestValues?: Record<string, any>,
   ) => unknown | Promise<unknown>;
@@ -47,9 +53,11 @@ export const FormComponent: React.FC<FormComponentProps> = ({
   resetText,
   initialValues = EMPTY_FORM_VALUES,
   onSubmit,
+  onOperation,
   onResponse,
   requestValues = EMPTY_FORM_VALUES,
   responseBindings = EMPTY_FORM_VALUES,
+  operationBindings = EMPTY_FORM_VALUES,
   className = '',
   mode = 'insert',
 }) => {
@@ -62,9 +70,12 @@ export const FormComponent: React.FC<FormComponentProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const submitResult = onSubmit
-      ? await onSubmit(formData, requestValues)
-      : undefined;
+    const operationId = mode === 'update'
+      ? operationBindings.update || operationBindings.save || operationBindings.submit
+      : operationBindings.submit || operationBindings.save || operationBindings.create;
+    const submitResult = operationId && onOperation
+      ? await onOperation(operationId, formData, requestValues)
+      : onSubmit ? await onSubmit(formData, requestValues) : undefined;
     const standardOutputs: Record<string, unknown> = {
       formData,
       submitResult,

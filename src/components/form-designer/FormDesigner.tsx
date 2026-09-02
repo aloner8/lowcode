@@ -41,11 +41,17 @@ type FormDefinition = {
 type Platform = { id: string; platformName: string; platformSlug: string };
 type ComponentDto = {
   id: string;
+  platformId: string;
   key: string;
   name: string;
   componentType: string;
   definition: FormDefinition;
   version: number;
+  isPublic?: boolean;
+};
+type PublicComponentDto = Omit<ComponentDto, "version" | "isPublic"> & {
+  sourceVersion: number;
+  publisherName?: string;
 };
 type Collection = { id: string; name: string; table?: string };
 type Page = { id: string; title: string };
@@ -123,6 +129,8 @@ export default function FormDesigner() {
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [platformId, setPlatformId] = useState("");
   const [components, setComponents] = useState<ComponentDto[]>([]);
+  const [publicComponents, setPublicComponents] = useState<PublicComponentDto[]>([]);
+  const [listTab, setListTab] = useState<"mine" | "public">("mine");
   const [collections, setCollections] = useState<Collection[]>([]);
   const [pages, setPages] = useState<Page[]>([]);
   const [componentId, setComponentId] = useState<string | null>(null);
@@ -151,9 +159,26 @@ export default function FormDesigner() {
       const requested = new URLSearchParams(window.location.search).get(
         "platformId",
       );
+      const requestedFormId = new URLSearchParams(window.location.search).get(
+        "formId",
+      );
+      let resolvedPlatformId = "";
+      if (!requested && requestedFormId && requestedFormId !== "new") {
+        const componentResponse = await fetch(
+          `/api/platform-components?componentId=${encodeURIComponent(requestedFormId)}`,
+          { cache: "no-store" },
+        );
+        if (componentResponse.ok) {
+          const componentData = (await componentResponse.json()) as {
+            component?: ComponentDto;
+          };
+          resolvedPlatformId = componentData.component?.platformId || "";
+        }
+      }
       const last = localStorage.getItem("matchanu:last-studio-platform-id");
       setPlatformId(
         list.find((item) => item.id === requested)?.id ||
+          list.find((item) => item.id === resolvedPlatformId)?.id ||
           list.find((item) => item.id === last)?.id ||
           list[0]?.id ||
           "",
@@ -181,15 +206,17 @@ export default function FormDesigner() {
         setStatus(promotionData.error || "นำเข้า Form เดิมจาก Page ไม่สำเร็จ");
         return;
       }
-      const [componentResponse, studioResponse] = await Promise.all([
+      const [componentResponse, studioResponse, collectionResponse] = await Promise.all([
         fetch(
           `/api/platform-components?platformId=${encodeURIComponent(platformId)}`,
           { cache: "no-store" },
         ),
         fetch(`/api/platforms/${platformId}/studio`, { cache: "no-store" }),
+        fetch(`/api/collection-sets?platformId=${encodeURIComponent(platformId)}`, { cache: "no-store" }),
       ]);
       const componentData = (await componentResponse.json()) as {
         components?: ComponentDto[];
+        sharedComponents?: PublicComponentDto[];
         error?: string;
       };
       const studioData = (await studioResponse.json()) as {
@@ -199,6 +226,9 @@ export default function FormDesigner() {
         };
         error?: string;
       };
+      const collectionData = (await collectionResponse.json()) as {
+        collections?: Array<{ id: string; key: string; name: string; definition: { table?: string } }>;
+      };
       if (!componentResponse.ok || !studioResponse.ok) {
         setStatus(componentData.error || studioData.error || "โหลดข้อมูลไม่สำเร็จ");
         return;
@@ -207,7 +237,13 @@ export default function FormDesigner() {
         (item) => item.componentType === "FormComponent",
       );
       setComponents(forms);
-      setCollections(studioData.platform?.studioCollections || []);
+      setPublicComponents(
+        (componentData.sharedComponents || []).filter(
+          (item) => item.componentType === "FormComponent",
+        ),
+      );
+      const collectionSetItems = (collectionData.collections || []).map((item) => ({ id: item.key, name: item.name, table: item.definition.table }));
+      setCollections(Array.from(new Map([...(studioData.platform?.studioCollections || []), ...collectionSetItems].map((item) => [item.id, item])).values()));
       setPages(studioData.platform?.studioPages || []);
       setTargetPage(studioData.platform?.studioPages?.[0]?.id || "");
       const requested = new URLSearchParams(window.location.search).get(
@@ -248,9 +284,37 @@ export default function FormDesigner() {
     setFormName(component.name);
     setDefinition({ ...emptyDefinition(), ...structuredClone(component.definition) });
     setSelectedField(null);
+    setScreen("designer");
     router.push(
-      `/form-designer?platformId=${encodeURIComponent(platformId)}&formId=${encodeURIComponent(component.id)}`,
+      `/form-designer?formId=${encodeURIComponent(component.id)}`,
     );
+  };
+
+  const publishForm = async (component: ComponentDto) => {
+    setStatus("กำลังเผยแพร่ฟอร์ม...");
+    const response = await fetch("/api/platform-components", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "publish", platformId, componentId: component.id }),
+    });
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) return setStatus(data.error || "เผยแพร่ฟอร์มไม่สำเร็จ");
+    setComponents((current) => current.map((item) => item.id === component.id ? { ...item, isPublic: true } : item));
+    setStatus("เผยแพร่ฟอร์มเวอร์ชันนี้แล้ว");
+  };
+
+  const clonePublicForm = async (component: PublicComponentDto) => {
+    setStatus("กำลัง Clone ฟอร์ม...");
+    const response = await fetch("/api/platform-components", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "clone-shared", platformId, sharedComponentId: component.id }),
+    });
+    const data = (await response.json()) as { component?: ComponentDto; error?: string };
+    if (!response.ok || !data.component) return setStatus(data.error || "Clone ฟอร์มไม่สำเร็จ");
+    setComponents((current) => [data.component!, ...current]);
+    setListTab("mine");
+    setStatus("Clone เข้า Form ของฉันแล้ว");
   };
 
   const newForm = () => {
@@ -329,7 +393,7 @@ export default function FormDesigner() {
     window.history.replaceState(
       {},
       "",
-      `/form-designer?platformId=${encodeURIComponent(platformId)}&formId=${encodeURIComponent(data.component.id)}`,
+      `/form-designer?formId=${encodeURIComponent(data.component.id)}`,
     );
     setComponents((current) => [
       data.component!,
@@ -470,15 +534,17 @@ export default function FormDesigner() {
         </header>
 
         <main className="container-fluid px-4 py-4">
-          <div className="d-flex align-items-center mb-3">
-            <h3 className="h6 mb-0">รายการฟอร์ม</h3>
-            <span className="badge text-bg-secondary ms-2">
-              {components.length}
-            </span>
+          <div className="d-flex align-items-center border-bottom mb-3">
+            <button className={`btn rounded-0 border-0 border-bottom border-3 ${listTab === "mine" ? "border-primary text-primary fw-bold" : "border-transparent text-secondary"}`} onClick={() => setListTab("mine")}>
+              ฟอร์มของฉัน <span className="badge text-bg-secondary ms-1">{components.length}</span>
+            </button>
+            <button className={`btn rounded-0 border-0 border-bottom border-3 ${listTab === "public" ? "border-primary text-primary fw-bold" : "border-transparent text-secondary"}`} onClick={() => setListTab("public")}>
+              ฟอร์มสาธารณะ <span className="badge text-bg-secondary ms-1">{publicComponents.length}</span>
+            </button>
             <span className="small text-success ms-auto">{status}</span>
           </div>
 
-          {components.length ? (
+          {(listTab === "mine" ? components : publicComponents).length ? (
             <div className="bg-white border rounded shadow-sm overflow-hidden">
               <div className="table-responsive">
                 <table className="table table-hover align-middle mb-0">
@@ -488,11 +554,12 @@ export default function FormDesigner() {
                       <th>Form ID</th>
                       <th className="text-center">Fields</th>
                       <th className="text-center">Version</th>
+                      {listTab === "public" && <th>สร้างโดย</th>}
                       <th className="text-end">จัดการ</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {components.map((component) => (
+                    {(listTab === "mine" ? components : publicComponents).map((component) => (
                       <tr key={component.id}>
                         <td>
                           <div className="fw-semibold">{component.name}</div>
@@ -506,14 +573,15 @@ export default function FormDesigner() {
                         <td className="text-center">
                           {component.definition.fields?.length || 0}
                         </td>
-                        <td className="text-center">v{component.version}</td>
+                        <td className="text-center">v{"version" in component ? component.version : component.sourceVersion}</td>
+                        {listTab === "public" && <td>{"publisherName" in component ? component.publisherName || "-" : "-"}</td>}
                         <td className="text-end">
-                          <button
-                            className="btn btn-sm btn-outline-primary"
-                            onClick={() => selectForm(component)}
-                          >
-                            แก้ไขฟอร์ม
-                          </button>
+                          {listTab === "mine" ? <div className="d-flex justify-content-end gap-2">
+                            <button className="btn btn-sm btn-outline-secondary" disabled={(component as ComponentDto).isPublic} onClick={() => void publishForm(component as ComponentDto)}>
+                              {(component as ComponentDto).isPublic ? "Public แล้ว" : "ตั้งเป็น Public"}
+                            </button>
+                            <button className="btn btn-sm btn-outline-primary" onClick={() => selectForm(component as ComponentDto)}>แก้ไขฟอร์ม</button>
+                          </div> : <button className="btn btn-sm btn-primary" onClick={() => void clonePublicForm(component as PublicComponentDto)}>Clone เข้า Form ของฉัน</button>}
                         </td>
                       </tr>
                     ))}
@@ -524,13 +592,13 @@ export default function FormDesigner() {
           ) : (
             <div className="bg-white border rounded p-5 text-center shadow-sm">
               <ClipboardList size={42} className="text-secondary mb-3" />
-              <h3 className="h5">ยังไม่มีฟอร์มส่วนตัว</h3>
+              <h3 className="h5">{listTab === "mine" ? "ยังไม่มีฟอร์มของฉัน" : "ยังไม่มีฟอร์มสาธารณะจากผู้ใช้อื่น"}</h3>
               <p className="text-secondary">
-                สร้าง FormComponent แรกสำหรับ Platform นี้
+                {listTab === "mine" ? "สร้าง FormComponent แรกสำหรับ Platform นี้" : "เมื่อผู้ใช้อื่นตั้งฟอร์มเป็น Public จะแสดงที่นี่"}
               </p>
-              <button className="btn btn-primary" onClick={newForm}>
+              {listTab === "mine" && <button className="btn btn-primary" onClick={newForm}>
                 <Plus size={16} /> สร้างฟอร์มใหม่
-              </button>
+              </button>}
             </div>
           )}
         </main>

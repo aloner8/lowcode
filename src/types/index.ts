@@ -325,6 +325,7 @@ export type AuditLogEntityType =
   | "THEME"
   | "USER"
   | "DATABASE"
+  | "COLLECTION"
   | "RUNTIME";
 
 export type AuditLogAction =
@@ -340,6 +341,11 @@ export type AuditLogAction =
   | "DELETE_PAGE"
   | "PROVISION_MODULE"
   | "PUBLISH_DATABASE"
+  | "CREATE_COLLECTION"
+  | "UPDATE_COLLECTION"
+  | "PUBLISH_COLLECTION"
+  | "CLONE_COLLECTION"
+  | "CREATE_PROCEDURE"
   | "BUILD_RUNTIME"
   | "RECORD_INSERT"
   | "RECORD_UPDATE"

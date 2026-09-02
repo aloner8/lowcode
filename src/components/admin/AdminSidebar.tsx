@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { ChevronDown, LogOut, PanelLeftClose, PanelLeftOpen, ExternalLink, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, LogOut, PanelLeftClose, PanelLeftOpen, ExternalLink, X } from 'lucide-react';
 import { Logo } from '@/components/brand/Logo';
 import { ADMIN_NAV, ADMIN_TOOLS, visibleNav } from '@/lib/admin/navigation';
 import { UserProfile } from '@/types';
@@ -32,6 +32,7 @@ export default function AdminSidebar({
   const navItems = visibleNav(ADMIN_NAV, user.globalRole);
   const toolItems = visibleNav(ADMIN_TOOLS, user.globalRole);
   const isGod = user.globalRole === 'GOD';
+  const [collapsedSubmenu, setCollapsedSubmenu] = React.useState<{ href: string; pathname: string } | null>(null);
 
   const isCurrent = (href: string) => {
     const [hrefPath, query = ''] = href.split('?');
@@ -78,20 +79,35 @@ export default function AdminSidebar({
     const children = item.children ?? [];
     const childActive = children.some((child) => isCurrent(child.href));
     const active = isCurrent(item.href) || childActive;
+    const submenuOpen = active && !(collapsedSubmenu?.href === item.href && collapsedSubmenu.pathname === pathname);
 
     return (
       <li key={item.href}>
-        <Link
-          href={item.href}
-          className={`adm-nav-link ${active ? 'is-active' : ''}`}
-          aria-current={pathname === item.href ? 'page' : undefined}
-          title={isCollapsed ? item.label : undefined}
-          onClick={onClose}
-        >
-          <Icon size={18} aria-hidden="true" />
-          {!isCollapsed && <><span>{item.label}</span>{children.length > 0 && <ChevronDown size={13} className="ms-auto" />}</>}
-        </Link>
-        {!isCollapsed && children.length > 0 && active && (
+        <div className="position-relative">
+          <Link
+            href={item.href}
+            className={`adm-nav-link ${children.length > 0 && !isCollapsed ? 'pe-5' : ''} ${active ? 'is-active' : ''}`}
+            aria-current={pathname === item.href ? 'page' : undefined}
+            title={isCollapsed ? item.label : undefined}
+            onClick={onClose}
+          >
+            <Icon size={18} aria-hidden="true" />
+            {!isCollapsed && <span>{item.label}</span>}
+          </Link>
+          {!isCollapsed && children.length > 0 && (
+            <button
+              type="button"
+              className="adm-icon-btn position-absolute top-50 end-0 translate-middle-y me-1"
+              style={{ width: '2rem', height: '2rem' }}
+              aria-expanded={submenuOpen}
+              aria-label={`${submenuOpen ? 'ยุบ' : 'ขยาย'}เมนูย่อย ${item.label}`}
+              onClick={() => setCollapsedSubmenu(submenuOpen ? { href: item.href, pathname } : null)}
+            >
+              {submenuOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+            </button>
+          )}
+        </div>
+        {!isCollapsed && children.length > 0 && submenuOpen && (
           <ul className="adm-nav ms-3 mt-1 border-start border-light border-opacity-25 ps-2">
             {children.map((child) => {
               const ChildIcon = child.icon;

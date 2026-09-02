@@ -8,25 +8,27 @@ export const dynamic = 'force-dynamic';
 type PrivateRow = {
   id: string; platform_id: string; owner_user_id: string; component_key: string;
   component_name: string; component_type: string; definition: Record<string, unknown>;
-  version: number; updated_at: Date;
+  version: number; updated_at: Date; is_public?: boolean;
 };
 
 type SharedRow = {
   id: string; platform_id: string; source_component_id: string | null; shared_by_user_id: string;
   component_key: string; component_name: string; component_type: string;
   definition: Record<string, unknown>; source_version: number; created_at: Date;
+  publisher_name?: string;
 };
 
 const privateDto = (row: PrivateRow) => ({
   id: row.id, platformId: row.platform_id, ownerUserId: row.owner_user_id,
   key: row.component_key, name: row.component_name, componentType: row.component_type,
-  definition: row.definition, version: row.version,
+  definition: row.definition, version: row.version, isPublic: Boolean(row.is_public),
   templateRef: `component://private/${row.id}`, updatedAt: row.updated_at.toISOString(),
 });
 
 const sharedDto = (row: SharedRow) => ({
   id: row.id, platformId: row.platform_id, sourceComponentId: row.source_component_id,
-  sharedByUserId: row.shared_by_user_id, key: row.component_key, name: row.component_name,
+  sharedByUserId: row.shared_by_user_id, publisherName: row.publisher_name,
+  key: row.component_key, name: row.component_name,
   componentType: row.component_type, definition: row.definition, sourceVersion: row.source_version,
   templateRef: `component://shared/${row.id}`, createdAt: row.created_at.toISOString(),
 });
@@ -37,7 +39,27 @@ const definitionField = (value: unknown) => value && typeof value === 'object' &
 export async function GET(request: Request) {
   const auth = await requireApiSession();
   if (auth instanceof NextResponse) return auth;
-  const platformId = new URL(request.url).searchParams.get('platformId') || '';
+  const searchParams = new URL(request.url).searchParams;
+  const componentId = searchParams.get('componentId') || '';
+  if (componentId) {
+    try {
+      const result = await getCoreDb().query<PrivateRow>(
+        `SELECT pc.*, EXISTS (SELECT 1 FROM public.share_components s WHERE s.source_component_id=pc.id AND s.source_version=pc.version) AS is_public
+         FROM public.platform_components
+         pc WHERE pc.id=$1 AND pc.owner_user_id=$2`,
+        [componentId, auth.sub],
+      );
+      if (!result.rowCount) return NextResponse.json({ error: 'Component not found' }, { status: 404 });
+      const denied = await requirePlatformAccess(auth, result.rows[0].platform_id);
+      if (denied) return denied;
+      return NextResponse.json({ component: privateDto(result.rows[0]) });
+    } catch (error) {
+      console.error('Unable to resolve platform component', error);
+      return NextResponse.json({ error: 'Unable to load component' }, { status: 500 });
+    }
+  }
+
+  const platformId = searchParams.get('platformId') || '';
   if (!platformId) return NextResponse.json({ error: 'platformId is required' }, { status: 400 });
   const denied = await requirePlatformAccess(auth, platformId);
   if (denied) return denied;
@@ -45,17 +67,16 @@ export async function GET(request: Request) {
   try {
     const [mine, shared] = await Promise.all([
       getCoreDb().query<PrivateRow>(
-        `SELECT id, platform_id, owner_user_id, component_key, component_name, component_type,
-                definition, version, updated_at
-         FROM public.platform_components
-         WHERE platform_id=$1 AND owner_user_id=$2 ORDER BY updated_at DESC`,
+        `SELECT pc.*, EXISTS (SELECT 1 FROM public.share_components s WHERE s.source_component_id=pc.id AND s.source_version=pc.version) AS is_public
+         FROM public.platform_components pc
+         WHERE pc.platform_id=$1 AND pc.owner_user_id=$2 ORDER BY pc.updated_at DESC`,
         [platformId, auth.sub],
       ),
       getCoreDb().query<SharedRow>(
-        `SELECT id, platform_id, source_component_id, shared_by_user_id, component_key,
-                component_name, component_type, definition, source_version, created_at
-         FROM public.share_components WHERE platform_id=$1 ORDER BY created_at DESC`,
-        [platformId],
+        `SELECT s.*, COALESCE(u.full_name, u.username, u.email) AS publisher_name
+         FROM public.share_components s JOIN public.platform_users u ON u.id=s.shared_by_user_id
+         WHERE s.platform_id=$1 AND s.shared_by_user_id<>$2 ORDER BY s.created_at DESC`,
+        [platformId, auth.sub],
       ),
     ]);
     return NextResponse.json({ components: mine.rows.map(privateDto), sharedComponents: shared.rows.map(sharedDto) });
@@ -75,7 +96,7 @@ export async function POST(request: Request) {
   if (denied) return denied;
 
   try {
-    if (body.action === 'share-copy') {
+    if (body.action === 'share-copy' || body.action === 'publish') {
       const componentId = stringField(body.componentId, 64);
       if (!componentId) return NextResponse.json({ error: 'componentId is required' }, { status: 400 });
       const result = await getCoreDb().query<SharedRow>(
@@ -93,6 +114,24 @@ export async function POST(request: Request) {
       );
       if (!result.rowCount) return NextResponse.json({ error: 'Component not found, not owned by you, or this version is already shared' }, { status: 409 });
       return NextResponse.json({ sharedComponent: sharedDto(result.rows[0]) }, { status: 201 });
+    }
+
+    if (body.action === 'clone-shared') {
+      const sharedComponentId = stringField(body.sharedComponentId, 64);
+      if (!sharedComponentId) return NextResponse.json({ error: 'sharedComponentId is required' }, { status: 400 });
+      const result = await getCoreDb().query<PrivateRow>(
+        `INSERT INTO public.platform_components
+           (platform_id, owner_user_id, component_key, component_name, component_type, definition)
+         SELECT platform_id, $3,
+                LEFT(component_key, 140) || '-copy-' || SUBSTRING(gen_random_uuid()::text, 1, 8),
+                component_name || ' (Clone)', component_type, definition
+         FROM public.share_components
+         WHERE id=$1 AND platform_id=$2 AND shared_by_user_id<>$3
+         RETURNING *, FALSE AS is_public`,
+        [sharedComponentId, platformId, auth.sub],
+      );
+      if (!result.rowCount) return NextResponse.json({ error: 'Public component not found' }, { status: 404 });
+      return NextResponse.json({ component: privateDto(result.rows[0]) }, { status: 201 });
     }
 
     const key = stringField(body.key, 160);

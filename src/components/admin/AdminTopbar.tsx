@@ -18,7 +18,9 @@ export default function AdminTopbar({ user, onOpenMenu }: AdminTopbarProps) {
   const current = navItemFor(pathname);
   const [studioPlatformName, setStudioPlatformName] = useState<string | null>(null);
   const [platformPageTitle, setPlatformPageTitle] = useState<string | null>(null);
+  const [collectionTitle, setCollectionTitle] = useState<string | null>(null);
   const selectedPlatformId = searchParams.get('platformId');
+  const selectedCollectionId = searchParams.get('collectionId');
 
   useEffect(() => {
     if (pathname !== '/studio' || !selectedPlatformId) { setStudioPlatformName(null); return; }
@@ -45,7 +47,25 @@ export default function AdminTopbar({ user, onOpenMenu }: AdminTopbarProps) {
     return () => { active = false; };
   }, [pathname]);
 
-  const pageTitle = platformPageTitle || (pathname === '/studio'
+  useEffect(() => {
+    if (pathname !== '/collection-designer') return;
+    const handleCaptionChange = (event: Event) => setCollectionTitle((event as CustomEvent<string>).detail || 'Collection Set');
+    window.addEventListener('collection-caption-change', handleCaptionChange);
+    if (!selectedCollectionId || selectedCollectionId === 'new') {
+      return () => window.removeEventListener('collection-caption-change', handleCaptionChange);
+    }
+    let active = true;
+    fetch(`/api/collection-sets?collectionId=${encodeURIComponent(selectedCollectionId)}`, { cache: 'no-store' })
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error('Unable to load Collection Set')))
+      .then((data: { collection?: { name?: string } }) => { if (active) setCollectionTitle(data.collection?.name || 'Collection Set'); })
+      .catch(() => { if (active) setCollectionTitle('Collection Set'); });
+    return () => { active = false; window.removeEventListener('collection-caption-change', handleCaptionChange); };
+  }, [pathname, selectedCollectionId]);
+
+  const activeCollectionTitle = pathname === '/collection-designer' && selectedCollectionId
+    ? selectedCollectionId === 'new' ? 'Collection Set ใหม่' : collectionTitle
+    : null;
+  const pageTitle = activeCollectionTitle || platformPageTitle || (pathname === '/studio'
     ? studioPlatformName ? `${studioPlatformName} (แม่แบบระบบ)` : 'แม่แบบระบบ'
     : current?.label ?? 'ภาพรวม');
 

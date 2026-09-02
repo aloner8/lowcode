@@ -161,6 +161,21 @@ export const DynamicNodeItem: React.FC<{
       }
       return result;
     },
+    onOperation: async (operationId: string, data: any, requestValues?: Record<string, any>) => {
+      const result = node.props?.onOperation
+        ? await node.props.onOperation(operationId, data, requestValues)
+        : undefined;
+      if (onActionTrigger) {
+        onActionTrigger(operationId, {
+          formData: data,
+          requestValues,
+          componentId: node.id,
+          collectionId: node.props?.collectionId,
+          formId: node.props?.formId,
+        });
+      }
+      return result;
+    },
     onResponse: (response: any) => {
       if (node.props?.onResponse) node.props.onResponse(response);
       if (onActionTrigger) {

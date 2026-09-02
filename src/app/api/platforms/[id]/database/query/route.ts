@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getTenantDb } from '@/lib/db/tenantDb';
 import { requirePlatformSession } from '@/lib/auth/apiAuth';
+import { PlatformDatabaseError, resolvePlatformDatabase } from '@/lib/db/platformDatabases';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,9 +24,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (auth instanceof NextResponse) return auth;
 
   try {
-    const body = (await request.json()) as { sql?: unknown };
+    const body = (await request.json()) as { sql?: unknown; database?: unknown };
     const sql = normalizeReadOnlySql(body.sql);
-    const { pool, database } = await getTenantDb(id);
+    const requestedDatabase = typeof body.database === 'string' ? body.database : undefined;
+    const { pool, database } = await resolvePlatformDatabase(id, requestedDatabase);
     const client = await pool.connect();
     try {
       await client.query('BEGIN READ ONLY');
@@ -48,6 +49,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Query failed';
+    if (error instanceof PlatformDatabaseError) return NextResponse.json({ error: message }, { status: error.status });
     const isValidationError = /required|characters|read-only|one SQL statement/.test(message);
     return NextResponse.json({ error: message }, { status: isValidationError ? 400 : 500 });
   }
