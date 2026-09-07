@@ -48,7 +48,6 @@ import {
   ExternalLink,
   FileText,
   GitFork,
-  RefreshCw,
 } from "lucide-react";
 import { HtmlStudioShell } from "@/components/html-studio";
 import { StudioWorkspacePageList } from "@/components/studio/StudioWorkspacePageList";
@@ -743,7 +742,7 @@ export default function StudioPage() {
   const [isCreatingPageLayout, setIsCreatingPageLayout] = useState(false);
   const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false);
   const [isPageDirty, setIsPageDirty] = useState(false);
-  const [isLoadingPage, setIsLoadingPage] = useState(false);
+  const [_isLoadingPage, setIsLoadingPage] = useState(false);
   const [workshopNodeId, setWorkshopNodeId] = useState<string | null>(null);
   const [pageSettingsId, setPageSettingsId] = useState<string | null>(null);
 
@@ -754,7 +753,7 @@ export default function StudioPage() {
     !activeFormId && !activeCollectionView
       ? studioPages.find((page) => page.id === activePage)
       : undefined;
-  const pageStudioDocument = useMemo(
+  const _pageStudioDocument = useMemo(
     () =>
       activeStudioPage
         ? createPageStudioDocument(activeStudioPage, nodes)
@@ -947,7 +946,7 @@ export default function StudioPage() {
     setTimeout(() => setSaveStatus(null), 3500);
   };
 
-  const handleSavePageStudioDocument = async (document: HtmlStudioDocument) => {
+  const _handleSavePageStudioDocument = async (document: HtmlStudioDocument) => {
     if (!activeStudioPage || !platformId || !selectedAppId) return;
     const templateNode: ComponentNode = {
       id: `html_page_${activeStudioPage.id}`,

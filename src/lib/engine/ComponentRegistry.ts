@@ -1,4 +1,5 @@
 import React from 'react';
+import { FileManager as ShareFileManager, Login as ShareLogin } from '@matchanu/sharemodule/react';
 import { ComponentType } from '@/types';
 import {
   FieldInputComponent,
@@ -45,6 +46,8 @@ import {
 
 // Registry mapping string ComponentType to React Component Implementation
 export const COMPONENT_REGISTRY: Record<ComponentType, React.FC<any>> = {
+  ShareFileManager,
+  ShareLogin,
   FieldInputComponent,
   FormComponent,
   TableDataComponent,
@@ -235,6 +238,8 @@ export const COMPONENT_PALETTE: ComponentPaletteItem[] = [
       ],
     },
   },
+  { type: 'ShareFileManager', label: 'File Picker (Shared Module)', category: 'Media & Files', description: 'Choose a folder and receive one file or multiple files.', defaultProps: { currentPath: '/uploads', multiple: false, mode: 'compact' } },
+  { type: 'ShareLogin', label: 'Login (Shared Module)', category: 'Form Controls', description: 'Sign in using the app default Auth Module.', defaultProps: { afterLogin: '/' } },
   {
     type: 'FileManagerComponent',
     label: 'File Manager',

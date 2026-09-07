@@ -91,3 +91,8 @@ Desktop.ini
 # government portal. Kept out of the repository: it is another organisation's
 # markup, stylesheets and screenshots, useful locally but not ours to ship.
 /temp/
+
+# Compiled workspace packages
+/packages/*/dist/
+/packages/*/node_modules/
+/src/generated/build-manifest.json

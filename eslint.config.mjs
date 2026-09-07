@@ -12,6 +12,7 @@ const config = [
   {
     ignores: [
       '.next/**',
+      'packages/*/dist/**',
       'node_modules/**',
       'public/YII/**',
       'next-env.d.ts',

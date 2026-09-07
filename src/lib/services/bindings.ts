@@ -10,10 +10,10 @@ export function serviceKeyOf(binding: StudioServiceDefinition): string {
 
 export function normalizeServiceBinding(binding: StudioServiceDefinition): StudioServiceDefinition {
   const serviceKey = serviceKeyOf(binding);
-  const definition = getServiceDefinition(serviceKey, binding.serviceRef?.version) ?? getServiceDefinition(serviceKey);
+  const definition = getServiceDefinition(serviceKey, binding.serviceRef?.version);
   return {
     ...binding,
-    serviceRef: { serviceKey, version: definition?.version ?? binding.serviceRef?.version ?? '1.0.0' },
+    serviceRef: { serviceKey, version: binding.serviceRef?.version ?? definition?.version ?? '1.0.0' },
     scope: binding.scope ?? 'app',
     containerBindings: binding.containerBindings ?? [],
     secretRefs: binding.secretRefs ?? (serviceKey === 'auth.session' ? { signingKey: `env://${binding.config.secretEnvKey || 'PLATFORM_JWT_SECRET'}` } : {}),

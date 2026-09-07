@@ -9,6 +9,7 @@ WORKDIR /app
 # 1. Install dependencies
 FROM base AS deps
 COPY package.json package-lock.json ./
+COPY packages/sharemodule/package.json ./packages/sharemodule/package.json
 RUN npm ci
 
 # 2. Build
@@ -16,6 +17,8 @@ FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+ARG GIT_SHA=unknown
+ENV BUILD_GIT_SHA=$GIT_SHA
 RUN npm run build
 
 # 3. Production runner
@@ -33,6 +36,15 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # The multi-site launcher runs outside the Next server bundle, so it and its
 # only dependency (pg, already traced into standalone/node_modules) are copied in.
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+
+COPY --from=builder --chown=nextjs:nodejs /app/packages/sharemodule/package.json ./packages/sharemodule/package.json
+COPY --from=builder --chown=nextjs:nodejs /app/packages/sharemodule/dist ./packages/sharemodule/dist
+# Next bundles workspace imports and can omit the npm workspace link. Keep the
+# compiled package usable by standalone scripts and future worker entrypoints.
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/lucide-react ./node_modules/lucide-react
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/react ./node_modules/react
+RUN mkdir -p /app/node_modules/@matchanu \
+ && ln -sfn ../../packages/sharemodule /app/node_modules/@matchanu/sharemodule
 
 # Tenant uploads live here and are backed by a named volume in compose.
 # Created before dropping privileges so the app can write to it.

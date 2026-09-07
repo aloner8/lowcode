@@ -54,3 +54,11 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Verify compiled shared library
+        run: node scripts/smoke-sharemodule.mjs
+
+      - name: Build and verify runtime image
+        run: |
+          docker build --build-arg GIT_SHA="${{ github.sha }}" -t lowcode-ci:${{ github.sha }} .
+          docker run --rm --entrypoint node lowcode-ci:${{ github.sha }} scripts/smoke-sharemodule.mjs --http

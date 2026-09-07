@@ -200,6 +200,10 @@ export const DynamicNodeItem: React.FC<{
     },
     onSelect: (item: any) => {
       if (node.props?.onSelect) node.props.onSelect(item);
+      if (node.type === 'ShareFileManager') {
+        onActionTrigger?.(node.actionTriggerId || `${node.id}.response`, item);
+        return;
+      }
       if (onActionTrigger) {
         onActionTrigger("menu.select", item);
         return;

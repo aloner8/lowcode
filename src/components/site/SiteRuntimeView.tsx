@@ -1,5 +1,6 @@
 "use client";
 
+import { ShareModuleProvider } from '@matchanu/sharemodule/react';
 import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import type { AppRuntimeData } from "@/lib/engine/AppRuntimeFetcher";
@@ -588,6 +589,7 @@ export function SiteRuntimeView({
 
   return (
     <StorageScopeProvider scope={{ appId: appId ?? undefined }}>
+    <ShareModuleProvider baseUrl={`/api/runtime/${encodeURIComponent(appSlug)}/modules`}>
       <div
         className={`${fillViewport ? "min-vh-100 bg-light" : ""} d-flex flex-column municipal-admin-runtime`}
       >
@@ -622,6 +624,7 @@ export function SiteRuntimeView({
           />
         </div>
       </div>
+    </ShareModuleProvider>
     </StorageScopeProvider>
   );
 }

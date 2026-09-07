@@ -15,7 +15,12 @@
     "sites:dev": "node scripts/run-sites.mjs --dev",
     "sites:list": "node scripts/run-sites.mjs --list",
     "secrets": "node scripts/generate-secrets.mjs",
-    "seed:site": "node scripts/seed-municipal-site.mjs"
+    "seed:site": "node scripts/seed-municipal-site.mjs",
+    "build:modules": "npm run build --workspace=@matchanu/sharemodule",
+    "predev": "npm run build:modules && node scripts/build-manifest.mjs",
+    "prebuild": "npm run build:modules && node scripts/build-manifest.mjs",
+    "pretypecheck": "npm run build:modules && node scripts/build-manifest.mjs",
+    "pretest": "npm run build:modules"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",
@@ -42,7 +47,8 @@
     "pg": "^8.16.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "@matchanu/sharemodule": "0.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.1",
@@ -56,5 +62,8 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^5.7.3",
     "vitest": "^4.1.11"
-  }
+  },
+  "workspaces": [
+    "packages/*"
+  ]
 }
