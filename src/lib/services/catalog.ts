@@ -10,7 +10,7 @@ const definitions: SharedServiceDefinition[] = [
     serviceKey: 'auth.session', displayName: 'Auth Session', kind: 'auth', version: '1.0.0', lifecycle: 'active',
     defaultConfig: { identityField: 'email', accessTokenTtlSeconds: 900, refreshTokenTtlSeconds: 604800, requiredStatus: 'active' },
     propertySchema: object({
-      identityField: { type: 'string', enum: ['email'] },
+      identityField: { type: 'string', title: 'Login identity', description: 'Field used to sign in on the generated Login page.', enum: ['email', 'username'] },
       accessTokenTtlSeconds: { type: 'integer', minimum: 300, maximum: 86400 },
       refreshTokenTtlSeconds: { type: 'integer', minimum: 3600, maximum: 2592000 },
       requiredStatus: { type: 'string', enum: ['active'] },
@@ -18,7 +18,7 @@ const definitions: SharedServiceDefinition[] = [
       algorithm: { type: 'string', enum: ['HS256'] }, secretEnvKey: { type: 'string', pattern: '^[A-Z][A-Z0-9_]{2,100}$' },
     }, ['accessTokenTtlSeconds']),
     operations: {
-      login: { inputSchema: object({ email: { type: 'string', minLength: 3, maxLength: 320 }, password: { type: 'string', minLength: 1, maxLength: 1024 } }, ['email', 'password']), outputSchema: resultSchema, execution: 'sync', idempotency: 'none' },
+      login: { inputSchema: object({ email: { type: 'string', minLength: 1, maxLength: 320 }, username: { type: 'string', minLength: 1, maxLength: 100 }, password: { type: 'string', minLength: 1, maxLength: 1024 } }, ['password']), outputSchema: resultSchema, execution: 'sync', idempotency: 'none' },
       logout: { inputSchema: object({}), outputSchema: resultSchema, execution: 'sync', idempotency: 'supported' },
       me: { inputSchema: object({}), outputSchema: resultSchema, execution: 'sync', idempotency: 'none' },
       refresh: { inputSchema: object({}), outputSchema: resultSchema, execution: 'sync', idempotency: 'supported' },

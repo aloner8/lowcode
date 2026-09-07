@@ -12,8 +12,8 @@ export const runtime = 'nodejs'; export const dynamic = 'force-dynamic';
 export async function POST(request: Request, context: { params: Promise<{ slug: string }> }) {
   const { slug } = await context.params; let requestId: string | undefined;
   try {
-    const body = await request.json().catch(() => ({})) as { email?: string; password?: string };
-    const identity = clientIdentity(request, `${slug}:${body.email || ''}`);
+    const body = await request.json().catch(() => ({})) as { email?: string; username?: string; password?: string };
+    const identity = clientIdentity(request, `${slug}:${body.username || body.email || ''}`);
     const limited = await enforceRateLimit('tenant_login', identity); if (limited) return limited;
     const ctx = await resolveRuntimeContext(request, slug); if (!ctx) return NextResponse.json({ error: 'Published runtime not found' }, { status: 404 }); requestId = ctx.requestId;
     const authBinding = (ctx.snapshot.services || []).find((item: StudioServiceDefinition) => serviceKeyOf(item) === 'auth.session') as StudioServiceDefinition | undefined;

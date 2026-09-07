@@ -114,6 +114,7 @@ export async function POST(request: Request, context: Context) {
                'submitText',COALESCE(node->'props'->>'submitText','Submit'),
                'resetText',COALESCE(node->'props'->>'resetText',''),
                'mode',COALESCE(node->'props'->>'mode','insert'),
+               'actionTriggerId',NULLIF(node->>'actionTriggerId',''),
                'fields',COALESCE(node->'props'->'fields','[]'::jsonb),
                'collectionSet','[]'::jsonb,
                'requestContract',jsonb_build_array(

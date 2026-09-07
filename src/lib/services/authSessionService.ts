@@ -31,18 +31,23 @@ export async function executeAuthSessionService(ctx: ServiceExecutionContext, bi
     return { data: { token, user: { id: user.id, email: user.email, roles, permissions: user.permissions } }, token, maxAge: config.accessTokenTtlSeconds };
   }
   if (operation === 'login') {
-    const result = await pool.query<{ id: string; email: string; display_name: string | null; role_name: string | null; permissions: string[] }>(
-      `SELECT u.id::text, u.email, u.display_name, r.name AS role_name,
+    const identityField = binding.config.identityField === 'username' ? 'username' : 'email';
+    const identity = String(input[identityField] ?? '').trim();
+    if (!identity) throw new ServiceError('SERVICE_INPUT_INVALID', `${identityField === 'username' ? 'Username' : 'Email'} is required`, 400, false, { [identityField]: 'required' });
+    const usernameSelect = identityField === 'username' ? 'u.username' : 'NULL::text';
+    const usernameGroup = identityField === 'username' ? ',u.username' : '';
+    const result = await pool.query<{ id: string; username: string | null; email: string; display_name: string | null; role_name: string | null; permissions: string[] }>(
+      `SELECT u.id::text, ${usernameSelect} AS username, u.email, u.display_name, r.name AS role_name,
               COALESCE(array_agg(DISTINCT p.code) FILTER (WHERE p.code IS NOT NULL), '{}') AS permissions
        FROM public.auth_users u LEFT JOIN public.auth_roles r ON r.id=u.role_id
        LEFT JOIN public.auth_role_permissions rp ON rp.role_id=r.id
        LEFT JOIN public.auth_permissions p ON p.id=rp.permission_id
-       WHERE lower(u.email)=lower($1) AND u.is_active=true AND crypt($2,u.password_hash)=u.password_hash
-       GROUP BY u.id,u.email,u.display_name,r.name LIMIT 1`, [String(input.email).trim(), String(input.password)],
+       WHERE lower(${identityField === 'username' ? 'u.username' : 'u.email'})=lower($1) AND u.is_active=true AND crypt($2,u.password_hash)=u.password_hash
+       GROUP BY u.id${usernameGroup},u.email,u.display_name,r.name LIMIT 1`, [identity, String(input.password)],
     );
-    if (!result.rowCount) throw new ServiceError('AUTH_REQUIRED', 'Email or password is incorrect', 401);
+    if (!result.rowCount) throw new ServiceError('AUTH_REQUIRED', `${identityField === 'username' ? 'Username' : 'Email'} or password is incorrect`, 401);
     const user = result.rows[0];
-    const actor = { id: user.id, email: user.email, displayName: user.display_name, roles: user.role_name ? [user.role_name] : [], permissions: user.permissions };
+    const actor = { id: user.id, username: user.username, email: user.email, displayName: user.display_name, roles: user.role_name ? [user.role_name] : [], permissions: user.permissions };
     const token = issueJwt({ sub: user.id, email: user.email, roles: actor.roles, permissions: user.permissions, tokenUse: 'access' }, config, secret);
     const refreshMaxAge = Number(binding.config.refreshTokenTtlSeconds || 604800);
     const refreshToken = issueJwt({ sub: user.id, email: user.email, roles: actor.roles, permissions: user.permissions, tokenUse: 'refresh' }, { ...config, accessTokenTtlSeconds: refreshMaxAge }, secret);

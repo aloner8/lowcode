@@ -1,6 +1,7 @@
 import "server-only";
 import { getCoreDb } from "@/lib/db/coreDb";
 import type { ComponentNode } from "@/types";
+import type { PoolClient } from "pg";
 
 interface InstanceRow {
   page_slug: string;
@@ -31,6 +32,92 @@ export const stripHydratedPageComponentNodes = (nodes: ComponentNode[]) =>
       typeof node.props.__pageComponentInstanceId !== "string",
   );
 
+export interface HydratedPageComponentUpdate {
+  instanceKey: string;
+  instanceName?: string;
+  layoutRegion: string;
+  propsOverrides: Record<string, unknown>;
+  requestBindings: Record<string, unknown>;
+  responseBindings: Record<string, unknown>;
+}
+
+const objectValue = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+/**
+ * Hydrated reusable components do not live in platform_pages.component_tree.
+ * Convert their edited canvas representation back into instance overrides so
+ * Page Designer saves are not silently discarded when the page is hydrated
+ * again.
+ */
+export const getHydratedPageComponentUpdates = (
+  nodes: ComponentNode[],
+): HydratedPageComponentUpdate[] =>
+  nodes.flatMap((node) => {
+    const instanceKey = node.props?.__pageComponentInstanceId;
+    if (typeof instanceKey !== "string" || !instanceKey) return [];
+
+    const propsOverrides = Object.fromEntries(
+      Object.entries(node.props || {}).filter(([key]) => !key.startsWith("__")),
+    );
+    propsOverrides.actionTriggerId = node.actionTriggerId ?? null;
+    const requestBindings = objectValue(propsOverrides.requestBindings);
+    const responseBindings = objectValue(propsOverrides.responseBindings);
+    delete propsOverrides.requestBindings;
+    delete propsOverrides.responseBindings;
+
+    return [
+      {
+        instanceKey,
+        instanceName: node.label,
+        layoutRegion:
+          typeof node.props.__layoutRegion === "string"
+            ? node.props.__layoutRegion
+            : typeof node.props.__sectionId === "string"
+              ? node.props.__sectionId
+              : "content",
+        propsOverrides,
+        requestBindings,
+        responseBindings,
+      },
+    ];
+  });
+
+export async function syncHydratedPageComponentNodes(
+  client: Pick<PoolClient, "query">,
+  platformId: string,
+  pageSlug: string,
+  nodes: ComponentNode[],
+) {
+  for (const update of getHydratedPageComponentUpdates(nodes)) {
+    await client.query(
+      `UPDATE public.platform_pages_components ppc
+       SET instance_name=COALESCE($4,ppc.instance_name),
+           layout_region=$5,
+           props_overrides=$6::jsonb,
+           request_bindings=$7::jsonb,
+           response_bindings=$8::jsonb,
+           updated_at=NOW()
+       FROM public.platform_pages pp
+       WHERE ppc.platform_page_id=pp.id
+         AND pp.platform_id=$1 AND pp.page_slug=$2
+         AND ppc.instance_key=$3`,
+      [
+        platformId,
+        pageSlug,
+        update.instanceKey,
+        update.instanceName || null,
+        update.layoutRegion,
+        JSON.stringify(update.propsOverrides),
+        JSON.stringify(update.requestBindings),
+        JSON.stringify(update.responseBindings),
+      ],
+    );
+  }
+}
+
 export async function hydratePlatformPageComponents<T extends HydratablePage>(
   platformId: string,
   pages: T[],
@@ -59,6 +146,27 @@ export async function hydratePlatformPageComponents<T extends HydratablePage>(
     const instances = byPage.get(page.id) || [];
     if (!instances.length) return page;
     const instanceNodes: ComponentNode[] = instances.map((instance) => {
+      const hasActionTriggerOverride = Object.prototype.hasOwnProperty.call(
+        instance.props_overrides,
+        "actionTriggerId",
+      );
+      const configuredActionTriggerId = hasActionTriggerOverride
+        ? instance.props_overrides.actionTriggerId
+        : instance.definition.actionTriggerId;
+      const actionTriggerId =
+        typeof configuredActionTriggerId === "string" &&
+        configuredActionTriggerId.trim()
+          ? configuredActionTriggerId
+          : !hasActionTriggerOverride &&
+              instance.definition.actionTriggerId === undefined &&
+              instance.instance_key === "auth.login.form"
+            ? "auth.login.submit"
+            : undefined;
+      const hydratedProps = {
+        ...instance.definition,
+        ...instance.props_overrides,
+      };
+      delete hydratedProps.actionTriggerId;
       const collectionSet = Array.isArray(instance.definition.collectionSet)
         ? (instance.definition.collectionSet as Array<{
             collectionId?: string;
@@ -73,9 +181,9 @@ export async function hydratePlatformPageComponents<T extends HydratablePage>(
         type: instance.component_type as ComponentNode["type"],
         label: instance.instance_name || instance.component_name,
         templateRef: `component://private/${instance.platform_component_id}`,
+        actionTriggerId,
         props: {
-          ...instance.definition,
-          ...instance.props_overrides,
+          ...hydratedProps,
           formId: instance.component_key,
           collectionId: primaryCollection,
           __layoutRegion: instance.layout_region,

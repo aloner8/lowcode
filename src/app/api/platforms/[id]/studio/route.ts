@@ -4,6 +4,7 @@ import { requirePlatformSession } from "@/lib/auth/apiAuth";
 import {
   hydratePlatformPageComponents,
   stripHydratedPageComponentNodes,
+  syncHydratedPageComponentNodes,
 } from "@/lib/engine/platformPageComponents";
 import { recordPlatformAudit } from "@/lib/engine/AuditLogService";
 import {
@@ -96,6 +97,14 @@ async function syncPlatformPages(platformId: string, pages: unknown[]) {
     const componentTree = Array.isArray(page.componentTree)
       ? stripHydratedPageComponentNodes(page.componentTree as ComponentNode[])
       : [];
+    if (Array.isArray(page.componentTree)) {
+      await syncHydratedPageComponentNodes(
+        db,
+        platformId,
+        pageId,
+        page.componentTree as ComponentNode[],
+      );
+    }
     const pageConfig = { ...page };
     delete pageConfig.componentTree;
     await db.query(

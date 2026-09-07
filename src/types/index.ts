@@ -200,6 +200,7 @@ export interface StudioServiceDefinition {
   enabled: boolean;
   implementation?: { owner: "mother"; version: number; module: string };
   config: Record<string, any> & {
+    identityField?: "email" | "username";
     algorithm?: "HS256";
     issuer?: string;
     audience?: string;
@@ -243,6 +244,7 @@ export const createDefaultJwtAuthService = (
   enabled: true,
   implementation: { owner: "mother", version: 1, module: "auth/jwt" },
   config: {
+    identityField: "email",
     algorithm: "HS256",
     issuer: platformSlug,
     audience: `${platformSlug}-containers`,

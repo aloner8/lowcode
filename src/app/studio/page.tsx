@@ -2194,10 +2194,34 @@ export default function StudioPage() {
         },
       },
     };
+    const identityField = service.config.identityField === "username" ? "username" : "email";
     const nextPages = service.kind === "auth" ? studioPages.map((page) => ({
       ...page,
       componentTree:
-        page.id === service.bundle?.adminPageId
+        page.id === service.bundle?.loginPageId
+          ? (page.componentTree || []).map((node) =>
+              node.id === "auth.login.form"
+                ? {
+                    ...node,
+                    props: {
+                      ...node.props,
+                      fields: Array.isArray(node.props?.fields)
+                        ? node.props.fields.map((field: Record<string, unknown>) =>
+                            field.name === "email" || field.name === "username"
+                              ? {
+                                  ...field,
+                                  name: identityField,
+                                  label: identityField === "username" ? "Username" : "Email",
+                                  type: identityField === "username" ? "text" : "email",
+                                }
+                              : field,
+                          )
+                        : node.props?.fields,
+                    },
+                  }
+                : node,
+            )
+          : page.id === service.bundle?.adminPageId
           ? [
               ...(page.componentTree || []).filter(
                 (node) => node.id !== logoutButton.id,

@@ -1042,6 +1042,22 @@ function ComponentPropertiesEditor({
           onChange={(event) => onUpdateNode({ htmlId: event.target.value })}
         />
       </div>
+      <div className="col-md-6">
+        <label className="form-label small mb-1">On Submit Trigger</label>
+        <input
+          className="form-control form-control-sm font-monospace"
+          value={node.actionTriggerId || ""}
+          placeholder="เช่น auth.login.submit"
+          onChange={(event) =>
+            onUpdateNode({
+              actionTriggerId: event.target.value.trim() || undefined,
+            })
+          }
+        />
+        <div className="form-text">
+          Workflow event ที่จะเรียกเมื่อ component submit หรือทำ action สำเร็จ
+        </div>
+      </div>
       {Object.entries(node.props || {})
         .filter(([key]) => !key.startsWith("__"))
         .map(([key, value]) => (

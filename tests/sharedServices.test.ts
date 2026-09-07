@@ -30,6 +30,15 @@ describe('shared service catalog', () => {
     expect(data.errors.join(' ')).toContain('table');
   });
 
+  it('supports username as the configured login identity', () => {
+    const definition = getServiceDefinition('auth.session')!;
+    expect(definition.propertySchema.properties?.identityField.enum).toEqual(['email', 'username']);
+    expect(validateSchema(definition.operations.login.inputSchema, { username: 'arthit', password: 'secret' }).valid).toBe(true);
+    const auth = createDefaultJwtAuthService('demo');
+    auth.config.identityField = 'username';
+    expect(validateServiceBinding(auth).valid).toBe(true);
+  });
+
   it('rejects unknown object properties and bad numeric bounds', () => {
     const schema = getServiceDefinition('auth.session')!.propertySchema;
     expect(validateSchema(schema, { accessTokenTtlSeconds: 10, unexpected: true }).errors).toEqual(expect.arrayContaining([expect.stringContaining('at least'), expect.stringContaining('not allowed')]));

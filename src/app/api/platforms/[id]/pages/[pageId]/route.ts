@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { getCoreDb } from "@/lib/db/coreDb";
 import { requirePlatformSession } from "@/lib/auth/apiAuth";
+import type { ComponentNode } from "@/types";
 import {
   hydratePlatformPageComponents,
   stripHydratedPageComponentNodes,
+  syncHydratedPageComponentNodes,
 } from "@/lib/engine/platformPageComponents";
 
 export const runtime = "nodejs";
@@ -68,20 +70,41 @@ export async function PUT(request: Request, context: RouteContext) {
       : slug;
   const pageConfig: Record<string, unknown> = { ...body.page, id: slug, title };
   delete pageConfig.componentTree;
-  const result = await getCoreDb().query(
-    `UPDATE public.platform_pages
-     SET title=$3, component_tree=$4::jsonb, page_config=$5::jsonb,
-         seo=COALESCE($6::jsonb, seo), version=version+1, updated_at=NOW()
-     WHERE platform_id=$1 AND page_slug=$2 RETURNING page_slug`,
-    [
+  const client = await getCoreDb().connect();
+  let result;
+  try {
+    await client.query("BEGIN");
+    await syncHydratedPageComponentNodes(
+      client,
       id,
       slug,
-      title,
-      JSON.stringify(stripHydratedPageComponentNodes(body.page.componentTree)),
-      JSON.stringify(pageConfig),
-      body.page.seo === undefined ? null : JSON.stringify(body.page.seo),
-    ],
-  );
+      body.page.componentTree as ComponentNode[],
+    );
+    result = await client.query(
+      `UPDATE public.platform_pages
+       SET title=$3, component_tree=$4::jsonb, page_config=$5::jsonb,
+           seo=COALESCE($6::jsonb, seo), version=version+1, updated_at=NOW()
+       WHERE platform_id=$1 AND page_slug=$2 RETURNING page_slug`,
+      [
+        id,
+        slug,
+        title,
+        JSON.stringify(
+          stripHydratedPageComponentNodes(
+            body.page.componentTree as ComponentNode[],
+          ),
+        ),
+        JSON.stringify(pageConfig),
+        body.page.seo === undefined ? null : JSON.stringify(body.page.seo),
+      ],
+    );
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
   if (!result.rowCount)
     return NextResponse.json(
       { error: "ไม่พบ Page ที่เลือกใน platform_pages" },
