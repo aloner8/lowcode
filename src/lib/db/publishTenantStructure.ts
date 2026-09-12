@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { getCoreDb } from './coreDb';
-import { getTenantDb } from './tenantDb';
+import { getTenantDb, provisionPlatformTenantDb } from './tenantDb';
 
 type Node = { props?: Record<string, unknown>; children?: Node[] };
 
@@ -80,7 +80,7 @@ export async function publishTenantStructure(platformId: string): Promise<Publis
   const definition = tables.map((name) => ({ name, columns: standardColumns[name] || DEFAULT_COLUMNS }));
   const revision = createHash('sha256').update(JSON.stringify(definition)).digest('hex').slice(0, 12);
 
-  const { pool, database } = await getTenantDb(platformId);
+  const { pool, database } = await provisionPlatformTenantDb(platformId);
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

@@ -34,7 +34,10 @@ describe('session cookie', () => {
 
   it('rejects a token with a broken signature', async () => {
     const token = await signSession(payload);
-    expect(await verifySession(`${token.slice(0, -2)}xy`)).toBeNull();
+    const [body, signature] = token.split('.');
+    const differentFirstCharacter = signature[0] === 'A' ? 'B' : 'A';
+    const forgedSignature = `${differentFirstCharacter}${signature.slice(1)}`;
+    expect(await verifySession(`${body}.${forgedSignature}`)).toBeNull();
   });
 
   it('rejects an expired token', async () => {

@@ -209,6 +209,11 @@ export interface CollectionDefinition {
   id: string;
   name: string;
   tableName: string;
+  access?: {
+    publicRead: boolean;
+    publicCreate: boolean;
+    publicUpdate?: boolean;
+  };
   fields: CollectionFieldDefinition[];
 }
 

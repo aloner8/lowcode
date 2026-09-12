@@ -18,7 +18,28 @@ export interface TemplateDefinitionValidationResult {
 const duplicateValues = (values: string[]) =>
   [...new Set(values.filter((value, index) => values.indexOf(value) !== index))];
 
+const DATABASE_IDENTIFIER = /^[a-z_][a-z0-9_]{0,62}$/;
+
 export function validateTemplateDefinition(
+  definition: TemplateDefinition,
+): TemplateDefinitionValidationResult {
+  try {
+    return validateTypedTemplateDefinition(definition);
+  } catch (error) {
+    return {
+      valid: false,
+      issues: [
+        {
+          code: "invalid_definition_shape",
+          path: "definition",
+          message: error instanceof Error ? error.message : "Template definition shape is invalid",
+        },
+      ],
+    };
+  }
+}
+
+function validateTypedTemplateDefinition(
   definition: TemplateDefinition,
 ): TemplateDefinitionValidationResult {
   const issues: TemplateDefinitionIssue[] = [];
@@ -31,6 +52,17 @@ export function validateTemplateDefinition(
       "unsupported_schema_version",
       "schemaVersion",
       `Expected ${TEMPLATE_DEFINITION_SCHEMA_VERSION}`,
+    );
+  }
+
+  if (typeof definition.startup.mainCss !== "string") {
+    issue("invalid_startup_css", "startup.mainCss", "mainCss must be a string");
+  }
+  if (!Array.isArray(definition.startup.browserActions)) {
+    issue(
+      "invalid_startup_actions",
+      "startup.browserActions",
+      "browserActions must be an array",
     );
   }
 
@@ -69,6 +101,12 @@ export function validateTemplateDefinition(
     for (const id of duplicateValues(ids)) {
       issue("duplicate_id", path, `Duplicate id '${id}'`);
     }
+  }
+
+  for (const tableName of duplicateValues(
+    definition.collections.map((collection) => collection.tableName),
+  )) {
+    issue("duplicate_table_name", "collections", `Duplicate table name '${tableName}'`);
   }
 
   if (definition.routes.filter((route) => route.isDefault).length !== 1) {
@@ -201,11 +239,49 @@ export function validateTemplateDefinition(
   });
 
   definition.collections.forEach((collection, collectionIndex) => {
+    const collectionPath = `collections[${collectionIndex}]`;
+    if (!DATABASE_IDENTIFIER.test(collection.tableName)) {
+      issue(
+        "invalid_table_name",
+        `${collectionPath}.tableName`,
+        `Unsafe database table name '${collection.tableName}'`,
+      );
+    }
+    if (!collection.fields.length) {
+      issue("collection_fields_required", `${collectionPath}.fields`, "At least one field is required");
+    }
+    if (!collection.fields.some((field) => field.primaryKey)) {
+      issue("collection_primary_key_required", `${collectionPath}.fields`, "A primary key is required");
+    }
+    if (collection.access) {
+      for (const key of ["publicRead", "publicCreate"] as const) {
+        if (typeof collection.access[key] !== "boolean") {
+          issue("invalid_collection_access", `${collectionPath}.access.${key}`, `${key} must be boolean`);
+        }
+      }
+      if (
+        collection.access.publicUpdate !== undefined &&
+        typeof collection.access.publicUpdate !== "boolean"
+      ) {
+        issue(
+          "invalid_collection_access",
+          `${collectionPath}.access.publicUpdate`,
+          "publicUpdate must be boolean",
+        );
+      }
+    }
     const fieldIds = collection.fields.map((field) => field.id);
     for (const id of duplicateValues(fieldIds)) {
       issue("duplicate_field", `collections[${collectionIndex}].fields`, `Duplicate field '${id}'`);
     }
     collection.fields.forEach((field, fieldIndex) => {
+      if (!DATABASE_IDENTIFIER.test(field.id)) {
+        issue(
+          "invalid_field_name",
+          `${collectionPath}.fields[${fieldIndex}].id`,
+          `Unsafe database field name '${field.id}'`,
+        );
+      }
       if (!field.references) return;
       const target = collections.get(field.references.collectionId);
       const path = `collections[${collectionIndex}].fields[${fieldIndex}].references`;

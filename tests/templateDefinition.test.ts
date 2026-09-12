@@ -60,4 +60,13 @@ describe("template definition foundation contract", () => {
       expect.objectContaining({ code: "missing_collection_field" }),
     );
   });
+
+  it("rejects physical identifiers that cannot be safely provisioned", () => {
+    const definition = cloneDefinition();
+    definition.collections[0].tableName = "contacts;drop";
+
+    expect(validateTemplateDefinition(definition).issues).toContainEqual(
+      expect.objectContaining({ code: "invalid_table_name" }),
+    );
+  });
 });

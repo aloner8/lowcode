@@ -11,7 +11,7 @@ Migration `027_create_customer_template_registry.sql` เพิ่ม:
 
 - `customers` และ `customer_memberships` สำหรับ owner/editor/viewer ของเว็บแม่
 - `templates` พร้อม `edit_version`, Public state และช่องเชื่อม legacy Platform
-- `template_objects` เป็นทะเบียน Object กลางสำหรับ Startup, Module, Route, Screen, Page, Component, Collection, Menu และ Popup
+- `template_objects` เป็นทะเบียน Object กลางสำหรับ Startup, Module, Route, Screen, Page, Component, Component instance, Collection, Menu และ Popup
 - `template_screen_pages` เป็นความสัมพันธ์ Screen → Page ที่ตรวจทั้ง Template และชนิด Object
 - `template_object_dependencies` สำหรับ reference graph ที่ validate/trace ได้
 - `template_revisions` เป็น immutable snapshot พร้อม schema version/digest

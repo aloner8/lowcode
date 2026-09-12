@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS public.template_objects (
     template_id UUID NOT NULL REFERENCES public.templates(id) ON DELETE CASCADE,
     object_type VARCHAR(30) NOT NULL CHECK (object_type IN (
         'STARTUP', 'MODULE', 'ROUTE', 'SCREEN', 'PAGE', 'COMPONENT',
-        'COLLECTION', 'MENU', 'POPUP'
+        'COMPONENT_INSTANCE', 'COLLECTION', 'MENU', 'POPUP'
     )),
     object_key VARCHAR(180) NOT NULL,
     object_name VARCHAR(255) NOT NULL,

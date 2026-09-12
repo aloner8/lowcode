@@ -88,6 +88,7 @@ export const MINIMAL_TEMPLATE_DEFINITION = {
       id: "collection.contacts",
       name: "Contacts",
       tableName: "contacts",
+      access: { publicRead: true, publicCreate: true, publicUpdate: true },
       fields: [
         {
           id: "id",

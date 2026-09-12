@@ -79,43 +79,98 @@ async function bootstrapPool(pool: Pool): Promise<void> {
   await pool.query(SYS_BOOTSTRAP);
 }
 
-/** Opens (creating on first use) a pool for a tenant database by name. */
-export async function getTenantDbByName(database: string): Promise<Pool> {
-  assertSafeDatabaseName(database);
+export class TenantDatabaseNotProvisionedError extends Error {
+  constructor(readonly database: string) {
+    super(`Tenant database '${database}' has not been provisioned`);
+    this.name = 'TenantDatabaseNotProvisionedError';
+  }
+}
 
-  const existingPool = pools.get(database);
-  if (existingPool) return existingPool;
-
+async function databaseExists(database: string): Promise<boolean> {
   const exists = await getCoreDb().query<{ exists: boolean }>(
     'SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1) AS exists',
     [database],
   );
-  if (!exists.rows[0].exists) {
-    // CREATE DATABASE cannot be parameterised; the name is validated above.
-    await getCoreDb().query(`CREATE DATABASE "${database}"`);
-  }
+  return Boolean(exists.rows[0]?.exists);
+}
 
-  const pool = new Pool({
+function createPool(database: string): Pool {
+  return new Pool({
     connectionString: tenantUrl(database),
     max: 8,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 5_000,
   });
+}
+
+/** Opens an existing tenant DB. Ordinary read paths never create databases. */
+export async function openTenantDbByName(database: string): Promise<Pool> {
+  assertSafeDatabaseName(database);
+
+  const existingPool = pools.get(database);
+  if (existingPool) return existingPool;
+
+  if (!(await databaseExists(database))) {
+    throw new TenantDatabaseNotProvisionedError(database);
+  }
+
+  const pool = createPool(database);
   pools.set(database, pool);
-  await bootstrapPool(pool);
   return pool;
 }
 
+/** Explicit provisioning path used only by tracked provision/publish jobs. */
+export async function provisionTenantDatabase(
+  database: string,
+): Promise<{ pool: Pool; created: boolean }> {
+  assertSafeDatabaseName(database);
+  let created = false;
+  if (!(await databaseExists(database))) {
+    try {
+      // CREATE DATABASE cannot be parameterised; the name is validated above.
+      await getCoreDb().query(`CREATE DATABASE "${database}"`);
+      created = true;
+    } catch (error) {
+      if ((error as { code?: string }).code !== '42P04') throw error;
+    }
+  }
+
+  const pool = pools.get(database) ?? createPool(database);
+  await bootstrapPool(pool);
+  pools.set(database, pool);
+  return { pool, created };
+}
+
+/** @deprecated Name retained for callers; now opens only and never provisions. */
+export const getTenantDbByName = openTenantDbByName;
+
 /** Resolves the tenant database for a Platform Master and syncs its snapshot. */
 export async function getTenantDb(platformId: string) {
-  const platform = await getCoreDb().query<{ platform_slug: string; runtime_snapshot: unknown }>(
+  const platform = await getCoreDb().query<{ platform_slug: string }>(
+    'SELECT platform_slug FROM public.platforms WHERE id = $1',
+    [platformId],
+  );
+  if (!platform.rowCount) throw new Error('Platform not found');
+
+  const database = tenantDatabaseName(platform.rows[0].platform_slug);
+  const pool = await openTenantDbByName(database);
+
+  return { pool, database };
+}
+
+/** Explicitly provisions a Platform test DB and syncs its current snapshot. */
+export async function provisionPlatformTenantDb(platformId: string) {
+  const platform = await getCoreDb().query<{
+    platform_slug: string;
+    runtime_snapshot: unknown;
+  }>(
     'SELECT platform_slug, runtime_snapshot FROM public.platforms WHERE id = $1',
     [platformId],
   );
   if (!platform.rowCount) throw new Error('Platform not found');
 
   const database = tenantDatabaseName(platform.rows[0].platform_slug);
-  const pool = await getTenantDbByName(database);
+  const { pool, created } = await provisionTenantDatabase(database);
 
   if (platform.rows[0].runtime_snapshot) {
     await pool.query(
@@ -125,7 +180,7 @@ export async function getTenantDb(platformId: string) {
     );
   }
 
-  return { pool, database };
+  return { pool, database, created };
 }
 
 /** Resolves the tenant database belonging to one spawned Tenant App. */
@@ -137,6 +192,29 @@ export async function getAppTenantDb(appId: string) {
   if (!app.rowCount) throw new Error('App not found');
 
   const database = app.rows[0].tenant_db_name;
-  const pool = await getTenantDbByName(database);
+  const pool = await openTenantDbByName(database);
   return { pool, database, appSlug: app.rows[0].app_slug };
+}
+
+/** Explicit App DB provisioning. Registry ownership is resolved before create. */
+export async function provisionAppTenantDb(appId: string) {
+  const app = await getCoreDb().query<{ tenant_db_name: string; app_slug: string }>(
+    'SELECT tenant_db_name, app_slug FROM public.apps WHERE id = $1',
+    [appId],
+  );
+  if (!app.rowCount) throw new Error('App not found');
+
+  const database = app.rows[0].tenant_db_name;
+  const { pool, created } = await provisionTenantDatabase(database);
+  return { pool, database, appSlug: app.rows[0].app_slug, created };
+}
+
+/** Releases one stopped App's pool so hosts do not accumulate pools forever. */
+export async function closeTenantDbPool(database: string): Promise<boolean> {
+  assertSafeDatabaseName(database);
+  const pool = pools.get(database);
+  if (!pool) return false;
+  pools.delete(database);
+  await pool.end();
+  return true;
 }

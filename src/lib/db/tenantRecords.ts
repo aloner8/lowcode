@@ -1,5 +1,5 @@
 import type { Pool } from 'pg';
-import { getTenantDb, getTenantDbByName } from './tenantDb';
+import { getAppTenantDb, getTenantDb, getTenantDbByName } from './tenantDb';
 import type { TenantRecordPage, TenantTableColumn, TenantTableSchema } from '@/types';
 
 /**
@@ -80,7 +80,7 @@ function pickWritableColumns(
   return Object.entries(payload).filter(([key]) => {
     if (!writable.has(key)) return false;
     if (key === primaryKey) return false;
-    return key !== 'created_at';
+    return key !== 'created_at' && key !== 'updated_at';
   });
 }
 
@@ -143,6 +143,23 @@ export async function listTenantRecords(
   options: ListOptions = {},
 ): Promise<TenantRecordPage> {
   const { pool } = await getTenantDb(platformId);
+  return listRecords(pool, table, options);
+}
+
+export async function listAppTenantRecords(
+  appId: string,
+  table: string,
+  options: ListOptions = {},
+): Promise<TenantRecordPage> {
+  const { pool } = await getAppTenantDb(appId);
+  return listRecords(pool, table, options);
+}
+
+async function listRecords(
+  pool: Pool,
+  table: string,
+  options: ListOptions,
+): Promise<TenantRecordPage> {
   const columns = await describeTable(pool, table);
   const columnNames = new Set(columns.map((column) => column.columnName));
 
@@ -204,9 +221,25 @@ export async function getTenantRecord(
   id: string,
 ): Promise<Record<string, unknown>> {
   const { pool } = await getTenantDb(platformId);
+  return getRecord(pool, table, id);
+}
+
+export async function getAppTenantRecord(
+  appId: string,
+  table: string,
+  id: string,
+): Promise<Record<string, unknown>> {
+  const { pool } = await getAppTenantDb(appId);
+  return getRecord(pool, table, id);
+}
+
+async function getRecord(
+  pool: Pool,
+  table: string,
+  id: string,
+): Promise<Record<string, unknown>> {
   const columns = await describeTable(pool, table);
   const primaryKey = primaryKeyOf(columns);
-
   const result = await pool.query(
     `SELECT * FROM public.${quote(table)} WHERE ${quote(primaryKey)}::text = $1 LIMIT 1`,
     [id],
@@ -221,6 +254,23 @@ export async function insertTenantRecord(
   payload: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
   const { pool } = await getTenantDb(platformId);
+  return insertRecord(pool, table, payload);
+}
+
+export async function insertAppTenantRecord(
+  appId: string,
+  table: string,
+  payload: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const { pool } = await getAppTenantDb(appId);
+  return insertRecord(pool, table, payload);
+}
+
+async function insertRecord(
+  pool: Pool,
+  table: string,
+  payload: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
   const columns = await describeTable(pool, table);
   const primaryKey = primaryKeyOf(columns);
   const entries = pickWritableColumns(payload, columns, primaryKey);
@@ -244,6 +294,15 @@ export async function updateTenantRecord(
   payload: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
   const { pool } = await getTenantDb(platformId);
+  return updateRecord(pool, table, id, payload);
+}
+
+async function updateRecord(
+  pool: Pool,
+  table: string,
+  id: string,
+  payload: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
   const columns = await describeTable(pool, table);
   const primaryKey = primaryKeyOf(columns);
   const entries = pickWritableColumns(payload, columns, primaryKey);
@@ -262,6 +321,16 @@ export async function updateTenantRecord(
   );
   if (!result.rowCount) throw new TenantRecordError('ไม่พบข้อมูลที่ต้องการแก้ไข', 404);
   return result.rows[0];
+}
+
+export async function updateAppTenantRecord(
+  appId: string,
+  table: string,
+  id: string,
+  payload: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const { pool } = await getAppTenantDb(appId);
+  return updateRecord(pool, table, id, payload);
 }
 
 export async function deleteTenantRecord(platformId: string, table: string, id: string): Promise<boolean> {

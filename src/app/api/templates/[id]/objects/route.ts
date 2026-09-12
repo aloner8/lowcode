@@ -15,6 +15,7 @@ const OBJECT_TYPES = [
   "SCREEN",
   "PAGE",
   "COMPONENT",
+  "COMPONENT_INSTANCE",
   "COLLECTION",
   "MENU",
   "POPUP",
