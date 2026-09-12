@@ -15,6 +15,8 @@ import {
   Settings2,
 } from "lucide-react";
 import { SCREEN_REGION_KEYS } from "@/lib/template/contracts";
+import { TemplatePropertyEditor } from "@/components/template-studio/TemplatePropertyEditor";
+import type { StudioPageRelation } from "@/lib/template/studioEditing";
 
 type ObjectType =
   | "STARTUP"
@@ -429,6 +431,49 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
     }
   };
 
+  const saveSelectedDefinition = async (definition: Record<string, unknown>) => {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      const saved = await updateObject(selected, definition);
+      setSelectedId(saved.id);
+      await load();
+      setMessage(`บันทึก ${selected.objectName} แล้ว`);
+    } catch (error) {
+      setMessage(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveSelectedScreenPages = async (relations: StudioPageRelation[]) => {
+    if (!selected || selected.objectType !== "SCREEN") return;
+    const defaultPage = pages.find((page) => relations.some((item) => item.pageObjectId === page.id && item.isDefault));
+    if (!defaultPage) {
+      setMessage("เลือก Default Page ก่อนบันทึก");
+      return;
+    }
+    setBusy(true);
+    try {
+      await updateObject(selected, { ...selected.definition, defaultPageId: defaultPage.objectKey });
+      const latestTemplate = await request(`/api/templates/${templateId}`, { method: "GET" });
+      await request(`/api/templates/${templateId}/screen-pages`, {
+        method: "PUT",
+        body: JSON.stringify({
+          screenObjectId: selected.id,
+          expectedTemplateEditVersion: latestTemplate.template.editVersion,
+          pages: relations,
+        }),
+      });
+      await load();
+      setMessage(`บันทึก Pages ของ ${selected.objectName} แล้ว`);
+    } catch (error) {
+      setMessage(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="d-flex flex-column bg-light" style={{ minHeight: "calc(100vh - 64px)" }}>
       <header className="bg-dark text-white px-3 py-2 d-flex align-items-center gap-3 flex-wrap">
@@ -521,7 +566,7 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
           </div>
 
           {!visibleObjects.length && <div className="text-center text-muted p-5">ยังไม่มี Object ในส่วนนี้</div>}
-          {selected && <div className="card border-0 shadow-sm mt-3"><div className="card-header bg-white fw-semibold d-flex align-items-center">Property summary — {selected.objectName}<button className="btn btn-sm btn-outline-primary ms-auto" disabled={busy} onClick={() => void renameSelected()}>Rename</button></div><div className="card-body"><dl className="row mb-0"><dt className="col-sm-3">Key</dt><dd className="col-sm-9"><code>{selected.objectKey}</code></dd><dt className="col-sm-3">Version</dt><dd className="col-sm-9">{selected.editVersion}</dd><dt className="col-sm-3">Properties</dt><dd className="col-sm-9"><code>{Object.keys(selected.definition).join(", ") || "none"}</code></dd></dl></div></div>}
+          {selected && <TemplatePropertyEditor key={`${selected.id}:${selected.editVersion}:${screenPages.map((item) => `${item.id}:${item.sortOrder}:${item.isDefault}`).join("|")}`} object={selected} objects={objects} relations={screenPages} busy={busy} onRename={() => void renameSelected()} onSaveDefinition={saveSelectedDefinition} onSaveScreenPages={saveSelectedScreenPages} />}
         </main>
       </div>
     </div>
