@@ -13,7 +13,8 @@ Commit ตั้งต้น: `617615e` (`dev`)
 | Unit tests | ผ่าน | 16 files, 134 passed, 1 skipped ก่อนเพิ่ม contract test |
 | ESLint | ผ่านแบบมีหนี้เดิม | exit 0, 0 errors, 81 warnings |
 | Production build | ผ่านแบบมี warning | Next.js 16.3.3 build สำเร็จ; Turbopack เตือน dynamic filesystem tracing ที่ `src/lib/storage/tenantStorage.ts:86` |
-| Database integration | ยังไม่รัน | Docker Compose หยุดก่อนเริ่มเพราะไม่มี host-owned `AUTH_SECRET`; ไม่สร้าง secret ชั่วคราวเพื่อให้ผลทดสอบดูผ่าน |
+| Migration integration | ผ่านหลังแก้ baseline | migrations 001–027 รันสำเร็จบน PostgreSQL 17 disposable container |
+| Full Compose integration | ยังไม่รัน | Docker Compose หยุดก่อนเริ่มเพราะไม่มี host-owned `AUTH_SECRET`; ไม่สร้าง secret ชั่วคราวเพื่อให้ผลทดสอบดูผ่าน |
 
 ปัญหา baseline ต้องแยกออกจาก regression ของ P1 เป็นต้นไป:
 
@@ -21,6 +22,7 @@ Commit ตั้งต้น: `617615e` (`dev`)
 2. Build trace ของ tenant storage อาจดึง source/public ทั้งโปรเจกต์เข้า server output
 3. Integration test ของ collection procedure ถูก skip เมื่อไม่มี `COLLECTION_PROCEDURE_TEST_DATABASE_URL`
 4. Dependency audit มี 2 high และ 37 moderate; ต้อง triage แยก ไม่ใช้ `npm audit fix` แบบเปลี่ยน dependency อัตโนมัติ
+5. Fresh database init เดิมล้มที่ migration 012 เพราะอ้าง `apps.seo_settings` ก่อน migration 014; แก้ให้ view ชั่วคราวใน 012 ไม่อ้างคอลัมน์ล่วงหน้า แล้ว 015 สร้าง view ฉบับเต็มตามเดิม
 
 ## 2. Inventory ที่ยืนยันจาก repository
 
@@ -107,6 +109,7 @@ P3 จะใช้ definition เดียวกันสร้าง App A แ�
 - [x] ตัวอย่าง definition ที่ validate ได้
 - [x] baseline typecheck/lint/test/build พร้อมแยกหนี้เดิม
 - [x] แผน backup/rollback ก่อน migration
+- [x] migration chain และ P1 acceptance SQL บน PostgreSQL 17 ชั่วคราว
 - [ ] inventory จำนวน row/reference จาก DB จริง (รอ host-owned runtime secret และ DB พร้อม)
 
 P1 เริ่มงาน additive schema/ownership guard ได้จาก contract นี้ แต่ยังห้าม migration/cutover ข้อมูลจริงจนข้อสุดท้ายผ่าน

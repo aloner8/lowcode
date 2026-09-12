@@ -2,7 +2,13 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { getCoreDb } from '@/lib/db/coreDb';
 import { SESSION_COOKIE, verifySession, type SessionPayload } from '@/lib/auth/session';
-import type { EffectiveRole, GlobalRole, SiteRole } from '@/types';
+import type {
+  CustomerRole,
+  EffectiveCustomerRole,
+  EffectiveRole,
+  GlobalRole,
+  SiteRole,
+} from '@/types';
 
 /**
  * Authorisation for API route handlers.
@@ -23,6 +29,12 @@ export interface ApiSession extends SessionPayload {
 
 /** VIEWER < STAFF < ADMIN < GOD */
 const ROLE_RANK: Record<EffectiveRole, number> = { VIEWER: 0, STAFF: 1, ADMIN: 2, GOD: 3 };
+const CUSTOMER_ROLE_RANK: Record<EffectiveCustomerRole, number> = {
+  VIEWER: 0,
+  EDITOR: 1,
+  OWNER: 2,
+  GOD: 3,
+};
 
 export const isGod = (role: GlobalRole) => role === 'GOD';
 
@@ -172,4 +184,80 @@ export async function requirePlatformSession(
   if (session instanceof NextResponse) return session;
   const denied = await requirePlatformAccess(session, platformId, minimumRole);
   return denied ?? session;
+}
+
+/** Effective role on a Customer account. App memberships never grant this role. */
+export async function customerRoleOf(
+  session: ApiSession,
+  customerId: string,
+): Promise<EffectiveCustomerRole | null> {
+  if (isGod(session.role)) return 'GOD';
+
+  const result = await getCoreDb().query<{ customer_role: CustomerRole }>(
+    `SELECT membership.customer_role
+     FROM public.customer_memberships membership
+     JOIN public.customers customer ON customer.id = membership.customer_id
+     WHERE membership.user_id = $1
+       AND membership.customer_id = $2
+       AND customer.status = 'ACTIVE'`,
+    [session.sub, customerId],
+  );
+  return result.rowCount ? result.rows[0].customer_role : null;
+}
+
+export async function requireCustomerAccess(
+  session: ApiSession,
+  customerId: string,
+  minimumRole: CustomerRole = 'VIEWER',
+): Promise<NextResponse | null> {
+  try {
+    const role = await customerRoleOf(session, customerId);
+    if (!role) return forbidden('ไม่มีสิทธิ์เข้าถึง Customer นี้');
+    if (CUSTOMER_ROLE_RANK[role] < CUSTOMER_ROLE_RANK[minimumRole]) {
+      return forbidden(`ต้องมีสิทธิ์ระดับ ${minimumRole} ขึ้นไปบน Customer นี้`);
+    }
+    return null;
+  } catch (error) {
+    console.error('[auth] unable to check customer access', error);
+    return forbidden('ไม่สามารถตรวจสอบสิทธิ์ Customer ได้');
+  }
+}
+
+export async function templateRoleOf(
+  session: ApiSession,
+  templateId: string,
+): Promise<EffectiveCustomerRole | null> {
+  if (isGod(session.role)) return 'GOD';
+
+  const result = await getCoreDb().query<{ customer_role: CustomerRole }>(
+    `SELECT membership.customer_role
+     FROM public.templates template
+     JOIN public.customers customer ON customer.id = template.customer_id
+     JOIN public.customer_memberships membership
+       ON membership.customer_id = customer.id
+      AND membership.user_id = $1
+     WHERE template.id = $2
+       AND template.archived_at IS NULL
+       AND customer.status = 'ACTIVE'`,
+    [session.sub, templateId],
+  );
+  return result.rowCount ? result.rows[0].customer_role : null;
+}
+
+export async function requireTemplateAccess(
+  session: ApiSession,
+  templateId: string,
+  minimumRole: CustomerRole = 'VIEWER',
+): Promise<NextResponse | null> {
+  try {
+    const role = await templateRoleOf(session, templateId);
+    if (!role) return forbidden('ไม่มีสิทธิ์เข้าถึง Template นี้');
+    if (CUSTOMER_ROLE_RANK[role] < CUSTOMER_ROLE_RANK[minimumRole]) {
+      return forbidden(`ต้องมีสิทธิ์ระดับ ${minimumRole} ขึ้นไปบน Template นี้`);
+    }
+    return null;
+  } catch (error) {
+    console.error('[auth] unable to check template access', error);
+    return forbidden('ไม่สามารถตรวจสอบสิทธิ์ Template ได้');
+  }
 }

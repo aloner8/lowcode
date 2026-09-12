@@ -412,9 +412,11 @@ export interface AuditLog {
 
 export type GlobalRole = "GOD" | "TENANT_USER";
 export type SiteRole = "ADMIN" | "STAFF" | "VIEWER";
+export type CustomerRole = "OWNER" | "EDITOR" | "VIEWER";
 
 /** Effective role on a given Site — GOD outranks every site membership. */
 export type EffectiveRole = "GOD" | SiteRole;
+export type EffectiveCustomerRole = "GOD" | CustomerRole;
 
 /** @deprecated ใช้ SiteRole แทน — คงไว้เพื่อความเข้ากันได้ */
 export type AppRole = SiteRole;

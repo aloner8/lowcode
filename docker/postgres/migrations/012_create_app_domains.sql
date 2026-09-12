@@ -78,7 +78,6 @@ SELECT
     a.is_active,
     a.theme_config,
     a.tenant_overrides,
-    a.seo_settings,
     p.id                AS platform_id,
     p.platform_slug,
     COALESCE(

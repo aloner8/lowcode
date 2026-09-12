@@ -1,0 +1,96 @@
+import { describe, expect, it } from "vitest";
+import { adaptLegacyPlatform } from "@/lib/template/legacyAdapter";
+import { validateTemplateDefinition } from "@/lib/template/validateTemplateDefinition";
+
+describe("legacy Platform to Template adapter", () => {
+  it("preserves Page and instance IDs while producing a valid definition", () => {
+    const result = adaptLegacyPlatform({
+      id: "platform-old",
+      customerId: "customer-a",
+      platformSlug: "old-platform",
+      platformName: "Old Platform",
+      pages: [
+        {
+          id: "page.home",
+          title: "Home",
+          componentTree: [
+            {
+              id: "instance.hero",
+              type: "DynamicHtmlComponent",
+              props: { content: "<h1>Hello</h1>" },
+            },
+          ],
+        },
+      ],
+      routes: [
+        { id: "route.home", path: "/", targetPageId: "page.home" },
+      ],
+    });
+
+    expect(result.definition.pages[0].id).toBe("page.home");
+    expect(result.definition.componentInstances[0].id).toBe("instance.hero");
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ code: "screen_boundary_inferred" }),
+    );
+    expect(validateTemplateDefinition(result.definition)).toEqual({
+      valid: true,
+      issues: [],
+    });
+  });
+
+  it("reports and removes a route whose Page target is missing", () => {
+    const result = adaptLegacyPlatform({
+      id: "platform-old",
+      customerId: "customer-a",
+      platformSlug: "old-platform",
+      platformName: "Old Platform",
+      pages: [{ id: "page.home" }],
+      routes: [
+        { id: "route.missing", path: "/missing", targetPageId: "page.missing" },
+      ],
+    });
+
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ code: "route_target_missing" }),
+    );
+    expect(result.definition.routes).toHaveLength(1);
+    expect(result.definition.routes[0].path).toBe("/");
+  });
+
+  it("keeps reusable instances distinct from Standard Components", () => {
+    const result = adaptLegacyPlatform({
+      id: "platform-old",
+      customerId: "customer-a",
+      platformSlug: "old-platform",
+      platformName: "Old Platform",
+      pages: [
+        {
+          id: "page.home",
+          componentTree: [
+            {
+              id: "instance.shared-card",
+              type: "CardComponent",
+              props: { __platformComponentId: "component.shared-card" },
+            },
+          ],
+        },
+      ],
+      routes: [],
+      reusableComponents: [
+        {
+          id: "component.shared-card",
+          name: "Shared card",
+          componentType: "standard",
+          version: 1,
+          definition: {},
+        },
+      ],
+    });
+
+    expect(result.definition.componentInstances[0]).toMatchObject({
+      source: "reusable",
+      componentId: "component.shared-card",
+    });
+    expect(validateTemplateDefinition(result.definition).valid).toBe(true);
+  });
+});
