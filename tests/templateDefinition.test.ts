@@ -1,0 +1,63 @@
+import { describe, expect, it } from "vitest";
+import type { TemplateDefinition } from "@/lib/template/contracts";
+import { MINIMAL_TEMPLATE_DEFINITION } from "@/lib/template/examples/minimalTemplate";
+import { validateTemplateDefinition } from "@/lib/template/validateTemplateDefinition";
+
+const cloneDefinition = (): TemplateDefinition =>
+  structuredClone(MINIMAL_TEMPLATE_DEFINITION) as TemplateDefinition;
+
+describe("template definition foundation contract", () => {
+  it("validates the minimal end-to-end definition", () => {
+    expect(validateTemplateDefinition(cloneDefinition())).toEqual({
+      valid: true,
+      issues: [],
+    });
+  });
+
+  it("requires the default page to belong to the screen", () => {
+    const definition = cloneDefinition();
+    definition.screenPages = [];
+
+    expect(validateTemplateDefinition(definition).issues).toContainEqual(
+      expect.objectContaining({ code: "default_page_not_in_screen" }),
+    );
+  });
+
+  it("rejects references to a component instance on a missing panel", () => {
+    const definition = cloneDefinition();
+    const instance = definition.componentInstances[0];
+    if (instance.placement !== "page_panel") throw new Error("Expected page panel placement");
+    instance.panelId = "panel.missing";
+
+    expect(validateTemplateDefinition(definition).issues).toContainEqual(
+      expect.objectContaining({ code: "missing_panel" }),
+    );
+  });
+
+  it("requires an immutable revision for published definitions", () => {
+    const definition = cloneDefinition();
+    definition.template.status = "published";
+
+    expect(validateTemplateDefinition(definition).issues).toContainEqual(
+      expect.objectContaining({ code: "revision_required" }),
+    );
+  });
+
+  it("rejects collection relations to unknown fields", () => {
+    const definition = cloneDefinition();
+    definition.collections[0].fields.push({
+      id: "manager_id",
+      name: "Manager",
+      type: "integer",
+      required: false,
+      references: {
+        collectionId: "collection.contacts",
+        fieldId: "missing",
+      },
+    });
+
+    expect(validateTemplateDefinition(definition).issues).toContainEqual(
+      expect.objectContaining({ code: "missing_collection_field" }),
+    );
+  });
+});
