@@ -118,11 +118,22 @@ export function validateTemplateDefinition(
     }
     screen.regions.forEach((region, regionIndex) => {
       region.componentInstanceIds.forEach((instanceId) => {
-        if (!instances.has(instanceId)) {
+        const instance = instances.get(instanceId);
+        if (!instance) {
           issue(
             "missing_component_instance",
             `${path}.regions[${regionIndex}]`,
             `Unknown component instance '${instanceId}'`,
+          );
+        } else if (
+          instance.placement !== "screen_region" ||
+          instance.screenId !== screen.id ||
+          instance.region !== region.key
+        ) {
+          issue(
+            "invalid_screen_component_placement",
+            `${path}.regions[${regionIndex}]`,
+            `Component instance '${instanceId}' is not placed in this Screen region`,
           );
         }
       });

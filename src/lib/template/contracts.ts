@@ -240,10 +240,15 @@ export type LifecyclePhase =
   | "screen_set_layout"
   | "screen_set_layout_complete"
   | "screen_after_set_layout"
+  | "screen_change_page"
   | "page_onload"
-  | "page_collections_complete"
+  | "page_collection_load"
+  | "page_onload_complete"
+  | "page_component_prepare"
   | "page_components_complete"
+  | "screen_component_prepare"
   | "page_ready"
+  | "screen_change_page_complete"
   | "screen_after_change_page";
 
 export interface RuntimeRequestToken {
