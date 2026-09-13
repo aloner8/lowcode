@@ -302,6 +302,8 @@ Checkpoint asset comparison: `npm run migration:assets:compare -- before-assets.
 
 Checkpoint legacy semantic diagnostics: adapter รายงาน route ที่ target Page ไม่ตรง default Page ของ Screen และ children/style/templateRef/htmlId/label/actionTriggerId ที่ยังไม่ถูก map พร้อม sourcePath โดยไม่คัดลอก payload ลง diagnostics; ชุด adapter/contract/migration ผ่าน 6 files / 52 tests, typecheck และ targeted lint ยังไม่ได้แก้ semantic mapping หรือย้ายข้อมูลจริง ต้อง review ต้นฉบับก่อน staging conversion
 
+Checkpoint synthetic restore (13 กันยายน 2026): `npm run migration:rehearse:synthetic` ผ่าน PostgreSQL 17 แยก network/port/volume จากระบบจริง ลง 33 migrations, ผ่าน P1/P3 acceptance SQL, dump/restore แล้ว 41 tables / 50 rows ตรงกันและ FK ทำงาน พบและแก้ CASE syntax ใน migration 030 ที่ source-text tests เดิมไม่จับ ยังไม่ใช่ backup/restore ของ App จริง และไม่ปิด P7; ดูข้อจำกัด/หลักฐานในคู่มือ inventory
+
 ขึ้นกับ P4–P6 งาน: migration dry-run, mapping ID/binding/style, เปรียบเทียบหน้าจอ/ข้อมูล, stage app ตัวอย่าง, backup/restore rehearsal และเลือก App ใช้ renderer ใหม่ทีละตัว
 
 เกณฑ์ผ่าน: แอปตัวอย่างเดิมผ่านงานจริง, รายงานจำนวน Object และ reference ตรง, ไม่มีข้อมูลหาย, ย้อนกลับ renderer/config ได้เมื่อ schema รองรับ และมีขั้นคืนข้อมูลสำหรับกรณีที่ต้อง restore

@@ -21,7 +21,7 @@ describe('P6 atomic Customer quota migration', () => {
 
   it('reuses an idempotency key only for the same App and action', () => {
     expect(migration).toContain('v_existing_app_id <> p_app_id');
-    expect(migration).toContain('v_existing_operation_type <> CASE');
+    expect(migration).toContain('v_existing_operation_type <> (CASE');
   });
 
   it('rejects quota reductions below current usage', () => {

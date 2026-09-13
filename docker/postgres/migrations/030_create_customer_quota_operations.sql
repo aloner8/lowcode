@@ -119,7 +119,7 @@ BEGIN
       AND operation.operation_key = BTRIM(p_operation_key);
     IF FOUND THEN
         IF v_existing_app_id <> p_app_id
-           OR v_existing_operation_type <> CASE WHEN p_desired_state = 'RUNNING' THEN 'START' ELSE 'STOP' END THEN
+           OR v_existing_operation_type <> (CASE WHEN p_desired_state = 'RUNNING' THEN 'START' ELSE 'STOP' END) THEN
             RAISE EXCEPTION 'operation key was already used for another App or action' USING ERRCODE = '22023';
         END IF;
         RETURN QUERY SELECT v_operation_id, TRUE;
