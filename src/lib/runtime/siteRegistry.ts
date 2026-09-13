@@ -31,7 +31,7 @@ export interface SiteRecord {
   observedState: 'UNPROVISIONED' | 'PROVISIONING' | 'STOPPED' | 'STARTING' | 'RUNNING' | 'STOPPING' | 'FAILED';
   runtimeError: string | null;
   healthCheckedAt: string | null;
-  runtimeMetrics: { memoryRssBytes?: number; uptimeSeconds?: number } | null;
+  runtimeMetrics: { cpuPercent?: number | null; memoryRssBytes?: number; uptimeSeconds?: number } | null;
   runtimeMetricsAt: string | null;
 }
 

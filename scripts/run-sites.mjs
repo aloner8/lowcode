@@ -17,6 +17,7 @@
 
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import pg from 'pg';
@@ -40,11 +41,15 @@ const MAX_RESTARTS = 10;
 const RECONCILE_INTERVAL_MS = 3_000;
 const HEALTH_RETRY_MS = 1_000;
 const HEALTH_ATTEMPTS = 30;
+const RESOURCE_SAMPLE_INTERVAL_MS = 60_000;
+const SAFE_DATABASE_NAME = /^[a-z_][a-z0-9_]{0,62}$/;
 
 const CORE_DATABASE_URL =
   process.env.CORE_DATABASE_URL ||
   'postgresql://lowcode_admin:lowcode_dev_password@localhost:35432/lowcode_core';
 const controllerPool = new Pool({ connectionString: CORE_DATABASE_URL, max: 3 });
+const TENANT_STORAGE_ROOT = process.env.TENANT_STORAGE_ROOT
+  || path.join(process.cwd(), 'storage', 'tenants');
 
 /**
  * Where the standalone server lives depends on how the app was assembled:
@@ -106,6 +111,8 @@ function childEnv(site, port, domainMap) {
 const children = new Map();
 const restartState = new Map();
 let shuttingDown = false;
+let resourceSampleStartedAt = 0;
+let resourceSampleRunning = false;
 
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 const reportAsync = (promise, label) => {
@@ -195,6 +202,87 @@ async function sampleHealth(site, entry) {
   }
 }
 
+async function directorySize(root) {
+  let total = 0;
+  let entries;
+  try {
+    entries = await readdir(root, { withFileTypes: true });
+  } catch (error) {
+    if (error && typeof error === 'object' && error.code === 'ENOENT') return 0;
+    throw error;
+  }
+  for (const entry of entries) {
+    const entryPath = path.join(root, entry.name);
+    if (entry.isDirectory()) total += await directorySize(entryPath);
+    else if (entry.isFile()) {
+      try {
+        total += (await stat(entryPath)).size;
+      } catch (error) {
+        if (!(error && typeof error === 'object' && error.code === 'ENOENT')) throw error;
+      }
+    }
+  }
+  return total;
+}
+
+async function loadResourceSites() {
+  const result = await controllerPool.query(`
+    SELECT app.id AS app_id, app.app_slug, app.tenant_db_name
+    FROM public.apps app
+    ORDER BY app.app_slug
+  `);
+  return ONLY.length ? result.rows.filter((site) => ONLY.includes(site.app_slug)) : result.rows;
+}
+
+async function sampleSiteResources(site) {
+  const metrics = {};
+  const errors = [];
+  try {
+    const result = await controllerPool.query(
+      'SELECT pg_database_size($1)::text AS bytes',
+      [site.tenant_db_name],
+    );
+    const bytes = result.rows[0]?.bytes;
+    const size = typeof bytes === 'string' ? Number(bytes) : Number.NaN;
+    if (!Number.isFinite(size) || size < 0) throw new Error('database size was not returned');
+    metrics.dbStorageBytes = size;
+  } catch (error) {
+    errors.push(`DB storage unavailable: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  if (!SAFE_DATABASE_NAME.test(site.tenant_db_name)) {
+    errors.push('File storage unavailable: invalid tenant database name');
+  } else {
+    try {
+      metrics.fileStorageBytes = await directorySize(path.join(TENANT_STORAGE_ROOT, site.tenant_db_name));
+    } catch (error) {
+      errors.push(`File storage unavailable: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  await controllerPool.query(`UPDATE public.apps
+    SET resource_metrics = $2::jsonb, resource_metrics_at = NOW(), resource_metrics_error = $3
+    WHERE id = $1`, [site.app_id, JSON.stringify(metrics), errors.length ? errors.join('; ').slice(0, 4000) : null]);
+}
+
+async function sampleResources() {
+  if (resourceSampleRunning || Date.now() - resourceSampleStartedAt < RESOURCE_SAMPLE_INTERVAL_MS) return;
+  resourceSampleRunning = true;
+  resourceSampleStartedAt = Date.now();
+  try {
+    const sites = await loadResourceSites();
+    for (const site of sites) {
+      try {
+        await sampleSiteResources(site);
+      } catch (error) {
+        logError(`resource sample failed for ${site.app_slug}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+  } finally {
+    resourceSampleRunning = false;
+  }
+}
+
 function startSite(site, domainMap) {
   const port = PORT_BASE ? PORT_BASE + (site.port % 1000) : site.port;
   const env = childEnv(site, port, domainMap);
@@ -272,6 +360,7 @@ function stopSite(entry) {
 }
 
 async function reconcile() {
+  reportAsync(sampleResources(), 'resource sampling failed');
   const sites = await loadSites();
   const selected = ONLY.length ? sites.filter((site) => ONLY.includes(site.app_slug)) : sites;
   const bySlug = new Map(selected.map((site) => [site.app_slug, site]));
@@ -345,6 +434,7 @@ async function main() {
   const runnable = sites.filter((site) => site.desired_state === 'RUNNING');
   log(`launching ${runnable.length} running site(s) in ${DEV_MODE ? 'development' : 'production'} mode`);
   for (const site of runnable) startSite(site, domainMap);
+  reportAsync(sampleResources(), 'resource sampling failed');
   setInterval(() => void reconcile().catch((error) => logError(`reconcile failed: ${error instanceof Error ? error.message : String(error)}`)), RECONCILE_INTERVAL_MS);
 
   process.on('SIGINT', () => shutdown('SIGINT'));

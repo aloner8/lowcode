@@ -13,9 +13,23 @@ export interface CustomerSummary {
   runningAppCount: number;
 }
 
+export interface CustomerResourceMetric {
+  value: number | null;
+  status: "AVAILABLE" | "PARTIAL" | "UNAVAILABLE";
+  measuredAt: string | null;
+  availableSamples: number;
+  expectedSamples: number;
+}
+
 export interface CustomerDetail extends CustomerSummary {
   quotas: Record<string, number>;
   createdAt: string;
+  resources: {
+    cpuPercent: CustomerResourceMetric;
+    memoryRssBytes: CustomerResourceMetric;
+    dbStorageBytes: CustomerResourceMetric;
+    fileStorageBytes: CustomerResourceMetric;
+  };
   members: Array<{
     id: string;
     username: string;
@@ -44,9 +58,30 @@ export interface CustomerDetail extends CustomerSummary {
     observedState: "UNPROVISIONED" | "PROVISIONING" | "STOPPED" | "STARTING" | "RUNNING" | "STOPPING" | "FAILED";
     runtimeError: string | null;
     healthCheckedAt: string | null;
-    runtimeMetrics: { memoryRssBytes?: number; uptimeSeconds?: number } | null;
+    runtimeMetrics: { cpuPercent?: number | null; memoryRssBytes?: number; uptimeSeconds?: number } | null;
     runtimeMetricsAt: string | null;
+    resourceMetrics: { dbStorageBytes?: number; fileStorageBytes?: number } | null;
+    resourceMetricsAt: string | null;
+    resourceMetricsError: string | null;
   }>;
+}
+
+function aggregateResourceMetric<T>(
+  rows: T[],
+  read: (row: T) => { value: number | null | undefined; measuredAt: string | null },
+): CustomerResourceMetric {
+  const samples = rows.map(read).filter((sample) =>
+    typeof sample.value === "number" && Number.isFinite(sample.value) && sample.value >= 0 && Boolean(sample.measuredAt));
+  const measuredAt = samples.length
+    ? samples.map((sample) => sample.measuredAt!).sort()[0]
+    : null;
+  return {
+    value: samples.length ? samples.reduce((total, sample) => total + sample.value!, 0) : null,
+    status: samples.length === 0 ? "UNAVAILABLE" : samples.length === rows.length ? "AVAILABLE" : "PARTIAL",
+    measuredAt,
+    availableSamples: samples.length,
+    expectedSamples: rows.length,
+  };
 }
 
 interface CustomerRow {
@@ -144,11 +179,14 @@ export async function loadCustomerDetail(customerId: string): Promise<CustomerDe
       observed_state: CustomerDetail["apps"][number]["observedState"];
       runtime_error_detail: string | null; health_checked_at: Date | null;
       runtime_metrics: CustomerDetail["apps"][number]["runtimeMetrics"]; runtime_metrics_at: Date | null;
+      resource_metrics: CustomerDetail["apps"][number]["resourceMetrics"]; resource_metrics_at: Date | null;
+      resource_metrics_error: string | null;
     }>(`
       SELECT app.id, app.app_slug, app.app_name, template.template_name,
              app.is_active, app.is_suspended, app.package_name,
              app.desired_state, app.observed_state, app.runtime_error_detail,
-             app.health_checked_at, app.runtime_metrics, app.runtime_metrics_at
+             app.health_checked_at, app.runtime_metrics, app.runtime_metrics_at,
+             app.resource_metrics, app.resource_metrics_at, app.resource_metrics_error
       FROM public.apps app
       JOIN public.templates template ON template.id = app.template_id
       WHERE template.customer_id = $1
@@ -157,10 +195,35 @@ export async function loadCustomerDetail(customerId: string): Promise<CustomerDe
   ]);
 
   const row = customerResult.rows[0];
+  const apps: CustomerDetail["apps"] = appResult.rows.map((app) => ({
+    id: app.id,
+    slug: app.app_slug,
+    name: app.app_name,
+    templateName: app.template_name,
+    isActive: app.is_active,
+    isSuspended: app.is_suspended,
+    packageName: app.package_name,
+    desiredState: app.desired_state,
+    observedState: app.observed_state,
+    runtimeError: app.runtime_error_detail,
+    healthCheckedAt: app.health_checked_at?.toISOString() ?? null,
+    runtimeMetrics: app.runtime_metrics,
+    runtimeMetricsAt: app.runtime_metrics_at?.toISOString() ?? null,
+    resourceMetrics: app.resource_metrics,
+    resourceMetricsAt: app.resource_metrics_at?.toISOString() ?? null,
+    resourceMetricsError: app.resource_metrics_error,
+  }));
+  const runningApps = apps.filter((app) => app.observedState === "RUNNING");
   return {
     ...mapSummary(row),
     quotas: row.quotas ?? {},
     createdAt: row.created_at?.toISOString() ?? "",
+    resources: {
+      cpuPercent: aggregateResourceMetric(runningApps, (app) => ({ value: app.runtimeMetrics?.cpuPercent, measuredAt: app.runtimeMetricsAt })),
+      memoryRssBytes: aggregateResourceMetric(runningApps, (app) => ({ value: app.runtimeMetrics?.memoryRssBytes, measuredAt: app.runtimeMetricsAt })),
+      dbStorageBytes: aggregateResourceMetric(apps, (app) => ({ value: app.resourceMetrics?.dbStorageBytes, measuredAt: app.resourceMetricsAt })),
+      fileStorageBytes: aggregateResourceMetric(apps, (app) => ({ value: app.resourceMetrics?.fileStorageBytes, measuredAt: app.resourceMetricsAt })),
+    },
     members: memberResult.rows.map((member) => ({
       id: member.id,
       username: member.username,
@@ -177,20 +240,6 @@ export async function loadCustomerDetail(customerId: string): Promise<CustomerDe
       publishedRevisionId: template.published_revision_id,
       appCount: Number(template.app_count),
     })),
-    apps: appResult.rows.map((app) => ({
-      id: app.id,
-      slug: app.app_slug,
-      name: app.app_name,
-      templateName: app.template_name,
-      isActive: app.is_active,
-      isSuspended: app.is_suspended,
-      packageName: app.package_name,
-      desiredState: app.desired_state,
-      observedState: app.observed_state,
-      runtimeError: app.runtime_error_detail,
-      healthCheckedAt: app.health_checked_at?.toISOString() ?? null,
-      runtimeMetrics: app.runtime_metrics,
-      runtimeMetricsAt: app.runtime_metrics_at?.toISOString() ?? null,
-    })),
+    apps,
   };
 }

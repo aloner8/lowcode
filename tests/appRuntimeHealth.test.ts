@@ -15,7 +15,7 @@ describe('P6 site process health endpoint', () => {
     expect(response.status).toBe(200);
     expect(payload).toEqual(expect.objectContaining({
       status: 'healthy', appSlug: 'agency',
-      metrics: expect.objectContaining({ memoryRssBytes: expect.any(Number), uptimeSeconds: expect.any(Number) }),
+      metrics: expect.objectContaining({ cpuPercent: expect.any(Number), memoryRssBytes: expect.any(Number), uptimeSeconds: expect.any(Number) }),
     }));
   });
 

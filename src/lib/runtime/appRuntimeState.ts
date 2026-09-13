@@ -12,7 +12,7 @@ export interface AppRuntimeState {
   healthCheckedAt: string | null;
   startedAt: string | null;
   stoppedAt: string | null;
-  metrics: { memoryRssBytes?: number; uptimeSeconds?: number } | null;
+  metrics: { cpuPercent?: number | null; memoryRssBytes?: number; uptimeSeconds?: number } | null;
   metricsAt: string | null;
   lastOperation: {
     id: string;

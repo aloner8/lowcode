@@ -54,7 +54,7 @@ export default function AppRuntimeControl({
       <span className={`adm-chip ${tone(runtime.observedState)}`}>{runtime.observedState}</span>
       <span className="adm-cell-sub">
         {runtime.metrics && runtime.metricsAt
-          ? `${memory === undefined ? 'Memory unavailable' : `${(memory / 1024 / 1024).toFixed(1)} MB`} · uptime ${runtime.metrics.uptimeSeconds ?? 'unavailable'}s`
+          ? `${runtime.metrics.cpuPercent == null ? 'CPU unavailable' : `CPU ${runtime.metrics.cpuPercent.toFixed(1)}%`} · ${memory === undefined ? 'Memory unavailable' : `${(memory / 1024 / 1024).toFixed(1)} MB`} · uptime ${runtime.metrics.uptimeSeconds ?? 'unavailable'}s`
           : 'Metrics unavailable'}
       </span>
       {runtime.healthCheckedAt && <span className="adm-cell-sub">Health: {new Date(runtime.healthCheckedAt).toLocaleString('th-TH')}</span>}

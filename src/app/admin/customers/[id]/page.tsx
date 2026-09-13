@@ -8,6 +8,13 @@ export const dynamic = "force-dynamic";
 
 const statusLabel = { ACTIVE: "เปิดใช้งาน", SUSPENDED: "ระงับ", ARCHIVED: "เก็บถาวร" } as const;
 const statusTone = { ACTIVE: "is-ok", SUSPENDED: "is-danger", ARCHIVED: "is-off" } as const;
+const formatBytes = (bytes: number) => {
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit += 1; }
+  return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
+};
 
 export default async function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -47,6 +54,34 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           <div className="col-12 col-sm-4" key={label}><div className="adm-card p-3"><span className="adm-cell-sub d-block">{label}</span><strong className="fs-3">{value}</strong></div></div>
         ))}
       </div>
+
+      <section className="adm-card p-3">
+        <div className="adm-card-head px-0 pt-0">
+          <div>
+            <h2 className="adm-card-title">ทรัพยากร Customer</h2>
+            <p className="adm-cell-sub mb-0">CPU/Memory รวมเฉพาะ App ที่ Running; DB/ไฟล์รวมทุก App จากค่าที่ background worker วัดไว้</p>
+          </div>
+        </div>
+        <div className="row g-3">
+          {[
+            ["CPU ล่าสุด", customer.resources.cpuPercent, (value: number) => `${value.toFixed(1)}%`],
+            ["Memory ล่าสุด", customer.resources.memoryRssBytes, formatBytes],
+            ["พื้นที่ Database", customer.resources.dbStorageBytes, formatBytes],
+            ["พื้นที่ไฟล์", customer.resources.fileStorageBytes, formatBytes],
+          ].map(([label, metric, formatter]) => {
+            const resource = metric as typeof customer.resources.cpuPercent;
+            const renderValue = formatter as (value: number) => string;
+            return <div className="col-12 col-sm-6 col-xl-3" key={String(label)}><div className="border rounded-3 p-3 h-100">
+              <span className="adm-cell-sub d-block">{String(label)}</span>
+              <strong className="fs-4">{resource.value === null ? "Unavailable" : renderValue(resource.value)}</strong>
+              <span className={`adm-chip d-block mt-2 ${resource.status === "AVAILABLE" ? "is-ok" : resource.status === "PARTIAL" ? "is-warn" : "is-off"}`}>
+                {resource.status === "PARTIAL" ? `Partial ${resource.availableSamples}/${resource.expectedSamples}` : resource.status}
+              </span>
+              <span className="adm-cell-sub d-block mt-1">{resource.measuredAt ? `วัดเมื่อ ${new Date(resource.measuredAt).toLocaleString("th-TH")}` : "ยังไม่มีค่าที่วัดได้"}</span>
+            </div></div>;
+          })}
+        </div>
+      </section>
 
       <section className="adm-card p-3">
         <div className="adm-card-head px-0 pt-0">

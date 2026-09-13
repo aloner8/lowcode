@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 const controller = readFileSync(new URL('../scripts/run-sites.mjs', import.meta.url), 'utf8');
 const migration = readFileSync(new URL('../docker/postgres/migrations/032_add_app_runtime_observability.sql', import.meta.url), 'utf8');
+const resourceMigration = readFileSync(new URL('../docker/postgres/migrations/033_add_app_resource_metrics.sql', import.meta.url), 'utf8');
 
 describe('P6 site process controller', () => {
   it('reconciles real children from durable desired state', () => {
@@ -24,6 +25,14 @@ describe('P6 site process controller', () => {
     expect(controller).toContain('Health unavailable:');
     expect(migration).toContain('runtime_metrics JSONB');
     expect(migration).toContain('health_checked_at TIMESTAMPTZ');
+  });
+
+  it('samples database and tenant file storage in the background', () => {
+    expect(controller).toContain('pg_database_size($1)');
+    expect(controller).toContain('directorySize(path.join(TENANT_STORAGE_ROOT');
+    expect(controller).toContain('RESOURCE_SAMPLE_INTERVAL_MS');
+    expect(resourceMigration).toContain('resource_metrics JSONB');
+    expect(resourceMigration).toContain('resource_metrics_at TIMESTAMPTZ');
   });
 
   it('does not invoke infrastructure service managers', () => {
