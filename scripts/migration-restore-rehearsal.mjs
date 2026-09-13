@@ -21,6 +21,21 @@ BEGIN
 END $$;
 SELECT coalesce(json_agg(i ORDER BY table_name), '[]'::json) FROM pg_temp.inventory() i;
 `;
+const sequenceFingerprint = `
+CREATE OR REPLACE FUNCTION pg_temp.sequence_inventory() RETURNS TABLE(sequence_name text, last_value bigint, is_called boolean, settings jsonb) LANGUAGE plpgsql AS $$
+DECLARE item record;
+BEGIN
+ FOR item IN SELECT n.nspname, c.relname, s.seqstart, s.seqincrement, s.seqmax, s.seqmin, s.seqcache, s.seqcycle
+   FROM pg_sequence s JOIN pg_class c ON c.oid = s.seqrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+   WHERE n.nspname NOT IN ('pg_catalog','information_schema') ORDER BY n.nspname, c.relname LOOP
+  RETURN QUERY EXECUTE format('SELECT %L::text, last_value, is_called, %L::jsonb FROM %I.%I',
+    item.nspname || '.' || item.relname,
+    jsonb_build_object('start',item.seqstart,'increment',item.seqincrement,'max',item.seqmax,'min',item.seqmin,'cache',item.seqcache,'cycle',item.seqcycle)::text,
+    item.nspname, item.relname);
+ END LOOP;
+END $$;
+SELECT coalesce(json_agg(i ORDER BY sequence_name), '[]'::json) FROM pg_temp.sequence_inventory() i;
+`;
 let created = false;
 let report;
 let stage = 'container startup';
@@ -55,15 +70,32 @@ try {
     CREATE TABLE p7_fixture.assets (id integer PRIMARY KEY, parent_id integer REFERENCES p7_fixture.parents(id), data bytea NOT NULL);
     INSERT INTO p7_fixture.parents VALUES (1, '{"text":"ทดสอบ restore","style":{"color":"red"},"binding":"contacts.name"}');
     INSERT INTO p7_fixture.assets VALUES (1,1,decode('00ff0180','hex'));
+    CREATE TABLE p7_fixture.generated_ids (id bigint GENERATED ALWAYS AS IDENTITY (START WITH 100 INCREMENT BY 7) PRIMARY KEY);
+    INSERT INTO p7_fixture.generated_ids DEFAULT VALUES;
+    INSERT INTO p7_fixture.generated_ids DEFAULT VALUES;
+    DELETE FROM p7_fixture.generated_ids WHERE id = 107;
+    CREATE SEQUENCE p7_fixture.unused_ids START WITH 500 INCREMENT BY 3;
   `);
   stage = 'source fingerprint';
   const before = JSON.parse(sql('rehearsal_source', fingerprint));
+  const sequencesBefore = JSON.parse(sql('rehearsal_source', sequenceFingerprint));
   stage = 'dump and restore';
   docker(['exec', name, 'pg_dump', '-U', 'postgres', '-d', 'rehearsal_source', '-Fc', '-f', '/tmp/p7.dump']);
   docker(['exec', name, 'pg_restore', '-U', 'postgres', '-d', 'rehearsal_restored', '--exit-on-error', '/tmp/p7.dump']);
   stage = 'restored fingerprint';
   const after = JSON.parse(sql('rehearsal_restored', fingerprint));
   if (JSON.stringify(before) !== JSON.stringify(after)) throw new Error('Restore data mismatch');
+  stage = 'sequence preservation';
+  const sequencesAfter = JSON.parse(sql('rehearsal_restored', sequenceFingerprint));
+  if (JSON.stringify(sequencesBefore) !== JSON.stringify(sequencesAfter)) throw new Error('Restore sequence mismatch');
+  sql('rehearsal_restored', `DO $$ DECLARE generated bigint; unused bigint; BEGIN
+    INSERT INTO p7_fixture.generated_ids DEFAULT VALUES RETURNING id INTO generated;
+    SELECT nextval('p7_fixture.unused_ids') INTO unused;
+    IF generated <> 114 OR unused <> 500 THEN
+      RAISE EXCEPTION 'Restored sequence continuation is incorrect';
+    END IF;
+  END $$;`);
+  stage = 'foreign key enforcement';
   sql('rehearsal_restored', `DO $$ BEGIN
     BEGIN
       INSERT INTO p7_fixture.assets VALUES (2,999,decode('01','hex'));
@@ -76,8 +108,9 @@ try {
     migrationCount: migrations.length, migrationDigest: migrationDigest.digest('hex'),
     tablesCompared: before.length, rowsCompared: before.reduce((sum, table) => sum + table.row_count, 0),
     dataMatched: true, foreignKeyVerified: true, acceptanceSqlPassed: ['P1', 'P3'],
+    sequencesCompared: sequencesBefore.length, sequenceStateMatched: true, generatedIdContinuationVerified: true,
     elapsedMs: Date.now() - started, readyForApply: false,
-    limitations: ['Synthetic isolated database only; not a selected App staging backup.', 'Does not prove filesystem assets, roles, sequence state, renderer behavior or production recovery time.'],
+    limitations: ['Synthetic isolated database only; not a selected App staging backup.', 'Does not prove filesystem assets, roles, renderer behavior or production recovery time.'],
   };
 } catch {
   process.stderr.write(`Synthetic restore rehearsal failed at ${stage}; no production database was accessed.\n`);

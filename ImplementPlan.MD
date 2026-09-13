@@ -304,6 +304,8 @@ Checkpoint legacy semantic diagnostics: adapter รายงาน route ที�
 
 Checkpoint synthetic restore (13 กันยายน 2026): `npm run migration:rehearse:synthetic` ผ่าน PostgreSQL 17 แยก network/port/volume จากระบบจริง ลง 33 migrations, ผ่าน P1/P3 acceptance SQL, dump/restore แล้ว 41 tables / 50 rows ตรงกันและ FK ทำงาน พบและแก้ CASE syntax ใน migration 030 ที่ source-text tests เดิมไม่จับ ยังไม่ใช่ backup/restore ของ App จริง และไม่ปิด P7; ดูข้อจำกัด/หลักฐานในคู่มือ inventory
 
+Checkpoint sequence restore: rehearsal เพิ่มตรวจ last_value/is_called/settings และ insert หลัง restore; ผ่าน 42 tables / 51 rows และ 3 sequences, identity ต่อ ID ถูกแม้ค่าล่าสุดถูกลบ และ sequence ที่ยังไม่ใช้เริ่มถูกค่า พร้อม P1/P3 acceptance, FK, targeted lint/syntax check ยังคงไม่ใช่หลักฐานกู้คืน App จริงหรือ role/ownership/filesystem preservation
+
 ขึ้นกับ P4–P6 งาน: migration dry-run, mapping ID/binding/style, เปรียบเทียบหน้าจอ/ข้อมูล, stage app ตัวอย่าง, backup/restore rehearsal และเลือก App ใช้ renderer ใหม่ทีละตัว
 
 เกณฑ์ผ่าน: แอปตัวอย่างเดิมผ่านงานจริง, รายงานจำนวน Object และ reference ตรง, ไม่มีข้อมูลหาย, ย้อนกลับ renderer/config ได้เมื่อ schema รองรับ และมีขั้นคืนข้อมูลสำหรับกรณีที่ต้อง restore
