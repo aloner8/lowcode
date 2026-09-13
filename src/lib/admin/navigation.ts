@@ -17,6 +17,7 @@ import {
   CalendarDays,
   ClipboardList,
   DatabaseZap,
+  Building2,
   type LucideIcon,
 } from 'lucide-react';
 import type { GlobalRole } from '@/types';
@@ -62,6 +63,14 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
     label: 'ผู้ใช้และสิทธิ์',
     description: 'เพิ่มผู้ใช้ กำหนดสิทธิ์ และรีเซ็ตรหัสผ่าน',
     icon: Users,
+  },
+  {
+    href: '/admin/customers',
+    label: 'หน่วยงานลูกค้า',
+    description: 'ดูสมาชิก แม่แบบ เว็บไซต์ และโควตาของแต่ละ Customer',
+    icon: Building2,
+    tag: 'GOD',
+    godOnly: true,
   },
   {
     href: '/admin/platforms',

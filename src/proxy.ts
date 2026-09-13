@@ -17,7 +17,7 @@ const PROTECTED_PREFIXES = [
 const CHANGE_PASSWORD_PATH = '/account/password';
 
 /** Routes only the service provider (GOD) may open. */
-const GOD_ONLY_PREFIXES = ['/admin/platforms', '/admin/security', '/page-designer', '/flow-studio', '/process-studio', '/svg-studio'];
+const GOD_ONLY_PREFIXES = ['/admin/customers', '/admin/platforms', '/admin/security', '/page-designer', '/flow-studio', '/process-studio', '/svg-studio'];
 
 /** Control-plane surfaces that a public site process must never expose. */
 const CONTROL_PLANE_PREFIXES = [...PROTECTED_PREFIXES];
