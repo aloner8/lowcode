@@ -68,3 +68,14 @@ npm run migration:assets:compare -- before-assets.json after-assets.json
 This offline command reads two manifests only. It validates v1 markers, relative paths, unique entries, parent directories, file sizes/hashes, counts, total bytes and the aggregate checksum before comparing by path. Independently valid manifests may list entries in different orders. It reports `ADDED`, `REMOVED`, `CONTENT_CHANGED` (including same-size edits), and `TYPE_CHANGED` entries, including changes to empty directories. A rename appears as removal plus addition; it does not infer identity or migration mappings.
 
 Exit codes are `0` for matching assets, `2` for differences, and `1` for invalid/unreadable manifests. Errors are generic and do not echo report contents or input paths. Comparison JSON includes asset names and should remain private. `readyForApply` remains false even for matching empty inventories. Checksums detect internal inconsistency, not forged reports or untrusted origins; this compares supplied evidence, not live storage or restore behavior.
+
+## Legacy adapter review before staging conversion
+
+`adaptLegacyPlatform` remains a controlled-snapshot adapter, not a production migration runner. A structurally valid Template does not prove semantic preservation. Persist its issues alongside the original snapshot and review them before conversion:
+
+- `screen_boundary_inferred`: all Pages share one generated Screen.
+- `route_page_target_not_preserved`: a route targeting a non-first Page will open the generated Screen's first Page. Define an explicit Screen mapping; do not treat route-count equality as equivalent navigation.
+- `component_children_not_preserved`: the flat adapter does not convert a nested subtree. Map its hierarchy/layout before migration.
+- `component_metadata_not_preserved`: node-level style, templateRef, htmlId, label or actionTriggerId is not mapped. Preserve CSS/DOM references, reusable identity and workflow behavior through an explicit conversion, not by dropping these fields.
+
+New diagnostics include structural `sourcePath` values without copying field payloads. They describe known unsupported fields, not an exhaustive preservation audit; page configuration, bindings and other legacy extensions still need source-specific inventory. No mapping is guessed, no data is written, and these warnings do not establish staging or restore evidence.

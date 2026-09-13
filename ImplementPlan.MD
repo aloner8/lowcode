@@ -300,6 +300,8 @@ Checkpoint filesystem asset inventory: `npm run migration:assets -- /path/to/off
 
 Checkpoint asset comparison: `npm run migration:assets:compare -- before-assets.json after-assets.json` ตรวจ schema/path/parent/duplicates/totals/checksum แล้วรายงาน added/removed/content/type changes รวม empty directories; ชุด migration tooling รวมผ่าน 4 files / 38 tests พร้อม typecheck, targeted lint และ scanner-to-comparator CLI smoke (exit 0/2/1) ผลตรงกันไม่อนุมัติ apply และไม่ใช่หลักฐาน staging/restore จริง
 
+Checkpoint legacy semantic diagnostics: adapter รายงาน route ที่ target Page ไม่ตรง default Page ของ Screen และ children/style/templateRef/htmlId/label/actionTriggerId ที่ยังไม่ถูก map พร้อม sourcePath โดยไม่คัดลอก payload ลง diagnostics; ชุด adapter/contract/migration ผ่าน 6 files / 52 tests, typecheck และ targeted lint ยังไม่ได้แก้ semantic mapping หรือย้ายข้อมูลจริง ต้อง review ต้นฉบับก่อน staging conversion
+
 ขึ้นกับ P4–P6 งาน: migration dry-run, mapping ID/binding/style, เปรียบเทียบหน้าจอ/ข้อมูล, stage app ตัวอย่าง, backup/restore rehearsal และเลือก App ใช้ renderer ใหม่ทีละตัว
 
 เกณฑ์ผ่าน: แอปตัวอย่างเดิมผ่านงานจริง, รายงานจำนวน Object และ reference ตรง, ไม่มีข้อมูลหาย, ย้อนกลับ renderer/config ได้เมื่อ schema รองรับ และมีขั้นคืนข้อมูลสำหรับกรณีที่ต้อง restore

@@ -6,17 +6,23 @@ import {
   type TemplateDefinition,
 } from "./contracts";
 
+export interface LegacyPlatformComponentNode {
+  id: string;
+  type: string;
+  props?: Record<string, JsonValue> & { __platformComponentId?: string };
+  style?: Record<string, JsonValue>;
+  children?: LegacyPlatformComponentNode[];
+  templateRef?: string;
+  htmlId?: string;
+  label?: string;
+  actionTriggerId?: string;
+}
+
 export interface LegacyPlatformPage {
   id: string;
   name?: string;
   title?: string;
-  componentTree?: Array<{
-    id: string;
-    type: string;
-    props?: Record<string, JsonValue> & {
-      __platformComponentId?: string;
-    };
-  }>;
+  componentTree?: LegacyPlatformComponentNode[];
 }
 
 export interface LegacyPlatformRoute {
@@ -47,6 +53,7 @@ export interface LegacyPlatformSnapshot {
 export interface LegacyAdapterIssue {
   code: string;
   message: string;
+  sourcePath?: string;
 }
 
 export interface LegacyAdapterResult {
@@ -77,8 +84,17 @@ export function adaptLegacyPlatform(
   const reusableIds = new Set(reusableComponents.map((component) => component.id));
   const screenId = `legacy-screen:${legacy.id}`;
 
-  const validRoutes = legacy.routes.filter((route) => {
-    if (pageIds.has(route.targetPageId)) return true;
+  const validRoutes = legacy.routes.filter((route, index) => {
+    if (pageIds.has(route.targetPageId)) {
+      if (route.targetPageId !== legacy.pages[0].id) {
+        issues.push({
+          code: "route_page_target_not_preserved",
+          sourcePath: `routes[${index}].targetPageId`,
+          message: "Generated Screen opens the first Page, not this route's legacy Page; explicit Screen mapping is required",
+        });
+      }
+      return true;
+    }
     issues.push({
       code: "route_target_missing",
       message: `Route '${route.id}' references missing Page '${route.targetPageId}'`,
@@ -95,8 +111,25 @@ export function adaptLegacyPlatform(
       }))
     : [{ id: `legacy-route:${legacy.id}`, path: "/", screenId, isDefault: true }];
 
-  const componentInstances = legacy.pages.flatMap((page) =>
+  const componentInstances = legacy.pages.flatMap((page, pageIndex) =>
     (page.componentTree ?? []).map((node, index) => {
+      const sourcePath = `pages[${pageIndex}].componentTree[${index}]`;
+      if (node.children?.length) {
+        issues.push({
+          code: "component_children_not_preserved",
+          sourcePath: `${sourcePath}.children`,
+          message: "Nested Components are not converted by the flat adapter; explicit layout mapping is required",
+        });
+      }
+      for (const field of ["style", "templateRef", "htmlId", "label", "actionTriggerId"] as const) {
+        if (node[field] !== undefined) {
+          issues.push({
+            code: "component_metadata_not_preserved",
+            sourcePath: `${sourcePath}.${field}`,
+            message: `Component ${field} is not mapped by this adapter; review the source snapshot before migration`,
+          });
+        }
+      }
       const reusableId = node.props?.__platformComponentId;
       const props = { ...(node.props ?? {}) };
       delete props.__platformComponentId;

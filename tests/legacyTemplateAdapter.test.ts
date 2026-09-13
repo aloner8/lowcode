@@ -3,6 +3,44 @@ import { adaptLegacyPlatform } from "@/lib/template/legacyAdapter";
 import { validateTemplateDefinition } from "@/lib/template/validateTemplateDefinition";
 
 describe("legacy Platform to Template adapter", () => {
+  it("reports route Page semantics that a shared Screen cannot preserve", () => {
+    const result = adaptLegacyPlatform({
+      id: "old", customerId: "customer-a", platformSlug: "old", platformName: "Old",
+      pages: [{ id: "first" }, { id: "second" }],
+      routes: [
+        { id: "home", path: "/", targetPageId: "first" },
+        { id: "other", path: "/other", targetPageId: "second" },
+      ],
+    });
+    expect(result.issues.filter((issue) => issue.code === "route_page_target_not_preserved")).toEqual([
+      expect.objectContaining({ sourcePath: "routes[1].targetPageId" }),
+    ]);
+    expect(result.definition.screens[0].defaultPageId).toBe("first");
+  });
+
+  it("reports unsupported children, style, reusable references and events without echoing payloads", () => {
+    const source = {
+      id: "old", customerId: "customer-a", platformSlug: "old", platformName: "Old",
+      pages: [{ id: "first", componentTree: [{
+        id: "parent", type: "CardComponent", props: { content: "preserved" },
+        style: { backgroundImage: "private-asset-url" },
+        templateRef: "component://private", htmlId: "private-dom-id", label: "private-label",
+        actionTriggerId: "private-workflow",
+        children: [{ id: "child", type: "TextComponent", props: { content: "private-child" } }],
+      }] }], routes: [],
+    };
+    const original = structuredClone(source);
+    const result = adaptLegacyPlatform(source);
+    expect(source).toEqual(original);
+    expect(result.definition.componentInstances[0].props).toEqual({ content: "preserved" });
+    expect(result.issues.filter((issue) => issue.sourcePath).map((issue) => issue.sourcePath)).toEqual([
+      "pages[0].componentTree[0].children", "pages[0].componentTree[0].style",
+      "pages[0].componentTree[0].templateRef", "pages[0].componentTree[0].htmlId",
+      "pages[0].componentTree[0].label", "pages[0].componentTree[0].actionTriggerId",
+    ]);
+    expect(JSON.stringify(result.issues)).not.toContain("private-");
+  });
+
   it("preserves Page and instance IDs while producing a valid definition", () => {
     const result = adaptLegacyPlatform({
       id: "platform-old",
