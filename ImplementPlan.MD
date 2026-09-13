@@ -232,7 +232,7 @@ Module Setting ใช้ลำดับ library default → Platform policy → 
 
 ## 7. ลำดับ Implement และเกณฑ์ผ่าน
 
-ทุกระยะด้านล่างยัง **ไม่เริ่ม** ลำดับนี้เป็น dependency ของงาน ไม่ใช่ประมาณเวลาที่ผ่านการประเมินแล้ว
+สถานะล่าสุดวันที่ 13 กันยายน 2026: P0–P5 มี checkpoint ที่ implement และ commit แล้วตามลำดับ dependency; P6 เป็นระยะถัดไป ส่วน P7–P8 ยังไม่เริ่ม การผ่านระยะต้องยึดทั้งโค้ดและผลทดสอบ ไม่ใช่ข้อความสถานะเพียงอย่างเดียว
 
 ### P0 — ตรวจ baseline และปิด contract ที่กระทบทั้งระบบ
 
@@ -271,6 +271,8 @@ Module Setting ใช้ลำดับ library default → Platform policy → 
 เกณฑ์ผ่าน: ผู้ใช้สร้าง Screen/Page ใหม่และ Form จาก Collection ได้ผ่าน UI โดยไม่แก้ JSON; ย้าย Component ไม่สูญเสียค่า; Page responsive ใน Desktop/Tablet/Mobile; Preview กับ Runtime พฤติกรรมตรงกัน; ไม่มีปุ่มบันทึกที่ทำงานแค่บนหน้าจอ
 
 ### P5 — Publish, Connection และ Module Setting
+
+**สถานะ: ผ่านเกณฑ์ในขอบเขต P5 แล้ว** — checkpoint `33a8c7b` ถึง `d2a89ed` ครอบคลุม publish review/diff, App revision isolation, Connection Profile/policy/UI, Module Setting local Auth/Files, runtime permission, Files working path และ Public export แบบตัดข้อมูลลับออก ชุด acceptance รวมของ P5 ผ่าน 15 test files / 59 tests พร้อม typecheck และ lint เฉพาะไฟล์ที่แก้; provider ภายนอกและ Mail/Google/Media ยังคงอยู่ P8 ตามขอบเขตเดิม
 
 ขึ้นกับ P3–P4 งาน: dependency validation ครบ, publish preview/diff, App revision update, connection profiles, config policy, Module Setting และ local Auth/Files ที่เชื่อม realm ของ App จริง
 
