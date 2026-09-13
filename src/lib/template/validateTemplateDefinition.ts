@@ -224,6 +224,20 @@ function validateTypedTemplateDefinition(
 
   definition.componentInstances.forEach((instance, index) => {
     const path = `componentInstances[${index}]`;
+    const bindingPages = instance.placement === "page_panel"
+      ? definition.pages.filter((page) => page.id === instance.pageId)
+      : definition.screenPages
+          .filter((entry) => entry.screenId === instance.screenId)
+          .map((entry) => pages.get(entry.pageId))
+          .filter((page): page is NonNullable<typeof page> => Boolean(page));
+    const bindingCollections = new Map<string, Array<(typeof definition.collections)[number]>>();
+    bindingPages.forEach((page) => {
+      page.collections.forEach((load) => {
+        const collection = collections.get(load.collectionId);
+        if (!collection) return;
+        bindingCollections.set(load.alias, [...(bindingCollections.get(load.alias) ?? []), collection]);
+      });
+    });
     if (instance.placement === "page_panel") {
       const page = pages.get(instance.pageId);
       if (!page) {
@@ -242,6 +256,29 @@ function validateTypedTemplateDefinition(
     if (instance.source === "reusable" && !components.has(instance.componentId)) {
       issue("missing_component", `${path}.componentId`, `Unknown component '${instance.componentId}'`);
     }
+    Object.entries(instance.bindings).forEach(([property, bindingPath]) => {
+      const parts = bindingPath.split(".").map((part) => part.trim()).filter(Boolean);
+      const candidates = bindingCollections.get(parts[0] ?? "") ?? [];
+      if (!parts.length || !candidates.length) {
+        issue(
+          "missing_binding_alias",
+          `${path}.bindings.${property}`,
+          `Unknown Collection alias '${parts[0] ?? ""}' for this Component placement`,
+        );
+        return;
+      }
+      const fieldId = parts[1] === "rows" ? parts[2] : parts[1];
+      if (
+        fieldId &&
+        !candidates.some((collection) => collection.fields.some((field) => field.id === fieldId))
+      ) {
+        issue(
+          "missing_binding_field",
+          `${path}.bindings.${property}`,
+          `Unknown field '${fieldId}' on Collection alias '${parts[0]}'`,
+        );
+      }
+    });
   });
 
   definition.collections.forEach((collection, collectionIndex) => {

@@ -5,6 +5,7 @@ import { Monitor, RefreshCw, Smartphone, Tablet, X } from "lucide-react";
 import { HtmlTemplateComponent } from "@/components/shared/HtmlTemplateComponent";
 import { COMPONENT_REGISTRY } from "@/lib/engine/ComponentRegistry";
 import type { HtmlStudioDocument } from "@/lib/html-studio";
+import { resolveComponentProps } from "@/lib/runtime/resolveComponentBindings";
 import {
   LifecycleRunner,
   type LifecycleAdapter,
@@ -12,6 +13,7 @@ import {
 } from "@/lib/runtime/lifecycleRunner";
 import type {
   AppComponentInstanceDefinition,
+  JsonValue,
   MenuActionDefinition,
   PageDefinition,
   ScreenDefinition,
@@ -24,28 +26,31 @@ type Device = "desktop" | "tablet" | "mobile";
 function PreviewInstance({
   instance,
   definition,
+  data,
 }: {
   instance: AppComponentInstanceDefinition;
   definition: TemplateDefinition;
+  data: Record<string, JsonValue>;
 }) {
+  const props = resolveComponentProps(instance, data);
   if (instance.source === "reusable") {
     const reusable = definition.components.find((item) => item.id === instance.componentId);
     if (!reusable) return <div className="alert alert-warning py-2">Missing {instance.componentId}</div>;
     if (reusable.componentType === "html") {
       const document = reusable.definition.document as unknown as HtmlStudioDocument | undefined;
       return <HtmlTemplateComponent
-        {...instance.props}
+        {...props}
         document={document}
         componentRegistry={COMPONENT_REGISTRY}
       />;
     }
     const standardType = String(reusable.definition.standardType ?? "CardComponent");
     const Target = COMPONENT_REGISTRY[standardType as ComponentType];
-    return Target ? <Target {...instance.props} /> : <div className="alert alert-warning py-2">Missing {standardType}</div>;
+    return Target ? <Target {...props} /> : <div className="alert alert-warning py-2">Missing {standardType}</div>;
   }
   const Target = COMPONENT_REGISTRY[instance.standardType as ComponentType];
   return Target
-    ? <Target {...instance.props} />
+    ? <Target {...props} />
     : <div className="alert alert-warning py-2">Missing {instance.standardType}</div>;
 }
 
@@ -83,6 +88,7 @@ export function TemplateRuntimePreview({
   const [definition, setDefinition] = useState<TemplateDefinition | null>(null);
   const [screen, setScreen] = useState<ScreenDefinition | null>(null);
   const [page, setPage] = useState<PageDefinition | null>(null);
+  const [pageData, setPageData] = useState<Record<string, JsonValue>>({});
   const [device, setDevice] = useState<Device>("desktop");
   const [activeRouteId, setActiveRouteId] = useState("");
   const [activePopupId, setActivePopupId] = useState("");
@@ -119,6 +125,7 @@ export function TemplateRuntimePreview({
       setActiveRouteId(routeId);
       setScreen(source.screens.find((item) => item.id === result.screen.screenId) ?? null);
       setPage(source.pages.find((item) => item.id === result.page.pageId) ?? null);
+      setPageData(result.page.data);
       setError("");
     } else if (result.status === "error") {
       setError(`Lifecycle failed: ${result.failure.phase} / ${result.failure.objectId}`);
@@ -175,6 +182,7 @@ export function TemplateRuntimePreview({
     const result = await runner.changePage(action.pageId, action.params ?? {});
     if (result.status === "ready") {
       setPage(source.pages.find((item) => item.id === result.page.pageId) ?? null);
+      setPageData(result.page.data);
       setError("");
     } else if (result.status === "error") {
       setError(`Lifecycle failed: ${result.failure.phase} / ${result.failure.objectId}`);
@@ -204,23 +212,23 @@ export function TemplateRuntimePreview({
           {definition && screen && page && <>
             <style>{`${definition.startup.mainCss}\n${screen.css}\n${page.css}`}</style>
             {screen.menu.length > 0 && <nav className="d-flex gap-2 flex-wrap p-2 border-bottom bg-light" aria-label="Preview menu">{screen.menu.map((item) => <button type="button" className="btn btn-sm btn-outline-primary" key={item.id} onClick={() => void runMenuAction(item.action)}>{item.label}</button>)}</nav>}
-            <header className="preview-region preview-header p-2 border-bottom" data-screen-region="header">{instancesForRegion(definition, screen, "header").map((instance) => <PreviewInstance key={instance.id} instance={instance} definition={definition} />)}</header>
+            <header className="preview-region preview-header p-2 border-bottom" data-screen-region="header">{instancesForRegion(definition, screen, "header").map((instance) => <PreviewInstance key={instance.id} instance={instance} definition={definition} data={pageData} />)}</header>
             <div className="d-flex align-items-stretch" style={{ minHeight: 520 }}>
-              <aside className="preview-region preview-left p-2 border-end" style={{ width: device === "mobile" ? 72 : 220 }} data-screen-region="left">{instancesForRegion(definition, screen, "left").map((instance) => <PreviewInstance key={instance.id} instance={instance} definition={definition} />)}</aside>
+              <aside className="preview-region preview-left p-2 border-end" style={{ width: device === "mobile" ? 72 : 220 }} data-screen-region="left">{instancesForRegion(definition, screen, "left").map((instance) => <PreviewInstance key={instance.id} instance={instance} definition={definition} data={pageData} />)}</aside>
               <section className="preview-region preview-content p-2 flex-grow-1 min-w-0" data-screen-region="content">
-                <div className="row g-2">{[...page.panels].sort((a, b) => a.order - b.order).map((panel) => <div key={panel.id} className={`col-${panel.responsive[columnKey]}`} data-page-panel={panel.id}><div className="border rounded p-2 h-100">{instancesForPanel(definition, page, panel.id).map((instance) => <PreviewInstance key={instance.id} instance={instance} definition={definition} />)}</div></div>)}</div>
-                {instancesForRegion(definition, screen, "content").map((instance) => <PreviewInstance key={instance.id} instance={instance} definition={definition} />)}
+                <div className="row g-2">{[...page.panels].sort((a, b) => a.order - b.order).map((panel) => <div key={panel.id} className={`col-${panel.responsive[columnKey]}`} data-page-panel={panel.id}><div className="border rounded p-2 h-100">{instancesForPanel(definition, page, panel.id).map((instance) => <PreviewInstance key={instance.id} instance={instance} definition={definition} data={pageData} />)}</div></div>)}</div>
+                {instancesForRegion(definition, screen, "content").map((instance) => <PreviewInstance key={instance.id} instance={instance} definition={definition} data={pageData} />)}
               </section>
-              <aside className="preview-region preview-right p-2 border-start" style={{ width: device === "mobile" ? 72 : 220 }} data-screen-region="right">{instancesForRegion(definition, screen, "right").map((instance) => <PreviewInstance key={instance.id} instance={instance} definition={definition} />)}</aside>
+              <aside className="preview-region preview-right p-2 border-start" style={{ width: device === "mobile" ? 72 : 220 }} data-screen-region="right">{instancesForRegion(definition, screen, "right").map((instance) => <PreviewInstance key={instance.id} instance={instance} definition={definition} data={pageData} />)}</aside>
             </div>
-            <footer className="preview-region preview-footer p-2 border-top" data-screen-region="footer">{instancesForRegion(definition, screen, "footer").map((instance) => <PreviewInstance key={instance.id} instance={instance} definition={definition} />)}</footer>
+            <footer className="preview-region preview-footer p-2 border-top" data-screen-region="footer">{instancesForRegion(definition, screen, "footer").map((instance) => <PreviewInstance key={instance.id} instance={instance} definition={definition} data={pageData} />)}</footer>
             {activePopupId && (() => {
               const popup = definition.popups.find((item) => item.id === activePopupId);
               const popupPage = definition.pages.find((item) => item.id === popup?.pageId);
               return <div className="position-absolute top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 d-flex align-items-center justify-content-center p-4" style={{ zIndex: 2 }} onClick={() => setActivePopupId("")}>
                 <section className="bg-white rounded shadow-lg p-3 overflow-auto" style={{ width: "min(760px, 95%)", maxHeight: "85%" }} onClick={(event) => event.stopPropagation()} aria-label="Preview popup">
                   <div className="d-flex align-items-center mb-2"><strong>{popup?.id ?? activePopupId}</strong><button type="button" className="btn btn-sm btn-outline-secondary ms-auto" onClick={() => setActivePopupId("")}><X size={14} /></button></div>
-                  {popupPage ? <div className="row g-2">{[...popupPage.panels].sort((a, b) => a.order - b.order).map((panel) => <div key={panel.id} className={`col-${panel.responsive[columnKey]}`}><div className="border rounded p-2">{instancesForPanel(definition, popupPage, panel.id).map((instance) => <PreviewInstance key={instance.id} instance={instance} definition={definition} />)}</div></div>)}</div> : <div className="alert alert-warning">Popup Page not found</div>}
+                  {popupPage ? <div className="row g-2">{[...popupPage.panels].sort((a, b) => a.order - b.order).map((panel) => <div key={panel.id} className={`col-${panel.responsive[columnKey]}`}><div className="border rounded p-2">{instancesForPanel(definition, popupPage, panel.id).map((instance) => <PreviewInstance key={instance.id} instance={instance} definition={definition} data={pageData} />)}</div></div>)}</div> : <div className="alert alert-warning">Popup Page not found</div>}
                 </section>
               </div>;
             })()}

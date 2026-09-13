@@ -88,4 +88,27 @@ describe("template definition foundation contract", () => {
       expect.objectContaining({ code: "popup_not_in_screen" }),
     );
   });
+
+  it("validates Component binding aliases and Collection fields", () => {
+    const definition = cloneDefinition();
+    definition.componentInstances[0].bindings = {
+      rows: "unknown.rows",
+      title: "contacts.missing",
+    };
+
+    expect(validateTemplateDefinition(definition).issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "missing_binding_alias" }),
+        expect.objectContaining({ code: "missing_binding_field" }),
+      ]),
+    );
+
+    definition.componentInstances[0].bindings = {
+      rows: "contacts.rows",
+      names: "contacts.name",
+    };
+    const codes = validateTemplateDefinition(definition).issues.map((issue) => issue.code);
+    expect(codes).not.toContain("missing_binding_alias");
+    expect(codes).not.toContain("missing_binding_field");
+  });
 });
