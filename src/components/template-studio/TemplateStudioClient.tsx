@@ -19,6 +19,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { SCREEN_REGION_KEYS } from "@/lib/template/contracts";
+import { COMPONENT_PALETTE } from "@/lib/engine/ComponentRegistry";
 import { TemplatePropertyEditor } from "@/components/template-studio/TemplatePropertyEditor";
 import { TemplateRuntimePreview } from "@/components/template-studio/TemplateRuntimePreview";
 import {
@@ -77,7 +78,11 @@ const sections = [
   { id: "components", label: "Components", types: ["COMPONENT", "COMPONENT_INSTANCE"], icon: Boxes },
 ] as const;
 
-const standardComponents = ["TextComponent", "ButtonComponent", "DataTableComponent", "FormComponent"];
+const standardComponents = COMPONENT_PALETTE.map((item) => ({
+  type: item.type,
+  label: item.label,
+  defaultProps: item.defaultProps,
+}));
 
 const safeKeyPart = (value: string) =>
   value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -389,7 +394,7 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
           loadOrder: objects.filter((object) => object.objectType === "COMPONENT_INSTANCE").length,
           source: "standard",
           standardType,
-          props: {},
+          props: structuredClone(standardComponents.find((item) => item.type === standardType)?.defaultProps ?? {}),
           bindings: {},
         },
       );
@@ -425,7 +430,7 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
           ).length,
           source: "standard",
           standardType,
-          props: {},
+          props: structuredClone(standardComponents.find((item) => item.type === standardType)?.defaultProps ?? {}),
           bindings: {},
         },
       );
@@ -682,7 +687,7 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
             <div className="card border-0 shadow-sm mb-3"><div className="card-body">
               <div className="small fw-semibold mb-2">ลาก Standard Component ลง Panel</div>
               <div className="d-flex gap-2 flex-wrap mb-3">
-                {standardComponents.map((type) => <span key={type} draggable onDragStart={(event) => event.dataTransfer.setData("application/x-lowcode-component", type)} className="badge text-bg-light border p-2" style={{ cursor: "grab" }}>{type}</span>)}
+                {standardComponents.map((item) => <span key={item.type} draggable onDragStart={(event) => event.dataTransfer.setData("application/x-lowcode-component", item.type)} className="badge text-bg-light border p-2" style={{ cursor: "grab" }}>{item.label}</span>)}
               </div>
               <div className="row g-2">
                 {pages.map((page) => ((page.definition.panels as Array<{ id: string; name: string; responsive?: Record<string, number> }> | undefined) ?? []).map((panel) => (
@@ -702,7 +707,7 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
             <div className="card border-0 shadow-sm mb-3"><div className="card-body">
               <div className="small fw-semibold mb-2">ลาก Standard Component ลง Screen region</div>
               <div className="d-flex gap-2 flex-wrap mb-3">
-                {standardComponents.map((type) => <span key={type} draggable onDragStart={(event) => event.dataTransfer.setData("application/x-lowcode-component", type)} className="badge text-bg-light border p-2" style={{ cursor: "grab" }}>{type}</span>)}
+                {standardComponents.map((item) => <span key={item.type} draggable onDragStart={(event) => event.dataTransfer.setData("application/x-lowcode-component", item.type)} className="badge text-bg-light border p-2" style={{ cursor: "grab" }}>{item.label}</span>)}
               </div>
               {screens.map((screen) => <div key={screen.id} className="mb-3"><strong>{screen.objectName}</strong><div className="row g-2 mt-1">{SCREEN_REGION_KEYS.map((regionKey) => <div className={regionKey === "content" ? "col-12" : "col-6"} key={regionKey}><div className="border border-2 border-dashed rounded p-2 bg-light h-100" style={{ minHeight: regionKey === "content" ? 90 : 58 }} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const type = event.dataTransfer.getData("application/x-lowcode-component"); if (type) void createScreenInstance(screen, regionKey, type); }}><span className="small text-uppercase text-muted">{regionKey}</span><PlacementInstances items={objects.filter((item) => item.objectType === "COMPONENT_INSTANCE" && item.definition.placement === "screen_region" && item.definition.screenId === screen.objectKey && item.definition.region === regionKey)} busy={busy} selectedId={selectedId} onSelect={setSelectedId} onMove={(items, from, to) => void reorderInstances(items, from, to)} onRemove={(item) => void removeInstance(item)} /></div></div>)}</div></div>)}
             </div></div>

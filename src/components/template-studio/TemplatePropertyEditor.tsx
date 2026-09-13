@@ -5,6 +5,10 @@ import { ArrowDown, ArrowUp, Braces, Plus, Save, Trash2, Workflow } from "lucide
 import { HtmlStudioShell } from "@/components/html-studio";
 import type { HtmlStudioDocument } from "@/lib/html-studio";
 import {
+  SHARED_COMPONENT_PROPERTY_REGISTRY,
+  type SharedComponentPropertyField,
+} from "@/lib/studio/sharedComponentPropertyRegistry";
+import {
   buildScreenPageUpdate,
   moveItem,
   normalizeEventSteps,
@@ -16,6 +20,7 @@ import {
   type StudioMenuItem,
   type StudioPanel,
 } from "@/lib/template/studioEditing";
+import type { ComponentType } from "@/types";
 
 interface StudioObject {
   id: string;
@@ -231,6 +236,81 @@ function BindingEditor({
   </div>;
 }
 
+function JsonPropertyField({
+  property,
+  value,
+  onChange,
+}: {
+  property: SharedComponentPropertyField;
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) {
+  const [text, setText] = useState(() => JSON.stringify(value ?? property.defaultValue ?? [], null, 2));
+  const [error, setError] = useState("");
+  return <>
+    <textarea className={`form-control form-control-sm font-monospace ${error ? "is-invalid" : ""}`} rows={5} value={text} onChange={(event) => setText(event.target.value)} onBlur={() => {
+      try {
+        onChange(JSON.parse(text));
+        setError("");
+      } catch {
+        setError("JSON ไม่ถูกต้อง");
+      }
+    }} />
+    {error && <div className="invalid-feedback">{error}</div>}
+  </>;
+}
+
+function SchemaPropertyField({
+  property,
+  value,
+  onChange,
+}: {
+  property: SharedComponentPropertyField;
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) {
+  const current = value ?? property.defaultValue ?? "";
+  if (property.editor === "json") {
+    return <JsonPropertyField property={property} value={value} onChange={onChange} />;
+  }
+  if (property.editor === "boolean") {
+    return <label className="form-check form-switch"><input className="form-check-input" type="checkbox" checked={Boolean(current)} onChange={(event) => onChange(event.target.checked)} /> <span className="form-check-label">{property.label}</span></label>;
+  }
+  if (property.editor === "select") {
+    return <select aria-label={property.label} className="form-select form-select-sm" value={String(current)} onChange={(event) => onChange(event.target.value)}><option value="">Select…</option>{property.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>;
+  }
+  if (property.editor === "textarea") {
+    return <textarea aria-label={property.label} className="form-control form-control-sm" rows={4} value={String(current)} placeholder={property.placeholder} onChange={(event) => onChange(event.target.value)} />;
+  }
+  return <input aria-label={property.label} className="form-control form-control-sm" type={property.editor === "number" ? "number" : "text"} value={String(current)} placeholder={property.placeholder} onChange={(event) => onChange(property.editor === "number" ? Number(event.target.value) : event.target.value)} />;
+}
+
+function ComponentPropsEditor({
+  standardType,
+  value,
+  onChange,
+}: {
+  standardType: string;
+  value: Record<string, unknown>;
+  onChange: (value: Record<string, unknown>) => void;
+}) {
+  const definition = standardType in SHARED_COMPONENT_PROPERTY_REGISTRY
+    ? SHARED_COMPONENT_PROPERTY_REGISTRY[standardType as ComponentType]
+    : null;
+  if (!definition) return <RecordEditor label="Props" value={value} onChange={onChange} />;
+  const fields = definition.groups.flatMap((group) => group.fields);
+  const knownKeys = new Set(fields.map((field) => field.key));
+  const additional = Object.fromEntries(Object.entries(value).filter(([key]) => !knownKeys.has(key)));
+  return <div className="col-12">
+    <div className="border rounded p-3">
+      <div className="fw-semibold">{definition.title}</div>
+      <div className="small text-muted mb-3">{definition.description}</div>
+      <div className="row g-3">{definition.groups.map((group) => <div className="col-lg-6" key={group.id}><div className="border rounded p-2 h-100"><div className="small fw-semibold border-bottom pb-1 mb-2">{group.label}</div>{group.fields.map((property) => <div className="mb-2" key={property.key}>{property.editor !== "boolean" && <label className="form-label small mb-1">{property.label}</label>}<SchemaPropertyField property={property} value={value[property.key]} onChange={(next) => onChange({ ...value, [property.key]: next })} />{property.description && <div className="form-text">{property.description}</div>}</div>)}</div></div>)}</div>
+    </div>
+    {Object.keys(additional).length > 0 && <div className="mt-3"><RecordEditor label="Additional Props" value={additional} onChange={(next) => onChange({ ...Object.fromEntries(Object.entries(value).filter(([key]) => knownKeys.has(key))), ...next })} /></div>}
+  </div>;
+}
+
 const bindingOptionsFor = (
   object: StudioObject,
   objects: StudioObject[],
@@ -313,6 +393,11 @@ export function TemplatePropertyEditor({ object, objects, relations, busy, onRen
     : [];
   const componentDefinition = record(draft.definition);
   const bindingOptions = bindingOptionsFor(object, objects, relations);
+  const reusableSource = objects.find((candidate) =>
+    candidate.objectType === "COMPONENT" && candidate.objectKey === draft.componentId,
+  );
+  const reusableDefinition = record(record(reusableSource?.definition).definition);
+  const instanceStandardType = String(draft.standardType ?? reusableDefinition.standardType ?? "");
   const assignedPages = pages.filter((page) => screenPageIds.includes(page.id));
 
   const menuActionFor = (type: StudioMenuAction["type"]): StudioMenuAction => {
@@ -403,7 +488,7 @@ export function TemplatePropertyEditor({ object, objects, relations, busy, onRen
 
           {object.objectType === "COMPONENT" && <><div className="col-md-4"><label className="form-label small">Component type</label><select className="form-select form-select-sm" value={String(draft.componentType ?? "standard")} onChange={(event) => set("componentType", event.target.value)}><option value="standard">Standard</option><option value="html">HTML</option></select></div><div className="col-md-3"><label className="form-label small">Version</label><input type="number" min={1} className="form-control form-control-sm" value={Number(draft.version ?? 1)} onChange={(event) => set("version", Math.max(1, Number(event.target.value)))} /></div>{draft.componentType === "html" ? <div className="col-md-5 d-flex align-items-end"><button type="button" className="btn btn-outline-primary w-100" onClick={() => setShowHtmlStudio(true)}><Braces size={15} className="me-1" />Open HTML Studio</button></div> : <div className="col-md-5"><label className="form-label small">Standard component</label><input className="form-control form-control-sm" value={String(componentDefinition.standardType ?? "TextComponent")} onChange={(event) => set("definition", { ...componentDefinition, standardType: event.target.value })} /></div>}</>}
 
-          {object.objectType === "COMPONENT_INSTANCE" && <><div className="col-md-4"><label className="form-label small">Source</label><input className="form-control form-control-sm" value={String(draft.standardType ?? draft.componentId ?? "—")} disabled /></div><div className="col-md-4"><label className="form-label small">Placement</label><input className="form-control form-control-sm" value={draft.placement === "screen_region" ? `${String(draft.screenId)} / ${String(draft.region)}` : `${String(draft.pageId)} / ${String(draft.panelId)}`} disabled /></div><div className="col-md-4"><label className="form-label small">Load order</label><input type="number" min={0} className="form-control form-control-sm" value={Number(draft.loadOrder ?? 0)} onChange={(event) => set("loadOrder", Math.max(0, Number(event.target.value)))} /></div><RecordEditor label="Props" value={record(draft.props)} onChange={(value) => set("props", value)} /><BindingEditor value={record(draft.bindings)} options={bindingOptions} onChange={(value) => set("bindings", value)} /></>}
+          {object.objectType === "COMPONENT_INSTANCE" && <><div className="col-md-4"><label className="form-label small">Source</label><input className="form-control form-control-sm" value={String(draft.standardType ?? draft.componentId ?? "—")} disabled /></div><div className="col-md-4"><label className="form-label small">Placement</label><input className="form-control form-control-sm" value={draft.placement === "screen_region" ? `${String(draft.screenId)} / ${String(draft.region)}` : `${String(draft.pageId)} / ${String(draft.panelId)}`} disabled /></div><div className="col-md-4"><label className="form-label small">Load order</label><input type="number" min={0} className="form-control form-control-sm" value={Number(draft.loadOrder ?? 0)} onChange={(event) => set("loadOrder", Math.max(0, Number(event.target.value)))} /></div><ComponentPropsEditor standardType={instanceStandardType} value={record(draft.props)} onChange={(value) => set("props", value)} /><BindingEditor value={record(draft.bindings)} options={bindingOptions} onChange={(value) => set("bindings", value)} /></>}
         </div>
 
         {object.objectType !== "SCREEN" && <div className="d-flex justify-content-end mt-3"><button className="btn btn-primary" disabled={busy} onClick={() => void save()}><Save size={15} className="me-1" />Save properties</button></div>}
