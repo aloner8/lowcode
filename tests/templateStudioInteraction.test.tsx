@@ -183,4 +183,58 @@ describe("Template Studio browser interactions", () => {
       menu: [expect.objectContaining({ action: { type: "open_popup", popupId: "popup.info" } })],
     });
   });
+
+  it("reviews a publish diff and confirms the exact Draft version", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      if (url.endsWith("/publish") && method === "GET") {
+        return new Response(JSON.stringify({
+          review: {
+            canPublish: true,
+            issues: [],
+            draft: { editVersion: 7, digest: "a".repeat(64) },
+            published: { id: "revision-1", number: 1, digest: "b".repeat(64), sourceEditVersion: 3, publishedAt: "2026-09-12T00:00:00.000Z" },
+            diff: {
+              added: 1,
+              changed: 1,
+              removed: 0,
+              changes: [
+                { kind: "changed", objectType: "PAGE", objectKey: "page.contacts" },
+                { kind: "added", objectType: "POPUP", objectKey: "popup.info" },
+              ],
+            },
+          },
+        }), { status: 200 });
+      }
+      if (url.endsWith("/publish") && method === "POST") {
+        return new Response(JSON.stringify({ revision: { number: 2 } }), { status: 200 });
+      }
+      if (url.endsWith("/objects")) {
+        return new Response(JSON.stringify({ objects: [] }), { status: 200 });
+      }
+      if (url.endsWith("/screen-pages")) {
+        return new Response(JSON.stringify({ screenPages: [] }), { status: 200 });
+      }
+      if (url.endsWith("/api/templates/template-a")) {
+        return new Response(JSON.stringify({ template: { id: "template-a", templateName: "Demo", templateSlug: "demo", isPublic: false, editVersion: 7, publishedRevisionId: "revision-1" } }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ error: "unexpected request" }), { status: 500 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<TemplateStudioClient templateId="template-a" />);
+    await user.click(await screen.findByRole("button", { name: "Publish" }));
+    expect(await screen.findByRole("dialog", { name: "Publish review" })).toBeTruthy();
+    expect(screen.getByText("PAGE")).toBeTruthy();
+    expect(screen.getByText("page.contacts")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "ยืนยัน Publish" }));
+
+    expect(await screen.findByText(/Published revision #2/)).toBeTruthy();
+    const publishCall = fetchMock.mock.calls.find(([url, init]) =>
+      String(url).endsWith("/publish") && init?.method === "POST",
+    );
+    expect(JSON.parse(String(publishCall?.[1]?.body))).toEqual({ expectedEditVersion: 7 });
+  });
 });

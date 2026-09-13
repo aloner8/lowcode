@@ -68,6 +68,29 @@ interface ScreenPageRelation {
   isDefault: boolean;
 }
 
+interface PublishReview {
+  canPublish: boolean;
+  issues: Array<{ code: string; path: string; message: string }>;
+  draft: { editVersion: number; digest: string };
+  published: null | {
+    id: string;
+    number: number;
+    digest: string;
+    sourceEditVersion: number;
+    publishedAt: string;
+  };
+  diff: {
+    added: number;
+    removed: number;
+    changed: number;
+    changes: Array<{
+      kind: "added" | "removed" | "changed";
+      objectType: string;
+      objectKey: string;
+    }>;
+  };
+}
+
 const sections = [
   { id: "startup", label: "On Start Up", types: ["STARTUP"], icon: Play },
   { id: "modules", label: "Module Setting", types: ["MODULE"], icon: Settings2 },
@@ -131,6 +154,7 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [publishReview, setPublishReview] = useState<PublishReview | null>(null);
   const [message, setMessage] = useState("กำลังโหลด Template…");
 
   const load = useCallback(async () => {
@@ -363,13 +387,28 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
     }
   };
 
+  const reviewPublish = async () => {
+    setBusy(true);
+    try {
+      const body = await request(`/api/templates/${templateId}/publish`, { method: "GET" });
+      setPublishReview(body.review as PublishReview);
+      setMessage(body.review.canPublish ? "ตรวจ Draft แล้ว พร้อม Publish" : "Draft ยังมีปัญหาที่ต้องแก้");
+    } catch (error) {
+      setMessage(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const publish = async () => {
+    if (!publishReview) return;
     setBusy(true);
     try {
       const body = await request(`/api/templates/${templateId}/publish`, {
         method: "POST",
-        body: "{}",
+        body: JSON.stringify({ expectedEditVersion: publishReview.draft.editVersion }),
       });
+      setPublishReview(null);
       await load();
       setMessage(`Published revision #${body.revision.number}`);
     } catch (error) {
@@ -640,7 +679,7 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
           <input className="form-control" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ค้น Object ในแม่แบบ" />
         </div>
         <button className="btn btn-sm btn-outline-light d-flex align-items-center gap-1" disabled={busy} onClick={() => setShowPreview(true)}><Eye size={14} />Preview</button>
-        <button className="btn btn-sm btn-success" disabled={busy} onClick={() => void publish()}>Publish</button>
+        <button className="btn btn-sm btn-success" disabled={busy} onClick={() => void reviewPublish()}>Publish</button>
       </header>
 
       <div className="d-flex flex-grow-1 align-items-stretch">
@@ -731,6 +770,50 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
           {selected && <TemplatePropertyEditor key={`${selected.id}:${selected.editVersion}:${screenPages.map((item) => `${item.id}:${item.sortOrder}:${item.isDefault}`).join("|")}`} object={selected} objects={objects} relations={screenPages} busy={busy} onRename={() => void renameSelected()} onSaveDefinition={saveSelectedDefinition} onSaveScreenPages={saveSelectedScreenPages} />}
         </main>
       </div>
+      {publishReview && (
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3" style={{ zIndex: 1080, background: "rgba(15, 23, 42, 0.72)" }}>
+          <section className="card shadow-lg border-0 w-100" style={{ maxWidth: 760, maxHeight: "88vh", overflow: "auto" }} role="dialog" aria-label="Publish review" aria-modal="true">
+            <div className="card-header bg-white d-flex align-items-center gap-2">
+              <div>
+                <strong>ตรวจสอบก่อน Publish</strong>
+                <div className="small text-muted">Draft v{publishReview.draft.editVersion} → {publishReview.published ? `revision #${publishReview.published.number}` : "revision แรก"}</div>
+              </div>
+              <button type="button" className="btn-close ms-auto" aria-label="Close publish review" disabled={busy} onClick={() => setPublishReview(null)} />
+            </div>
+            <div className="card-body">
+              <div className="d-flex gap-2 flex-wrap mb-3">
+                <span className="badge text-bg-success">เพิ่ม {publishReview.diff.added}</span>
+                <span className="badge text-bg-warning">แก้ {publishReview.diff.changed}</span>
+                <span className="badge text-bg-danger">ลบ {publishReview.diff.removed}</span>
+                <code className="small ms-auto">{publishReview.draft.digest.slice(0, 12)}</code>
+              </div>
+              {publishReview.issues.length > 0 && (
+                <div className="alert alert-danger py-2">
+                  <strong>Publish ไม่ได้: {publishReview.issues.length} ปัญหา</strong>
+                  <ul className="mb-0 mt-2 small">
+                    {publishReview.issues.map((issue, index) => <li key={`${issue.code}:${issue.path}:${index}`}><code>{issue.path}</code> — {issue.message}</li>)}
+                  </ul>
+                </div>
+              )}
+              {publishReview.diff.changes.length > 0 ? (
+                <div className="list-group list-group-flush border rounded">
+                  {publishReview.diff.changes.map((change) => (
+                    <div className="list-group-item d-flex align-items-center gap-2 py-2" key={`${change.kind}:${change.objectType}:${change.objectKey}`}>
+                      <span className={`badge ${change.kind === "added" ? "text-bg-success" : change.kind === "removed" ? "text-bg-danger" : "text-bg-warning"}`}>{change.kind}</span>
+                      <span className="small text-muted">{change.objectType}</span>
+                      <code className="small">{change.objectKey}</code>
+                    </div>
+                  ))}
+                </div>
+              ) : <div className="alert alert-secondary py-2 mb-0">Draft ตรงกับ revision ที่ Publish อยู่ ระบบจะใช้ revision เดิม</div>}
+            </div>
+            <div className="card-footer bg-white d-flex justify-content-end gap-2">
+              <button type="button" className="btn btn-outline-secondary" disabled={busy} onClick={() => setPublishReview(null)}>กลับไปแก้</button>
+              <button type="button" className="btn btn-success" disabled={busy || !publishReview.canPublish} onClick={() => void publish()}>ยืนยัน Publish</button>
+            </div>
+          </section>
+        </div>
+      )}
       {showPreview && <TemplateRuntimePreview templateId={templateId} onClose={() => setShowPreview(false)} />}
     </div>
   );

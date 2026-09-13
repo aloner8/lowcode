@@ -12,6 +12,8 @@ import {
   type CompilableScreenPageRow,
   type CompilableTemplateRow,
 } from "@/lib/template/compileTemplateDefinition";
+import type { TemplateDefinition } from "@/lib/template/contracts";
+import { diffTemplateRevisions } from "@/lib/template/templateRevisionDiff";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,8 +27,115 @@ interface RevisionRow {
   published_at: Date;
 }
 
-export async function POST(
+interface PublishedRevisionRow extends RevisionRow {
+  compiled_definition: TemplateDefinition;
+}
+
+const revisionDigest = (definition: TemplateDefinition) => {
+  const digestInput = structuredClone(definition);
+  delete digestInput.template.revision;
+  return createHash("sha256")
+    .update(stableStringify(digestInput))
+    .digest("hex");
+};
+
+export async function GET(
   _request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const auth = await requireApiSession();
+  if (auth instanceof NextResponse) return auth;
+  const { id: templateId } = await context.params;
+  const denied = await requireTemplateAccess(auth, templateId, "EDITOR");
+  if (denied) return denied;
+
+  const client = await getCoreDb().connect();
+  try {
+    await client.query("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
+    const template = await client.query<CompilableTemplateRow & { published_revision_id: string | null }>(
+      `SELECT id, customer_id, template_name, edit_version, published_revision_id
+       FROM public.templates
+       WHERE id = $1 AND archived_at IS NULL`,
+      [templateId],
+    );
+    if (!template.rowCount) {
+      await client.query("ROLLBACK");
+      return NextResponse.json({ error: "ไม่พบ Template" }, { status: 404 });
+    }
+    const objects = await client.query<CompilableObjectRow>(
+      `SELECT id, object_type, object_key, object_name, definition
+       FROM public.template_objects
+       WHERE template_id = $1
+       ORDER BY object_type, object_key, id`,
+      [templateId],
+    );
+    const screenPages = await client.query<CompilableScreenPageRow>(
+      `SELECT screen.object_key AS screen_key,
+              page.object_key AS page_key,
+              relation.sort_order,
+              relation.is_default
+       FROM public.template_screen_pages relation
+       JOIN public.template_objects screen
+         ON screen.template_id = relation.template_id
+        AND screen.id = relation.screen_object_id
+       JOIN public.template_objects page
+         ON page.template_id = relation.template_id
+        AND page.id = relation.page_object_id
+       WHERE relation.template_id = $1
+       ORDER BY screen.object_key, relation.sort_order, relation.id`,
+      [templateId],
+    );
+    const compiled = compileTemplateDefinition(
+      template.rows[0],
+      objects.rows,
+      screenPages.rows,
+      "pending",
+    );
+    const digest = revisionDigest(compiled.definition);
+    compiled.definition.template.revision = digest;
+
+    const published = template.rows[0].published_revision_id
+      ? await client.query<PublishedRevisionRow>(
+          `SELECT id, revision_number, revision_digest, schema_version,
+                  source_edit_version, published_at, compiled_definition
+           FROM public.template_revisions
+           WHERE template_id = $1 AND id = $2`,
+          [templateId, template.rows[0].published_revision_id],
+        )
+      : { rowCount: 0, rows: [] as PublishedRevisionRow[] };
+    await client.query("COMMIT");
+
+    const current = published.rows[0] ?? null;
+    return NextResponse.json({
+      review: {
+        canPublish: compiled.issues.length === 0,
+        issues: compiled.issues,
+        draft: {
+          editVersion: Number(template.rows[0].edit_version),
+          digest,
+        },
+        published: current ? {
+          id: current.id,
+          number: Number(current.revision_number),
+          digest: current.revision_digest,
+          schemaVersion: current.schema_version,
+          sourceEditVersion: Number(current.source_edit_version),
+          publishedAt: current.published_at.toISOString(),
+        } : null,
+        diff: diffTemplateRevisions(current?.compiled_definition ?? null, compiled.definition),
+      },
+    });
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    console.error("Unable to review Template publish", error);
+    return NextResponse.json({ error: "ไม่สามารถตรวจสอบก่อน Publish ได้" }, { status: 500 });
+  } finally {
+    client.release();
+  }
+}
+
+export async function POST(
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   const auth = await requireApiSession();
@@ -35,6 +144,10 @@ export async function POST(
 
   const denied = await requireTemplateAccess(auth, templateId, "EDITOR");
   if (denied) return denied;
+  const body = await request.json().catch(() => ({})) as { expectedEditVersion?: unknown };
+  const expectedEditVersion = Number.isInteger(body.expectedEditVersion)
+    ? Number(body.expectedEditVersion)
+    : null;
 
   const client = await getCoreDb().connect();
   try {
@@ -60,6 +173,20 @@ export async function POST(
     if (!template.rowCount) {
       await client.query("ROLLBACK");
       return NextResponse.json({ error: "ไม่พบ Template" }, { status: 404 });
+    }
+    if (
+      expectedEditVersion !== null &&
+      Number(template.rows[0].edit_version) !== expectedEditVersion
+    ) {
+      await client.query("ROLLBACK");
+      return NextResponse.json(
+        {
+          error: "Template ถูกแก้ไขหลังเปิดหน้าตรวจ Publish กรุณาตรวจอีกครั้ง",
+          expectedEditVersion,
+          actualEditVersion: Number(template.rows[0].edit_version),
+        },
+        { status: 409 },
+      );
     }
 
     const objects = await client.query<CompilableObjectRow>(
@@ -100,11 +227,7 @@ export async function POST(
       );
     }
 
-    const digestInput = structuredClone(compiled.definition);
-    delete digestInput.template.revision;
-    const digest = createHash("sha256")
-      .update(stableStringify(digestInput))
-      .digest("hex");
+    const digest = revisionDigest(compiled.definition);
     compiled.definition.template.revision = digest;
 
     const existing = await client.query<RevisionRow>(

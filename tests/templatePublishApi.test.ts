@@ -18,7 +18,10 @@ vi.mock("@/lib/auth/apiAuth", () => ({
   requireTemplateAccess: mocks.requireTemplateAccess,
 }));
 
-import { POST as publishTemplate } from "@/app/api/templates/[id]/publish/route";
+import {
+  GET as reviewTemplatePublish,
+  POST as publishTemplate,
+} from "@/app/api/templates/[id]/publish/route";
 
 const actor = {
   sub: "user-a",
@@ -58,7 +61,7 @@ const createClient = (objects = compileRows()) => {
     if (sql.includes("customer_role_rank")) {
       return { rowCount: 1, rows: [{ role_rank: 1 }] };
     }
-    if (sql.includes("FROM public.templates") && sql.includes("FOR UPDATE")) {
+    if (sql.includes("FROM public.templates")) {
       return {
         rowCount: 1,
         rows: [
@@ -67,6 +70,7 @@ const createClient = (objects = compileRows()) => {
             customer_id: "customer.demo",
             template_name: "Contacts",
             edit_version: "1",
+            published_revision_id: null,
           },
         ],
       };
@@ -138,6 +142,62 @@ describe("Template publish API", () => {
       String(sql).includes("INSERT INTO public.template_revisions"),
     )).toBe(true);
     expect(client.release).toHaveBeenCalledOnce();
+  });
+
+  it("previews dependency validation and an object-level diff without publishing", async () => {
+    const client = createClient();
+    mocks.connect.mockResolvedValue(client);
+
+    const response = await reviewTemplatePublish(new Request("http://local"), {
+      params: Promise.resolve({ id: "template.contacts" }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      review: {
+        canPublish: true,
+        issues: [],
+        draft: { editVersion: 1, digest: expect.stringMatching(/^[0-9a-f]{64}$/) },
+        published: null,
+        diff: {
+          added: expect.any(Number),
+          removed: 0,
+          changed: 0,
+          changes: expect.arrayContaining([
+            expect.objectContaining({ kind: "added", objectType: "PAGE", objectKey: "page.contacts" }),
+          ]),
+        },
+      },
+    });
+    expect(client.query.mock.calls.map(([sql]) => sql)).toContain(
+      "BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY",
+    );
+    expect(client.query.mock.calls.some(([sql]) =>
+      String(sql).includes("INSERT INTO public.template_revisions"),
+    )).toBe(false);
+  });
+
+  it("rejects publish when the reviewed Draft edit version is stale", async () => {
+    const client = createClient();
+    mocks.connect.mockResolvedValue(client);
+
+    const response = await publishTemplate(new Request("http://local", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ expectedEditVersion: 0 }),
+    }), {
+      params: Promise.resolve({ id: "template.contacts" }),
+    });
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      expectedEditVersion: 0,
+      actualEditVersion: 1,
+    });
+    expect(client.query.mock.calls.map(([sql]) => sql)).toContain("ROLLBACK");
+    expect(client.query.mock.calls.some(([sql]) =>
+      String(sql).includes("INSERT INTO public.template_revisions"),
+    )).toBe(false);
   });
 
   it("rolls back and returns validation issues instead of publishing invalid Objects", async () => {
