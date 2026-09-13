@@ -46,3 +46,15 @@ Exit code: `0` เมื่อ metadata ตรงกัน, mapping ครบแ
 The inventory checks table presence before mapping, reference, and tenant-list queries. Missing source tables remain `MISSING`; present source tables retain their row count/checksum even if mapping tables are absent. Those mappings use `mappingStatus: UNAVAILABLE`, `mapped: null`, `unresolved: null`, and explicit `missingDependencies`. Skipped reference checks similarly use `status: UNAVAILABLE`, `violations: null`, and dependency names. An absent `apps` table makes the tenant list unavailable without querying it.
 
 Unknown mapping/reference totals are `null`, never zero. The offline comparator accepts these additive v1 fields but never treats unknown mappings or reference results as complete/clean. Existing v1 reports with measured results remain compatible. Missing columns, permissions, or unexpected SQL errors still abort and roll back; this checkpoint handles absent tables only, not schema repair.
+
+## Offline filesystem asset manifest
+
+```bash
+npm run migration:assets -- /path/to/offline-asset-copy
+```
+
+Use only a trusted, quiescent copy containing the selected App's assets, not a repository, credential directory, or live storage root. This command streams regular files read-only and emits JSON containing relative paths, sizes, SHA-256 content hashes, empty directories, and a deterministic aggregate checksum. It does not connect to a database or include file contents or the absolute root. Keep the report private because asset names can contain business information.
+
+Symlinks at the root or within the tree and special files are rejected. Detected file/directory mutations abort with a generic error and exit 1; no partial JSON is emitted. This is not an atomic snapshot or an adversarial-filesystem sandbox: operators must provide a stable trusted snapshot and trusted ancestor directories. Exit 0 means the scan completed, never that migration or restore is approved (`readyForApply` stays false).
+
+This manifest covers filesystem bytes and paths only, not DB-backed assets, binding/style semantics, ownership, modes, extended attributes, or links. The metadata `migration:compare` command does not accept asset manifests. Review asset manifests separately until a dedicated asset comparator is implemented; staging mapping and backup/restore rehearsal remain outstanding.

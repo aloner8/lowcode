@@ -296,6 +296,8 @@ Auth/Files ในระยะนี้คือส่วนแรกของ Sh
 
 Checkpoint เปรียบเทียบ offline: `npm run migration:compare -- before.json after.json` ตรวจรายงานครบ/ไม่ซ้ำ, count/checksum drift, mapping และ reference โดยไม่เชื่อ summary และไม่อนุมัติ apply ชุด inventory/comparison รวมผ่าน 14 tests พร้อม typecheck, targeted lint และ CLI smoke (exit 0/2/1); ยังไม่มีรายงาน staging จริงหรือหลักฐาน preservation ของ payload/asset/style
 
+Checkpoint filesystem asset inventory: `npm run migration:assets -- /path/to/offline-asset-copy` สร้าง manifest relative path/size/SHA-256 และ empty directories จากสำเนาที่หยุดเขียนแล้ว ปฏิเสธ symlink/special file และไม่อนุมัติ apply; ชุด inventory/comparison/assets รวมผ่าน 26 tests ยังไม่รันกับข้อมูล App จริง ไม่ครอบคลุม DB asset/binding/style หรือ restore และยังต้องเพิ่มตัวเปรียบเทียบ asset manifest แยกต่างหาก
+
 ขึ้นกับ P4–P6 งาน: migration dry-run, mapping ID/binding/style, เปรียบเทียบหน้าจอ/ข้อมูล, stage app ตัวอย่าง, backup/restore rehearsal และเลือก App ใช้ renderer ใหม่ทีละตัว
 
 เกณฑ์ผ่าน: แอปตัวอย่างเดิมผ่านงานจริง, รายงานจำนวน Object และ reference ตรง, ไม่มีข้อมูลหาย, ย้อนกลับ renderer/config ได้เมื่อ schema รองรับ และมีขั้นคืนข้อมูลสำหรับกรณีที่ต้อง restore
