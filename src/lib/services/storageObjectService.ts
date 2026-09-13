@@ -24,7 +24,9 @@ export async function executeStorageObjectService(ctx: ServiceExecutionContext, 
     const files = Array.isArray(input.files) ? input.files as ServiceUpload[] : [];
     const maxFiles = Number(binding.config.maxFilesPerRequest || 5); const maxBytes = Number(binding.config.maxFileBytes || 10485760);
     if (!files.length || files.length > maxFiles) throw new ServiceError('SERVICE_INPUT_INVALID', `Upload requires 1-${maxFiles} files`, 400);
-    const allowed = new Set((binding.config.allowedMimeTypes || []).map(String)); const directory = resolveWritePath(storage, root); await mkdir(directory, { recursive: true });
+    const allowed = new Set((binding.config.allowedMimeTypes || []).map(String));
+    const relativeDirectory = cleanRelative(path.posix.join(root, String(input.path || '')));
+    const directory = resolveWritePath(storage, relativeDirectory); await mkdir(directory, { recursive: true });
     const results = [];
     for (const file of files) {
       const name = path.basename(file.name).replace(/[^\p{L}\p{N}._ -]/gu, '_');
@@ -32,7 +34,7 @@ export async function executeStorageObjectService(ctx: ServiceExecutionContext, 
       if (!name || BLOCKED.has(path.extname(name).toLowerCase()) || !allowed.has(claimed) || (sniffed && sniffed !== claimed) || file.bytes.length > maxBytes) throw new ServiceError('SERVICE_INPUT_INVALID', `File '${name || 'unknown'}' is not allowed`, file.bytes.length > maxBytes ? 413 : 415);
       const checksum = createHash('sha256').update(file.bytes).digest('hex'); const storedName = `${checksum.slice(0, 12)}-${name}`;
       await writeFile(path.join(/* turbopackIgnore: true */ directory, storedName), file.bytes, { flag: 'wx' }).catch((error: NodeJS.ErrnoException) => { if (error.code !== 'EEXIST') throw error; });
-      const relative = path.posix.join(root, storedName);
+      const relative = path.posix.join(relativeDirectory, storedName);
       results.push({ assetId: relative, name, mimeType: file.type, size: file.bytes.length, checksum, url: binding.config.visibility === 'public' ? storage.publicUrl(relative) : undefined });
     }
     return { files: results };

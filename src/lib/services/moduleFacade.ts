@@ -47,7 +47,7 @@ export async function dispatchModule(ctx: ServiceExecutionContext, module: strin
         409,
       );
     }
-    if (module === 'files' && operation === 'list' && !('path' in input)) {
+    if (module === 'files' && (operation === 'list' || operation === 'upload') && !('path' in input)) {
       dispatchedInput = { ...input, path: setting.config.workingPath };
     }
   }

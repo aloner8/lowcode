@@ -47,7 +47,7 @@ const definitions: SharedServiceDefinition[] = [
       visibility: { type: 'string', enum: ['private', 'public'] }, retentionDays: { type: 'integer', minimum: 1, maximum: 3650 },
     }, ['rootNamespace', 'allowedMimeTypes', 'maxFileBytes']),
     operations: {
-      upload: { inputSchema: object({ files: { type: 'array' } }, ['files']), outputSchema: resultSchema, execution: 'sync', idempotency: 'supported' },
+      upload: { inputSchema: object({ files: { type: 'array' }, path: { type: 'string', maxLength: 300 } }, ['files']), outputSchema: resultSchema, execution: 'sync', idempotency: 'supported' },
       list: { inputSchema: object({ path: { type: 'string', maxLength: 300 } }), outputSchema: resultSchema, execution: 'sync', idempotency: 'none' },
       getMetadata: { inputSchema: object({ assetId: { type: 'string' } }, ['assetId']), outputSchema: resultSchema, execution: 'sync', idempotency: 'none' },
       delete: { inputSchema: object({ assetId: { type: 'string' } }, ['assetId']), outputSchema: resultSchema, requiredPermission: 'storage.delete', execution: 'sync', idempotency: 'supported' },

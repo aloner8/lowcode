@@ -54,6 +54,19 @@ describe("App runtime Module Setting policy", () => {
     );
   });
 
+  it("applies the same published Files working path to uploads", async () => {
+    const ctx = context([{ moduleKey: "files", enabled: true, config: { workingPath: "/documents" } }]);
+    const files = [{ name: "record.pdf" }];
+    await dispatchModule(ctx, "files", "upload", { files });
+    expect(mocks.dispatchService).toHaveBeenCalledWith(
+      ctx,
+      "files-default",
+      "upload",
+      { files, path: "/documents" },
+      undefined,
+    );
+  });
+
   it("rejects a runtime config that the current image cannot support", async () => {
     const ctx = context([{ moduleKey: "auth", enabled: true, config: { providers: ["google"], allowRegister: false, afterLogin: "/" } }]);
     await expect(dispatchModule(ctx, "auth", "me", {}))
