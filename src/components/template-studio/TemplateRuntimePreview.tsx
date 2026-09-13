@@ -12,6 +12,7 @@ import {
 } from "@/lib/runtime/lifecycleRunner";
 import type {
   AppComponentInstanceDefinition,
+  MenuActionDefinition,
   PageDefinition,
   ScreenDefinition,
   TemplateDefinition,
@@ -84,6 +85,7 @@ export function TemplateRuntimePreview({
   const [page, setPage] = useState<PageDefinition | null>(null);
   const [device, setDevice] = useState<Device>("desktop");
   const [activeRouteId, setActiveRouteId] = useState("");
+  const [activePopupId, setActivePopupId] = useState("");
   const [trace, setTrace] = useState<LifecycleTraceEvent[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(true);
@@ -96,6 +98,7 @@ export function TemplateRuntimePreview({
   ) => {
     if (!source) return;
     setBusy(true);
+    setActivePopupId("");
     setTrace([]);
     const adapter: LifecycleAdapter = {
       emit: (event) => setTrace((current) => [...current, event]),
@@ -154,6 +157,31 @@ export function TemplateRuntimePreview({
     };
   }, [navigate, templateId]);
 
+  const runMenuAction = async (action: MenuActionDefinition) => {
+    const source = definitionRef.current;
+    if (!source) return;
+    if (action.type === "navigate_route") {
+      await navigate(action.routeId, source);
+      return;
+    }
+    if (action.type === "open_popup") {
+      setActivePopupId(action.popupId);
+      return;
+    }
+    const runner = runnerRef.current;
+    if (!runner) return;
+    setBusy(true);
+    setActivePopupId("");
+    const result = await runner.changePage(action.pageId, action.params ?? {});
+    if (result.status === "ready") {
+      setPage(source.pages.find((item) => item.id === result.page.pageId) ?? null);
+      setError("");
+    } else if (result.status === "error") {
+      setError(`Lifecycle failed: ${result.failure.phase} / ${result.failure.objectId}`);
+    }
+    setBusy(false);
+  };
+
   const width = device === "mobile" ? 390 : device === "tablet" ? 768 : 1280;
   const columnKey = device;
 
@@ -172,9 +200,10 @@ export function TemplateRuntimePreview({
     </div>
     <div className="d-flex flex-grow-1 overflow-hidden">
       <main className="flex-grow-1 overflow-auto p-3 bg-secondary bg-opacity-25">
-        <div className="bg-white shadow mx-auto min-vh-100" style={{ width, maxWidth: "100%", transition: "width .2s" }}>
+        <div className="bg-white shadow mx-auto min-vh-100 position-relative" style={{ width, maxWidth: "100%", transition: "width .2s" }}>
           {definition && screen && page && <>
             <style>{`${definition.startup.mainCss}\n${screen.css}\n${page.css}`}</style>
+            {screen.menu.length > 0 && <nav className="d-flex gap-2 flex-wrap p-2 border-bottom bg-light" aria-label="Preview menu">{screen.menu.map((item) => <button type="button" className="btn btn-sm btn-outline-primary" key={item.id} onClick={() => void runMenuAction(item.action)}>{item.label}</button>)}</nav>}
             <header className="preview-region preview-header p-2 border-bottom" data-screen-region="header">{instancesForRegion(definition, screen, "header").map((instance) => <PreviewInstance key={instance.id} instance={instance} definition={definition} />)}</header>
             <div className="d-flex align-items-stretch" style={{ minHeight: 520 }}>
               <aside className="preview-region preview-left p-2 border-end" style={{ width: device === "mobile" ? 72 : 220 }} data-screen-region="left">{instancesForRegion(definition, screen, "left").map((instance) => <PreviewInstance key={instance.id} instance={instance} definition={definition} />)}</aside>
@@ -185,6 +214,16 @@ export function TemplateRuntimePreview({
               <aside className="preview-region preview-right p-2 border-start" style={{ width: device === "mobile" ? 72 : 220 }} data-screen-region="right">{instancesForRegion(definition, screen, "right").map((instance) => <PreviewInstance key={instance.id} instance={instance} definition={definition} />)}</aside>
             </div>
             <footer className="preview-region preview-footer p-2 border-top" data-screen-region="footer">{instancesForRegion(definition, screen, "footer").map((instance) => <PreviewInstance key={instance.id} instance={instance} definition={definition} />)}</footer>
+            {activePopupId && (() => {
+              const popup = definition.popups.find((item) => item.id === activePopupId);
+              const popupPage = definition.pages.find((item) => item.id === popup?.pageId);
+              return <div className="position-absolute top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 d-flex align-items-center justify-content-center p-4" style={{ zIndex: 2 }} onClick={() => setActivePopupId("")}>
+                <section className="bg-white rounded shadow-lg p-3 overflow-auto" style={{ width: "min(760px, 95%)", maxHeight: "85%" }} onClick={(event) => event.stopPropagation()} aria-label="Preview popup">
+                  <div className="d-flex align-items-center mb-2"><strong>{popup?.id ?? activePopupId}</strong><button type="button" className="btn btn-sm btn-outline-secondary ms-auto" onClick={() => setActivePopupId("")}><X size={14} /></button></div>
+                  {popupPage ? <div className="row g-2">{[...popupPage.panels].sort((a, b) => a.order - b.order).map((panel) => <div key={panel.id} className={`col-${panel.responsive[columnKey]}`}><div className="border rounded p-2">{instancesForPanel(definition, popupPage, panel.id).map((instance) => <PreviewInstance key={instance.id} instance={instance} definition={definition} />)}</div></div>)}</div> : <div className="alert alert-warning">Popup Page not found</div>}
+                </section>
+              </div>;
+            })()}
           </>}
           {busy && <div className="p-5 text-center">Running lifecycle…</div>}
           {error && <pre className="alert alert-danger m-3 text-wrap">{error}</pre>}

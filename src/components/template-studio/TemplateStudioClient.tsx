@@ -36,7 +36,8 @@ type ObjectType =
   | "PAGE"
   | "COMPONENT"
   | "COMPONENT_INSTANCE"
-  | "COLLECTION";
+  | "COLLECTION"
+  | "POPUP";
 
 interface TemplateSummary {
   id: string;
@@ -71,7 +72,7 @@ const sections = [
   { id: "modules", label: "Module Setting", types: ["MODULE"], icon: Settings2 },
   { id: "sitemap", label: "Site Map View", types: ["ROUTE"], icon: Map },
   { id: "collections", label: "Collection Set", types: ["COLLECTION"], icon: Database },
-  { id: "screens", label: "Screens", types: ["SCREEN"], icon: Monitor },
+  { id: "screens", label: "Screens", types: ["SCREEN", "POPUP"], icon: Monitor },
   { id: "pages", label: "Pages", types: ["PAGE"], icon: FileText },
   { id: "components", label: "Components", types: ["COMPONENT", "COMPONENT_INSTANCE"], icon: Boxes },
 ] as const;
@@ -249,13 +250,14 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
         ],
       };
     }
+    if (type === "POPUP") return { pageId: pages[0]?.objectKey ?? "" };
     return { componentType: "standard", version: 1, definition: { standardType: "TextComponent" } };
   };
 
-  const createObject = async () => {
+  const createObject = async (forcedType?: ObjectType) => {
     const name = newName.trim();
     if (!name) return;
-    const type: ObjectType = activeSection === "startup"
+    const type: ObjectType = forcedType ?? (activeSection === "startup"
       ? "STARTUP"
       : activeSection === "modules"
         ? "MODULE"
@@ -267,7 +269,7 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
               ? "SCREEN"
               : activeSection === "pages"
                 ? "PAGE"
-                : "COMPONENT";
+                : "COMPONENT");
     if (type === "STARTUP" && objects.some((object) => object.objectType === "STARTUP")) {
       setMessage("Template มี On Start Up อยู่แล้ว");
       return;
@@ -278,6 +280,10 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
     }
     if (type === "SCREEN" && !pages.length) {
       setMessage("สร้าง Page ก่อน Screen เพื่อกำหนด Default Page");
+      return;
+    }
+    if (type === "POPUP" && !pages.length) {
+      setMessage("สร้าง Page ก่อน Popup");
       return;
     }
     const prefix = type.toLowerCase().replace("component_instance", "instance");
@@ -656,7 +662,8 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
             <div className="card-body py-2 d-flex gap-2 flex-wrap">
               <input className="form-control form-control-sm" style={{ maxWidth: 220 }} value={newName} onChange={(event) => setNewName(event.target.value)} placeholder={`ชื่อ ${section.label}`} />
               <input className="form-control form-control-sm" style={{ maxWidth: 240 }} value={newKey} onChange={(event) => setNewKey(event.target.value)} placeholder="Object key (สร้างอัตโนมัติได้)" />
-              <button className="btn btn-sm btn-primary d-flex align-items-center gap-1" disabled={busy || !newName.trim()} onClick={() => void createObject()}><Plus size={14} />สร้างโดยไม่แก้ JSON</button>
+              <button className="btn btn-sm btn-primary d-flex align-items-center gap-1" disabled={busy || !newName.trim()} onClick={() => void createObject()}><Plus size={14} />{activeSection === "screens" ? "สร้าง Screen" : "สร้างโดยไม่แก้ JSON"}</button>
+              {activeSection === "screens" && <button className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" disabled={busy || !newName.trim()} onClick={() => void createObject("POPUP")}><Plus size={14} />สร้าง Popup</button>}
             </div>
           </div>
 

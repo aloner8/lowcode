@@ -69,4 +69,23 @@ describe("template definition foundation contract", () => {
       expect.objectContaining({ code: "invalid_table_name" }),
     );
   });
+
+  it("requires a menu Popup target to be assigned to the same Screen", () => {
+    const definition = cloneDefinition();
+    definition.popups.push({ id: "popup.contact", pageId: "page.contacts" });
+    definition.screens[0].menu.push({
+      id: "menu.popup",
+      label: "Contact popup",
+      action: { type: "open_popup", popupId: "popup.contact" },
+    });
+
+    expect(validateTemplateDefinition(definition).issues).toContainEqual(
+      expect.objectContaining({ code: "popup_not_in_screen" }),
+    );
+
+    definition.screens[0].popupIds.push("popup.contact");
+    expect(validateTemplateDefinition(definition).issues).not.toContainEqual(
+      expect.objectContaining({ code: "popup_not_in_screen" }),
+    );
+  });
 });

@@ -191,6 +191,12 @@ function validateTypedTemplateDefinition(
       }
       if (item.action.type === "open_popup" && !popups.has(item.action.popupId)) {
         issue("missing_popup", menuPath, `Unknown popup '${item.action.popupId}'`);
+      } else if (item.action.type === "open_popup" && !screen.popupIds.includes(item.action.popupId)) {
+        issue(
+          "popup_not_in_screen",
+          menuPath,
+          `Popup '${item.action.popupId}' is not assigned to this screen`,
+        );
       }
     });
   });

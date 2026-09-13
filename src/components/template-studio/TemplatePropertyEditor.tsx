@@ -12,6 +12,8 @@ import {
   parseStudioValue,
   renameRecordKey,
   type StudioEventStep,
+  type StudioMenuAction,
+  type StudioMenuItem,
   type StudioPanel,
 } from "@/lib/template/studioEditing";
 
@@ -109,6 +111,38 @@ const stepsFrom = (value: unknown): StudioEventStep[] => Array.isArray(value)
       };
     })
   : [];
+
+const menuItemsFrom = (value: unknown): StudioMenuItem[] => Array.isArray(value)
+  ? value.map((item, index) => {
+      const source = record(item);
+      const action = record(source.action);
+      if (action.type === "navigate_route") {
+        return {
+          id: String(source.id ?? `menu.${index + 1}`),
+          label: String(source.label ?? `Menu ${index + 1}`),
+          action: { type: "navigate_route", routeId: String(action.routeId ?? "") },
+        };
+      }
+      if (action.type === "open_popup") {
+        return {
+          id: String(source.id ?? `menu.${index + 1}`),
+          label: String(source.label ?? `Menu ${index + 1}`),
+          action: { type: "open_popup", popupId: String(action.popupId ?? "") },
+        };
+      }
+      return {
+        id: String(source.id ?? `menu.${index + 1}`),
+        label: String(source.label ?? `Menu ${index + 1}`),
+        action: { type: "change_page", pageId: String(action.pageId ?? "") },
+      };
+    })
+  : [];
+
+const menuTarget = (action: StudioMenuAction) => {
+  if (action.type === "change_page") return action.pageId;
+  if (action.type === "navigate_route") return action.routeId;
+  return action.popupId;
+};
 
 const emptyHtmlDocument = (object: StudioObject): HtmlStudioDocument => {
   const now = new Date().toISOString();
@@ -261,6 +295,8 @@ export function TemplatePropertyEditor({ object, objects, relations, busy, onRen
   const [showHtmlStudio, setShowHtmlStudio] = useState(false);
   const pages = objects.filter((item) => item.objectType === "PAGE");
   const screens = objects.filter((item) => item.objectType === "SCREEN");
+  const routes = objects.filter((item) => item.objectType === "ROUTE");
+  const popups = objects.filter((item) => item.objectType === "POPUP");
 
   const set = (key: string, value: unknown) => setDraft((current) => ({ ...current, [key]: value }));
   const save = () => onSaveDefinition(draft);
@@ -270,8 +306,28 @@ export function TemplatePropertyEditor({ object, objects, relations, busy, onRen
   const setFields = (next: CollectionField[]) => set("fields", next);
   const eventSteps = stepsFrom(draft.eventSteps);
   const setEventSteps = (next: StudioEventStep[]) => set("eventSteps", normalizeEventSteps(next));
+  const menuItems = menuItemsFrom(draft.menu);
+  const setMenuItems = (next: StudioMenuItem[]) => set("menu", next);
+  const screenPopupIds = Array.isArray(draft.popupIds)
+    ? draft.popupIds.filter((value): value is string => typeof value === "string")
+    : [];
   const componentDefinition = record(draft.definition);
   const bindingOptions = bindingOptionsFor(object, objects, relations);
+  const assignedPages = pages.filter((page) => screenPageIds.includes(page.id));
+
+  const menuActionFor = (type: StudioMenuAction["type"]): StudioMenuAction => {
+    if (type === "navigate_route") return { type, routeId: routes[0]?.objectKey ?? "" };
+    if (type === "open_popup") {
+      return { type, popupId: popups.find((popup) => screenPopupIds.includes(popup.objectKey))?.objectKey ?? "" };
+    }
+    return { type, pageId: assignedPages[0]?.objectKey ?? "" };
+  };
+
+  const menuTargets = (type: StudioMenuAction["type"]) => {
+    if (type === "navigate_route") return routes;
+    if (type === "open_popup") return popups.filter((popup) => screenPopupIds.includes(popup.objectKey));
+    return assignedPages;
+  };
 
   const togglePage = (pageId: string) => {
     if (screenPageIds.includes(pageId)) {
@@ -325,7 +381,25 @@ export function TemplatePropertyEditor({ object, objects, relations, busy, onRen
 
           {object.objectType === "SCREEN" && <div className="col-12"><div className="d-flex align-items-center mb-2"><Workflow size={15} className="me-2 text-primary" /><strong>Lifecycle event steps</strong><button type="button" className="btn btn-sm btn-outline-primary ms-auto" onClick={() => setEventSteps([...eventSteps, { id: `step.${crypto.randomUUID().slice(0, 8)}`, phase: "onload", order: eventSteps.length, action: "" }])}><Plus size={13} /> Add step</button></div>{eventSteps.length === 0 && <div className="small text-muted border rounded p-2">No lifecycle actions configured.</div>}{eventSteps.map((step, index) => <div className="row g-2 border rounded p-2 mb-2" key={step.id}><div className="col-md-3"><label className="form-label small mb-0">Phase</label><select className="form-select form-select-sm" value={step.phase} onChange={(event) => setEventSteps(eventSteps.map((item) => item.id === step.id ? { ...item, phase: event.target.value as StudioEventStep["phase"] } : item))}>{eventPhases.map((phase) => <option key={phase} value={phase}>{phase}</option>)}</select></div><div className="col-md-6"><label className="form-label small mb-0">Action</label><input className="form-control form-control-sm" value={step.action} onChange={(event) => setEventSteps(eventSteps.map((item) => item.id === step.id ? { ...item, action: event.target.value } : item))} placeholder="loadSession, setTheme, …" /></div><div className="col-md-3 d-flex align-items-end gap-1"><button type="button" className="btn btn-sm btn-light" disabled={index === 0} onClick={() => setEventSteps(moveItem(eventSteps, index, index - 1))}><ArrowUp size={14} /></button><button type="button" className="btn btn-sm btn-light" disabled={index === eventSteps.length - 1} onClick={() => setEventSteps(moveItem(eventSteps, index, index + 1))}><ArrowDown size={14} /></button><button type="button" className="btn btn-sm btn-outline-danger" onClick={() => setEventSteps(eventSteps.filter((item) => item.id !== step.id))}><Trash2 size={14} /></button></div></div>)}<button type="button" className="btn btn-sm btn-primary mt-2" disabled={busy || !screenPageIds.length || eventSteps.some((step) => !step.action.trim())} onClick={() => void onSaveScreenPages(buildScreenPageUpdate(screenPageIds, defaultPageId), draft)}><Save size={14} className="me-1" />Save Screen + Pages</button></div>}
 
+          {object.objectType === "SCREEN" && <div className="col-12">
+            <div className="fw-semibold mb-2">Popups in this Screen</div>
+            <div className="d-flex flex-wrap gap-3 border rounded p-2 mb-3">
+              {popups.length === 0 && <span className="small text-muted">สร้าง Popup ในหมวด Screens ก่อน</span>}
+              {popups.map((popup) => <label className="form-check" key={popup.id}><input className="form-check-input" type="checkbox" checked={screenPopupIds.includes(popup.objectKey)} onChange={(event) => set("popupIds", event.target.checked ? [...screenPopupIds, popup.objectKey] : screenPopupIds.filter((id) => id !== popup.objectKey))} /> <span className="form-check-label">{popup.objectName}</span></label>)}
+            </div>
+            <div className="d-flex align-items-center mb-2"><strong>Menu actions</strong><button type="button" className="btn btn-sm btn-outline-primary ms-auto" disabled={!assignedPages.length} onClick={() => setMenuItems([...menuItems, { id: `menu.${crypto.randomUUID().slice(0, 8)}`, label: `Menu ${menuItems.length + 1}`, action: menuActionFor("change_page") }])}><Plus size={13} /> Add menu</button></div>
+            {menuItems.length === 0 && <div className="small text-muted border rounded p-2">No menu actions configured.</div>}
+            {menuItems.map((item, index) => <div className="row g-2 border rounded p-2 mb-2" key={item.id}>
+              <div className="col-md-4"><label className="form-label small mb-0">Label</label><input className="form-control form-control-sm" value={item.label} onChange={(event) => setMenuItems(menuItems.map((candidate) => candidate.id === item.id ? { ...candidate, label: event.target.value } : candidate))} /></div>
+              <div className="col-md-3"><label className="form-label small mb-0">Action</label><select className="form-select form-select-sm" value={item.action.type} onChange={(event) => setMenuItems(menuItems.map((candidate) => candidate.id === item.id ? { ...candidate, action: menuActionFor(event.target.value as StudioMenuAction["type"]) } : candidate))}><option value="change_page">Change Page</option><option value="navigate_route">Navigate Route</option><option value="open_popup">Open Popup</option></select></div>
+              <div className="col-md-3"><label className="form-label small mb-0">Target</label><select className="form-select form-select-sm" value={menuTarget(item.action)} onChange={(event) => setMenuItems(menuItems.map((candidate) => candidate.id === item.id ? { ...candidate, action: item.action.type === "change_page" ? { ...item.action, pageId: event.target.value } : item.action.type === "navigate_route" ? { ...item.action, routeId: event.target.value } : { ...item.action, popupId: event.target.value } } : candidate))}>{menuTargets(item.action.type).map((target) => <option key={target.id} value={target.objectKey}>{target.objectName}</option>)}</select></div>
+              <div className="col-md-2 d-flex align-items-end gap-1"><button type="button" className="btn btn-sm btn-light" disabled={index === 0} onClick={() => setMenuItems(moveItem(menuItems, index, index - 1))}><ArrowUp size={14} /></button><button type="button" className="btn btn-sm btn-light" disabled={index === menuItems.length - 1} onClick={() => setMenuItems(moveItem(menuItems, index, index + 1))}><ArrowDown size={14} /></button><button type="button" className="btn btn-sm btn-outline-danger" onClick={() => setMenuItems(menuItems.filter((candidate) => candidate.id !== item.id))}><Trash2 size={14} /></button></div>
+            </div>)}
+          </div>}
+
           {object.objectType === "PAGE" && <><div className="col-12"><label className="form-label small">CSS</label><textarea rows={4} className="form-control form-control-sm font-monospace" value={String(draft.css ?? "")} onChange={(event) => set("css", event.target.value)} /></div><div className="col-12"><div className="d-flex align-items-center mb-2"><strong>Panels</strong><button className="btn btn-sm btn-outline-primary ms-auto" onClick={() => setPanels([...panels, { id: `panel.${crypto.randomUUID().slice(0, 8)}`, name: `Panel ${panels.length + 1}`, order: panels.length, responsive: { desktop: 12, tablet: 12, mobile: 12 } }])}><Plus size={14} /> Add panel</button></div>{panels.map((panel, index) => <div className="row g-2 border rounded p-2 mb-2" key={panel.id}><div className="col-lg-4"><input className="form-control form-control-sm" value={panel.name} onChange={(event) => setPanels(panels.map((item) => item.id === panel.id ? { ...item, name: event.target.value } : item))} /></div>{(["desktop", "tablet", "mobile"] as const).map((device) => <div className="col-3 col-lg-2" key={device}><label className="form-label small mb-0">{device}</label><input type="number" min={1} max={12} className="form-control form-control-sm" value={panel.responsive[device]} onChange={(event) => setPanels(panels.map((item) => item.id === panel.id ? { ...item, responsive: { ...item.responsive, [device]: Number(event.target.value) } } : item))} /></div>)}<div className="col-3 col-lg-2 d-flex align-items-end gap-1"><button className="btn btn-sm btn-light" disabled={index === 0} onClick={() => setPanels(moveItem(panels, index, index - 1))}><ArrowUp size={14} /></button><button className="btn btn-sm btn-light" disabled={index === panels.length - 1} onClick={() => setPanels(moveItem(panels, index, index + 1))}><ArrowDown size={14} /></button><button className="btn btn-sm btn-outline-danger" disabled={panels.length === 1} onClick={() => setPanels(panels.filter((item) => item.id !== panel.id))}><Trash2 size={14} /></button></div></div>)}</div></>}
+
+          {object.objectType === "POPUP" && <div className="col-12"><label className="form-label small">Popup Page</label><select className="form-select form-select-sm" value={String(draft.pageId ?? "")} onChange={(event) => set("pageId", event.target.value)}>{pages.map((page) => <option key={page.id} value={page.objectKey}>{page.objectName}</option>)}</select></div>}
 
           {object.objectType === "COMPONENT" && <><div className="col-md-4"><label className="form-label small">Component type</label><select className="form-select form-select-sm" value={String(draft.componentType ?? "standard")} onChange={(event) => set("componentType", event.target.value)}><option value="standard">Standard</option><option value="html">HTML</option></select></div><div className="col-md-3"><label className="form-label small">Version</label><input type="number" min={1} className="form-control form-control-sm" value={Number(draft.version ?? 1)} onChange={(event) => set("version", Math.max(1, Number(event.target.value)))} /></div>{draft.componentType === "html" ? <div className="col-md-5 d-flex align-items-end"><button type="button" className="btn btn-outline-primary w-100" onClick={() => setShowHtmlStudio(true)}><Braces size={15} className="me-1" />Open HTML Studio</button></div> : <div className="col-md-5"><label className="form-label small">Standard component</label><input className="form-control form-control-sm" value={String(componentDefinition.standardType ?? "TextComponent")} onChange={(event) => set("definition", { ...componentDefinition, standardType: event.target.value })} /></div>}</>}
 

@@ -19,6 +19,17 @@ export interface StudioEventStep {
   input?: Record<string, unknown>;
 }
 
+export type StudioMenuAction =
+  | { type: "change_page"; pageId: string; params?: Record<string, unknown> }
+  | { type: "navigate_route"; routeId: string; params?: Record<string, unknown> }
+  | { type: "open_popup"; popupId: string; params?: Record<string, unknown> };
+
+export interface StudioMenuItem {
+  id: string;
+  label: string;
+  action: StudioMenuAction;
+}
+
 export type StudioComponentPlacement =
   | { placement: "page_panel"; pageId: string; panelId: string }
   | { placement: "screen_region"; screenId: string; region: string };
