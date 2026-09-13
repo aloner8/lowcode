@@ -3,90 +3,15 @@ import Link from 'next/link';
 import { Box, Users, Layers, ScrollText, Palette, Plus, Globe, History, Inbox } from 'lucide-react';
 import StatWidgetCard from '@/components/admin/StatWidgetCard';
 import { getCurrentUser } from '@/lib/auth/authActions';
-import { getCoreDb } from '@/lib/db/coreDb';
 import { fetchPlatformAudit } from '@/lib/engine/AuditLogService';
 import { auditActionLabel, auditActionTone } from '@/lib/admin/auditLabels';
+import {
+  loadDashboardCounts,
+  loadDashboardSites,
+  type DashboardSiteSummary,
+} from '@/lib/admin/dashboardData';
 
 export const dynamic = 'force-dynamic';
-
-interface DashboardCounts {
-  apps: number;
-  users: number;
-  platforms: number;
-  pages: number;
-  auditLogs: number;
-}
-
-interface SiteSummary {
-  appId: string;
-  appSlug: string;
-  appName: string;
-  primaryDomain: string;
-  port: number;
-  packageName: string;
-  expiresAt: string | null;
-  isActive: boolean;
-  isSuspended: boolean;
-}
-
-async function loadCounts(): Promise<DashboardCounts> {
-  const result = await getCoreDb().query<Record<string, string>>(`
-    SELECT
-      (SELECT COUNT(*) FROM public.apps WHERE is_active)::text            AS apps,
-      (SELECT COUNT(*) FROM public.platform_users WHERE is_active)::text  AS users,
-      (SELECT COUNT(*) FROM public.platforms)::text                       AS platforms,
-      (SELECT COUNT(*) FROM public.platform_pages)::text                  AS pages,
-      (SELECT COUNT(*) FROM public.platform_audit_logs)::text             AS audit_logs
-  `);
-  const row = result.rows[0] ?? {};
-  return {
-    apps: Number(row.apps ?? 0),
-    users: Number(row.users ?? 0),
-    platforms: Number(row.platforms ?? 0),
-    pages: Number(row.pages ?? 0),
-    auditLogs: Number(row.audit_logs ?? 0),
-  };
-}
-
-/**
- * Sites with the commercial fields an agency administrator actually asks about
- * — which package they are on and when it lapses — rather than the internal
- * database name the previous table showed.
- */
-async function loadSites(): Promise<SiteSummary[]> {
-  const result = await getCoreDb().query<{
-    id: string;
-    app_slug: string;
-    app_name: string;
-    subdomain: string;
-    port: number;
-    package_name: string;
-    package_expires_at: Date | null;
-    is_active: boolean;
-    is_suspended: boolean;
-    primary_domain: string | null;
-  }>(`
-    SELECT a.id, a.app_slug, a.app_name, a.subdomain, a.port,
-           a.package_name, a.package_expires_at, a.is_active, a.is_suspended,
-           (SELECT d.domain FROM public.app_domains d
-             WHERE d.app_id = a.id AND d.is_active
-             ORDER BY d.is_primary DESC, d.domain LIMIT 1) AS primary_domain
-    FROM public.apps a
-    ORDER BY a.is_active DESC, a.app_name
-  `);
-
-  return result.rows.map((row) => ({
-    appId: row.id,
-    appSlug: row.app_slug,
-    appName: row.app_name,
-    primaryDomain: row.primary_domain ?? row.subdomain,
-    port: row.port,
-    packageName: row.package_name,
-    expiresAt: row.package_expires_at ? row.package_expires_at.toISOString().slice(0, 10) : null,
-    isActive: row.is_active,
-    isSuspended: row.is_suspended,
-  }));
-}
 
 const thaiDate = (iso: string) =>
   new Date(`${iso}T00:00:00Z`).toLocaleDateString('th-TH', {
@@ -111,13 +36,17 @@ const relativeTime = (iso: string) => {
 export default async function AdminDashboardPage() {
   const currentUser = await getCurrentUser();
   const isGod = currentUser?.globalRole === 'GOD';
+  const actorId = currentUser?.id ?? '';
+  const auditActor = currentUser?.username || currentUser?.email || '';
 
   // Every figure below is read live from the control-plane database.
-  const [counts, sites, audit] = await Promise.all([
-    loadCounts().catch(() => ({ apps: 0, users: 0, platforms: 0, pages: 0, auditLogs: 0 })),
-    loadSites().catch((): SiteSummary[] => []),
-    fetchPlatformAudit({ limit: 6 }).catch(() => ({ logs: [], total: 0 })),
+  const [counts, sites] = await Promise.all([
+    loadDashboardCounts(actorId, auditActor, isGod).catch(() => ({ apps: 0, users: 0, platforms: 0, pages: 0, auditLogs: 0 })),
+    loadDashboardSites(actorId, isGod).catch((): DashboardSiteSummary[] => []),
   ]);
+  const platformIds = [...new Set(sites.map((site) => site.platformId).filter((id): id is string => Boolean(id)))];
+  const audit = await fetchPlatformAudit({ limit: 6, ...(isGod ? {} : { platformIds, performedBy: auditActor }) })
+    .catch(() => ({ logs: [], total: 0 }));
 
   return (
     <div className="d-flex flex-column gap-3">

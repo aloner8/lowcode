@@ -77,6 +77,8 @@ export async function recordPlatformAudit(input: PlatformAuditInput): Promise<bo
 
 export interface AuditQuery {
   platformId?: string;
+  platformIds?: string[];
+  performedBy?: string;
   entityType?: AuditLogEntityType;
   action?: string;
   limit?: number;
@@ -90,9 +92,19 @@ export async function fetchPlatformAudit(query: AuditQuery = {}): Promise<{ logs
   const conditions: string[] = [];
   const params: unknown[] = [];
 
+  if (query.platformIds?.length === 0) return { logs: [], total: 0 };
+
   if (query.platformId) {
     params.push(query.platformId);
     conditions.push(`l.platform_id = $${params.length}`);
+  }
+  if (query.platformIds) {
+    params.push(query.platformIds);
+    conditions.push(`l.platform_id = ANY($${params.length}::uuid[])`);
+  }
+  if (query.performedBy) {
+    params.push(query.performedBy);
+    conditions.push(`l.performed_by = $${params.length}`);
   }
   if (query.entityType) {
     params.push(query.entityType);
@@ -103,13 +115,14 @@ export async function fetchPlatformAudit(query: AuditQuery = {}): Promise<{ logs
     conditions.push(`l.action = $${params.length}`);
   }
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const filterParams = [...params];
 
   const totalResult = await getCoreDb().query<{ count: string }>(
     `SELECT COUNT(*)::text AS count FROM public.platform_audit_logs l ${where}`,
-    params,
+    filterParams,
   );
 
-  params.push(limit, offset);
+  const pageParams = [...params, limit, offset];
   const result = await getCoreDb().query<AuditRow>(
     `SELECT l.id, l.platform_id, p.platform_name, l.entity_type, l.entity_id, l.action,
             l.performed_by, l.changes_summary, l.snapshot_before, l.snapshot_after, l.created_at
@@ -117,8 +130,8 @@ export async function fetchPlatformAudit(query: AuditQuery = {}): Promise<{ logs
      LEFT JOIN public.platforms p ON p.id = l.platform_id
      ${where}
      ORDER BY l.created_at DESC
-     LIMIT $${params.length - 1} OFFSET $${params.length}`,
-    params,
+     LIMIT $${pageParams.length - 1} OFFSET $${pageParams.length}`,
+    pageParams,
   );
 
   return { logs: result.rows.map(toAuditLog), total: Number(totalResult.rows[0]?.count ?? 0) };
