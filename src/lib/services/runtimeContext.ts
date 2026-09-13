@@ -26,7 +26,15 @@ export interface ServiceExecutionContext {
   snapshot: Record<string, any>;
 }
 
-interface RuntimeRow { platform_id: string; app_id: string | null; platform_slug: string; app_slug: string | null; runtime_snapshot: Record<string, any>; runtime_build_revision: string | null }
+interface RuntimeRow {
+  platform_id: string;
+  app_id: string | null;
+  platform_slug: string;
+  app_slug: string | null;
+  runtime_snapshot: Record<string, any>;
+  runtime_build_revision: string | null;
+  template_modules: unknown;
+}
 
 const cookieValue = (request: Request, name: string) => request.headers.get('cookie')?.split(';').map((item) => item.trim()).find((item) => item.startsWith(`${name}=`))?.slice(name.length + 1);
 export const tenantSessionCookieName = (slug: string) => `tenant_session_${slug.replace(/[^a-z0-9]/gi, '_').slice(0, 80)}`;
@@ -35,15 +43,22 @@ export const tenantRefreshCookieName = (slug: string) => `tenant_refresh_${slug.
 export async function resolveRuntimeContext(request: Request, slug: string): Promise<ServiceExecutionContext | null> {
   const result = await getCoreDb().query<RuntimeRow>(
     `SELECT p.id AS platform_id, a.id AS app_id, p.platform_slug, a.app_slug,
-            p.runtime_snapshot, p.runtime_build_revision
+            p.runtime_snapshot, p.runtime_build_revision,
+            revision.compiled_definition->'modules' AS template_modules
      FROM public.platforms p
      LEFT JOIN public.apps a ON a.platform_id=p.id AND a.app_slug=$1 AND a.is_active
+     LEFT JOIN public.template_revisions revision
+       ON revision.id=a.template_revision_id AND revision.template_id=a.template_id
      WHERE (a.app_slug=$1 OR p.platform_slug=$1) AND p.runtime_snapshot IS NOT NULL
      ORDER BY a.app_slug NULLS LAST LIMIT 1`, [slug],
   );
   if (!result.rowCount) return null;
   const row = result.rows[0];
-  const snapshot = { ...row.runtime_snapshot, services: await resolveAppServiceBindings(row.platform_id, row.app_id || undefined, row.runtime_snapshot.services) };
+  const snapshot = {
+    ...row.runtime_snapshot,
+    services: await resolveAppServiceBindings(row.platform_id, row.app_id || undefined, row.runtime_snapshot.services),
+    ...(row.app_id ? { templateModules: Array.isArray(row.template_modules) ? row.template_modules : [] } : {}),
+  };
   let actor: ServiceActor = { type: 'anonymous', roles: [], permissions: [] };
   let refreshActor: ServiceActor | undefined;
   const authBinding = (snapshot.services as unknown[] | undefined)?.map((entry) => entry as StudioServiceDefinition).find((entry) => serviceKeyOf(entry) === 'auth.session');
