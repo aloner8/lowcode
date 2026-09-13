@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireApiSession, requireSiteAccess } from "@/lib/auth/apiAuth";
 import {
   toPublicConnectionProfile,
+  validateConnectionProfileInput,
   type ConnectionProfileRow,
 } from "@/lib/connections/connectionProfiles";
 import { getCoreDb } from "@/lib/db/coreDb";
@@ -157,5 +158,69 @@ export async function PUT(
     return NextResponse.json({ error: "ไม่สามารถตั้ง Connection ของ App ได้" }, { status: 500 });
   } finally {
     client.release();
+  }
+}
+
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const auth = await requireApiSession();
+  if (auth instanceof NextResponse) return auth;
+  const { id: appId } = await context.params;
+  const denied = await requireSiteAccess(auth, appId, "ADMIN");
+  if (denied) return denied;
+
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ error: "ข้อมูล Connection Profile ไม่ถูกต้อง" }, { status: 400 });
+  }
+
+  const app = await getCoreDb().query<AppConnectionRow>(
+    `SELECT app.id, template.customer_id, app.connection_profile_id
+     FROM public.apps app
+     LEFT JOIN public.templates template ON template.id = app.template_id
+     WHERE app.id = $1`,
+    [appId],
+  );
+  if (!app.rowCount) return NextResponse.json({ error: "ไม่พบ App" }, { status: 404 });
+  const customerId = app.rows[0].customer_id;
+  if (!customerId) {
+    return NextResponse.json({ error: "App นี้ไม่ได้จัดการโดย Customer Template" }, { status: 409 });
+  }
+
+  const checked = validateConnectionProfileInput(body);
+  if (!checked.valid || !checked.value) {
+    return NextResponse.json({ valid: false, errors: checked.errors }, { status: 422 });
+  }
+  const profile = checked.value;
+
+  try {
+    const created = await getCoreDb().query<ConnectionProfileRow>(
+      `INSERT INTO public.connection_profiles (
+         customer_id, profile_key, profile_name, profile_type,
+         config, secret_refs, policy, status, created_by, updated_by
+       ) VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, 'DRAFT', $8, $8)
+       RETURNING ${profileColumns}`,
+      [
+        customerId,
+        profile.profileKey,
+        profile.profileName,
+        profile.profileType,
+        JSON.stringify(profile.config),
+        JSON.stringify(profile.secretRefs),
+        JSON.stringify(profile.policy),
+        auth.sub,
+      ],
+    );
+    return NextResponse.json({
+      profile: toPublicConnectionProfile(created.rows[0], secretReferenceStatus),
+    }, { status: 201 });
+  } catch (error) {
+    if ((error as { code?: string }).code === "23505") {
+      return NextResponse.json({ error: "profileKey นี้มีอยู่แล้ว" }, { status: 409 });
+    }
+    console.error("Unable to create App Connection Profile", error);
+    return NextResponse.json({ error: "ไม่สามารถสร้าง Connection Profile ได้" }, { status: 500 });
   }
 }

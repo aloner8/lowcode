@@ -402,6 +402,25 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
   const [connectionProfileStatus, setConnectionProfileStatus] = useState<string | null>(null);
   const [connectionProfileError, setConnectionProfileError] = useState<string | null>(null);
   const [connectionProfileBusy, setConnectionProfileBusy] = useState(false);
+  const [showConnectionProfileCreate, setShowConnectionProfileCreate] = useState(false);
+  const [connectionProfileDraft, setConnectionProfileDraft] = useState({
+    profileKey: 'main.app',
+    profileName: 'App PostgreSQL',
+    host: 'db.internal',
+    port: 5432,
+    database: appInfo.tenantDbName,
+    sslMode: 'require',
+    poolMax: 8,
+    usernameRef: 'env://LOWCODE_CONNECTION_APP_DB_USER',
+    passwordRef: 'env://LOWCODE_CONNECTION_APP_DB_PASSWORD',
+    allowedModuleKeys: 'data.collection,reports',
+    allowRuntimeWrite: false,
+  });
+  useEffect(() => {
+    setConnectionProfileDraft((current) => current.database === appInfo.tenantDbName
+      ? current
+      : { ...current, database: appInfo.tenantDbName });
+  }, [appInfo.tenantDbName]);
 
   const loadConnectionProfiles = async () => {
     if (!appInfo.id) return;
@@ -470,6 +489,52 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
       await loadConnectionProfiles();
     } catch (error) {
       setConnectionProfileError(error instanceof Error ? error.message : 'Connection Profile validation failed');
+    } finally {
+      setConnectionProfileBusy(false);
+    }
+  };
+
+  const createConnectionProfile = async () => {
+    setConnectionProfileBusy(true);
+    setConnectionProfileError(null);
+    try {
+      const allowedModuleKeys = connectionProfileDraft.allowedModuleKeys
+        .split(',')
+        .map((key) => key.trim())
+        .filter(Boolean);
+      const response = await fetch(`/api/apps/${appInfo.id}/connection-profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profileKey: connectionProfileDraft.profileKey,
+          profileName: connectionProfileDraft.profileName,
+          profileType: 'POSTGRES',
+          config: {
+            host: connectionProfileDraft.host,
+            port: Number(connectionProfileDraft.port),
+            database: connectionProfileDraft.database,
+            sslMode: connectionProfileDraft.sslMode,
+            poolMax: Number(connectionProfileDraft.poolMax),
+          },
+          secretRefs: {
+            username: connectionProfileDraft.usernameRef,
+            password: connectionProfileDraft.passwordRef,
+          },
+          policy: {
+            allowedModuleKeys,
+            allowRuntimeWrite: connectionProfileDraft.allowRuntimeWrite,
+          },
+        }),
+      });
+      const data = await response.json() as { profile?: PublicConnectionProfile; errors?: string[]; error?: string };
+      if (!response.ok || !data.profile) throw new Error(data.errors?.join('; ') || data.error || 'Unable to create Connection Profile');
+      setShowConnectionProfileCreate(false);
+      setSelectedConnectionProfileId(data.profile.id);
+      setConnectionProfileStatus('สร้าง Connection Profile แล้ว เลือก Apply เพื่อผูกกับ App');
+      await loadConnectionProfiles();
+      setSelectedConnectionProfileId(data.profile.id);
+    } catch (error) {
+      setConnectionProfileError(error instanceof Error ? error.message : 'Unable to create Connection Profile');
     } finally {
       setConnectionProfileBusy(false);
     }
@@ -1136,8 +1201,32 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
                   <div className="d-flex gap-2 flex-wrap mt-2">
                     {activeConnectionProfile && <button type="button" className="btn btn-outline-success btn-sm d-inline-flex align-items-center gap-1" onClick={() => void validateConnectionProfile(activeConnectionProfile.id)} disabled={connectionProfileBusy}><Play size={13} />Validate active profile</button>}
                     {activeConnectionProfile && <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => { setSelectedConnectionProfileId(''); void bindConnectionProfile(''); }} disabled={connectionProfileBusy}>Unbind</button>}
+                    <button type="button" className="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1" onClick={() => setShowConnectionProfileCreate((value) => !value)} disabled={connectionProfileBusy}><Plus size={13} />New profile</button>
                   </div>
                 </div>
+                {showConnectionProfileCreate && <div className="border rounded-3 p-3 mb-3">
+                  <div className="d-flex align-items-center justify-content-between gap-2 mb-2">
+                    <div><div className="fw-bold text-dark">New POSTGRES profile</div><div className="small text-muted">Secret values must already exist as server env SecretRefs.</div></div>
+                    <span className="badge bg-primary-subtle text-primary">SecretRef only</span>
+                  </div>
+                  <div className="row g-2 small">
+                    <div className="col-md-6"><label className="form-label text-muted mb-1">Profile key</label><input className="form-control form-control-sm font-monospace" value={connectionProfileDraft.profileKey} onChange={(event) => setConnectionProfileDraft((draft) => ({ ...draft, profileKey: event.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label text-muted mb-1">Profile name</label><input className="form-control form-control-sm" value={connectionProfileDraft.profileName} onChange={(event) => setConnectionProfileDraft((draft) => ({ ...draft, profileName: event.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label text-muted mb-1">Host</label><input className="form-control form-control-sm font-monospace" value={connectionProfileDraft.host} onChange={(event) => setConnectionProfileDraft((draft) => ({ ...draft, host: event.target.value }))} /></div>
+                    <div className="col-md-3"><label className="form-label text-muted mb-1">Port</label><input className="form-control form-control-sm font-monospace" type="number" min={1} max={65535} value={connectionProfileDraft.port} onChange={(event) => setConnectionProfileDraft((draft) => ({ ...draft, port: Number(event.target.value) }))} /></div>
+                    <div className="col-md-3"><label className="form-label text-muted mb-1">Pool max</label><input className="form-control form-control-sm font-monospace" type="number" min={1} max={20} value={connectionProfileDraft.poolMax} onChange={(event) => setConnectionProfileDraft((draft) => ({ ...draft, poolMax: Number(event.target.value) }))} /></div>
+                    <div className="col-md-6"><label className="form-label text-muted mb-1">Database</label><input className="form-control form-control-sm font-monospace" value={connectionProfileDraft.database} onChange={(event) => setConnectionProfileDraft((draft) => ({ ...draft, database: event.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label text-muted mb-1">SSL mode</label><select className="form-select form-select-sm" value={connectionProfileDraft.sslMode} onChange={(event) => setConnectionProfileDraft((draft) => ({ ...draft, sslMode: event.target.value }))}>{['disable', 'prefer', 'require', 'verify-full'].map((mode) => <option key={mode} value={mode}>{mode}</option>)}</select></div>
+                    <div className="col-md-6"><label className="form-label text-muted mb-1">Username SecretRef</label><input className="form-control form-control-sm font-monospace" value={connectionProfileDraft.usernameRef} onChange={(event) => setConnectionProfileDraft((draft) => ({ ...draft, usernameRef: event.target.value }))} /></div>
+                    <div className="col-md-6"><label className="form-label text-muted mb-1">Password SecretRef</label><input className="form-control form-control-sm font-monospace" value={connectionProfileDraft.passwordRef} onChange={(event) => setConnectionProfileDraft((draft) => ({ ...draft, passwordRef: event.target.value }))} /></div>
+                    <div className="col-md-8"><label className="form-label text-muted mb-1">Allowed module keys</label><input className="form-control form-control-sm font-monospace" value={connectionProfileDraft.allowedModuleKeys} onChange={(event) => setConnectionProfileDraft((draft) => ({ ...draft, allowedModuleKeys: event.target.value }))} /></div>
+                    <div className="col-md-4 d-flex align-items-end"><label className="form-check small mb-2"><input className="form-check-input" type="checkbox" checked={connectionProfileDraft.allowRuntimeWrite} onChange={(event) => setConnectionProfileDraft((draft) => ({ ...draft, allowRuntimeWrite: event.target.checked }))} /><span className="form-check-label">Allow runtime writes</span></label></div>
+                  </div>
+                  <div className="d-flex justify-content-end gap-2 mt-3">
+                    <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => setShowConnectionProfileCreate(false)} disabled={connectionProfileBusy}>Cancel</button>
+                    <button type="button" className="btn btn-primary btn-sm" onClick={() => void createConnectionProfile()} disabled={connectionProfileBusy}>Create profile</button>
+                  </div>
+                </div>}
                 {activeConnectionProfile && <div className="border rounded-3 p-3 mb-3">
                   <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
                     <div><div className="fw-bold text-dark">{activeConnectionProfile.profileName}</div><code>{activeConnectionProfile.profileKey}</code></div>

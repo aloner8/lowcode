@@ -19,7 +19,7 @@ vi.mock("@/lib/services/secrets", () => ({
   secretReferenceStatus: () => ({ configured: true, provider: "environment" }),
 }));
 
-import { GET, PUT } from "@/app/api/apps/[id]/connection-profile/route";
+import { GET, POST, PUT } from "@/app/api/apps/[id]/connection-profile/route";
 
 const actor = {
   sub: "user-a",
@@ -52,6 +52,29 @@ const request = (profileId: string | null, expectedConnectionProfileId: string |
     body: JSON.stringify({ profileId, expectedConnectionProfileId }),
   });
 
+const createRequest = () =>
+  new Request("http://local", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      profileKey: "main.reporting",
+      profileName: "Reporting database",
+      profileType: "POSTGRES",
+      config: {
+        host: "db.internal",
+        port: 5432,
+        database: "reporting",
+        sslMode: "require",
+        poolMax: 8,
+      },
+      secretRefs: {
+        username: "env://LOWCODE_CONNECTION_REPORTING_DB_USER",
+        password: "env://LOWCODE_CONNECTION_REPORTING_DB_PASSWORD",
+      },
+      policy: { allowedModuleKeys: ["reports"], allowRuntimeWrite: false },
+    }),
+  });
+
 describe("App Connection Profile API", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -78,6 +101,48 @@ describe("App Connection Profile API", () => {
     expect(body.connectionProfile.id).toBe("profile-a");
     expect(body.profiles).toHaveLength(1);
     expect(JSON.stringify(body)).not.toContain("LOWCODE_CONNECTION_REPORTING_DB_PASSWORD");
+  });
+
+  it("creates a profile for the App customer without requiring customerId from the browser", async () => {
+    mocks.query
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ id: "app-a", customer_id: "customer-a", connection_profile_id: null }],
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [profile] });
+
+    const response = await POST(createRequest(), {
+      params: Promise.resolve({ id: "app-a" }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(mocks.requireSiteAccess).toHaveBeenCalledWith(actor, "app-a", "ADMIN");
+    expect(mocks.query.mock.calls[1][0]).toContain("INSERT INTO public.connection_profiles");
+    expect(mocks.query.mock.calls[1][1][0]).toBe("customer-a");
+    expect(JSON.stringify(await response.json())).not.toContain("env://LOWCODE_CONNECTION_REPORTING_DB_PASSWORD");
+  });
+
+  it("rejects App-scoped profile creation when config contains plaintext secrets", async () => {
+    mocks.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{ id: "app-a", customer_id: "customer-a", connection_profile_id: null }],
+    });
+    const input = await createRequest().json() as Record<string, any>;
+    input.config.password = "plaintext";
+
+    const response = await POST(new Request("http://local", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    }), {
+      params: Promise.resolve({ id: "app-a" }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(mocks.query).toHaveBeenCalledOnce();
+    await expect(response.json()).resolves.toMatchObject({
+      errors: expect.arrayContaining([expect.stringContaining("config.password")]),
+    });
   });
 
   it("binds a profile from the same Customer and does not expose SecretRefs", async () => {
