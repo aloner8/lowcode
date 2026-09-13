@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ArrowDown,
+  ArrowUp,
   Boxes,
   Braces,
   Database,
@@ -14,11 +16,17 @@ import {
   Plus,
   Search,
   Settings2,
+  Trash2,
 } from "lucide-react";
 import { SCREEN_REGION_KEYS } from "@/lib/template/contracts";
 import { TemplatePropertyEditor } from "@/components/template-studio/TemplatePropertyEditor";
 import { TemplateRuntimePreview } from "@/components/template-studio/TemplateRuntimePreview";
-import type { StudioPageRelation } from "@/lib/template/studioEditing";
+import {
+  moveItem,
+  orderComponents,
+  placementOf,
+  type StudioPageRelation,
+} from "@/lib/template/studioEditing";
 
 type ObjectType =
   | "STARTUP"
@@ -75,6 +83,36 @@ const safeKeyPart = (value: string) =>
 
 const errorMessage = (value: unknown) =>
   value instanceof Error ? value.message : "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ";
+
+function PlacementInstances({
+  items,
+  busy,
+  selectedId,
+  onSelect,
+  onMove,
+  onRemove,
+}: {
+  items: StudioObject[];
+  busy: boolean;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onMove: (items: StudioObject[], from: number, to: number) => void;
+  onRemove: (item: StudioObject) => void;
+}) {
+  const ordered = orderComponents(items);
+  if (!ordered.length) return <div className="small text-muted mt-2">ยังไม่มี Component</div>;
+  return <div className="mt-2 d-flex flex-column gap-1">
+    {ordered.map((item, index) => <div className={`d-flex align-items-center gap-1 border rounded px-2 py-1 bg-white ${selectedId === item.id ? "border-primary" : ""}`} key={item.id}>
+      <button type="button" className="btn btn-sm border-0 p-0 text-start flex-grow-1" onClick={() => onSelect(item.id)}>
+        <span className="small fw-semibold">{item.objectName}</span>
+        <span className="small text-muted ms-2">#{index + 1}</span>
+      </button>
+      <button type="button" aria-label={`Move ${item.objectName} up`} className="btn btn-sm btn-light p-1" disabled={busy || index === 0} onClick={() => onMove(ordered, index, index - 1)}><ArrowUp size={13} /></button>
+      <button type="button" aria-label={`Move ${item.objectName} down`} className="btn btn-sm btn-light p-1" disabled={busy || index === ordered.length - 1} onClick={() => onMove(ordered, index, index + 1)}><ArrowDown size={13} /></button>
+      <button type="button" aria-label={`Remove ${item.objectName}`} className="btn btn-sm btn-outline-danger p-1" disabled={busy} onClick={() => onRemove(item)}><Trash2 size={13} /></button>
+    </div>)}
+  </div>;
+}
 
 export function TemplateStudioClient({ templateId }: { readonly templateId: string }) {
   const [template, setTemplate] = useState<TemplateSummary | null>(null);
@@ -498,6 +536,52 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
     }
   };
 
+  const reorderInstances = async (siblings: StudioObject[], from: number, to: number) => {
+    const placement = placementOf(siblings[0]?.definition ?? {});
+    if (!placement) {
+      setMessage("Placement ของ Component ไม่ถูกต้อง");
+      return;
+    }
+    const next = moveItem(siblings, from, to);
+    setBusy(true);
+    try {
+      await request(`/api/templates/${templateId}/objects`, {
+        method: "PUT",
+        body: JSON.stringify({
+          placement,
+          objects: next.map((item) => ({
+            objectId: item.id,
+            expectedEditVersion: item.editVersion,
+          })),
+        }),
+      });
+      await load();
+      setMessage("จัดลำดับ Component แล้ว");
+    } catch (error) {
+      setMessage(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeInstance = async (item: StudioObject) => {
+    if (!window.confirm(`ลบ ${item.objectName} ออกจาก Layout?`)) return;
+    setBusy(true);
+    try {
+      await request(`/api/templates/${templateId}/objects`, {
+        method: "DELETE",
+        body: JSON.stringify({ objectId: item.id, expectedEditVersion: item.editVersion }),
+      });
+      if (selectedId === item.id) setSelectedId(null);
+      await load();
+      setMessage(`ลบ ${item.objectName} แล้ว`);
+    } catch (error) {
+      setMessage(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const saveSelectedScreenPages = async (
     relations: StudioPageRelation[],
     definition: Record<string, unknown>,
@@ -599,7 +683,7 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
                     <div className="border border-2 border-dashed rounded p-3 bg-light" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const type = event.dataTransfer.getData("application/x-lowcode-component"); if (type) void createInstance(page, panel.id, type); }}>
                       <strong>{page.objectName} / {panel.name}</strong>
                       <div className="small text-muted">Desktop {panel.responsive?.desktop ?? 12} · Tablet {panel.responsive?.tablet ?? 12} · Mobile {panel.responsive?.mobile ?? 12}</div>
-                      <div className="mt-2 d-flex flex-wrap gap-1">{objects.filter((item) => item.objectType === "COMPONENT_INSTANCE" && item.definition.pageId === page.objectKey && item.definition.panelId === panel.id).map((item) => <span className="badge text-bg-primary" key={item.id}>{item.objectName}</span>)}</div>
+                      <PlacementInstances items={objects.filter((item) => item.objectType === "COMPONENT_INSTANCE" && item.definition.placement === "page_panel" && item.definition.pageId === page.objectKey && item.definition.panelId === panel.id)} busy={busy} selectedId={selectedId} onSelect={setSelectedId} onMove={(items, from, to) => void reorderInstances(items, from, to)} onRemove={(item) => void removeInstance(item)} />
                     </div>
                   </div>
                 )))}
@@ -613,7 +697,7 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
               <div className="d-flex gap-2 flex-wrap mb-3">
                 {standardComponents.map((type) => <span key={type} draggable onDragStart={(event) => event.dataTransfer.setData("application/x-lowcode-component", type)} className="badge text-bg-light border p-2" style={{ cursor: "grab" }}>{type}</span>)}
               </div>
-              {screens.map((screen) => <div key={screen.id} className="mb-3"><strong>{screen.objectName}</strong><div className="row g-2 mt-1">{SCREEN_REGION_KEYS.map((regionKey) => <div className={regionKey === "content" ? "col-12" : "col-6"} key={regionKey}><div className="border border-2 border-dashed rounded p-2 bg-light h-100" style={{ minHeight: regionKey === "content" ? 90 : 58 }} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const type = event.dataTransfer.getData("application/x-lowcode-component"); if (type) void createScreenInstance(screen, regionKey, type); }}><span className="small text-uppercase text-muted">{regionKey}</span><div className="d-flex gap-1 flex-wrap mt-1">{objects.filter((item) => item.objectType === "COMPONENT_INSTANCE" && item.definition.placement === "screen_region" && item.definition.screenId === screen.objectKey && item.definition.region === regionKey).map((item) => <span className="badge text-bg-primary" key={item.id}>{item.objectName}</span>)}</div></div></div>)}</div></div>)}
+              {screens.map((screen) => <div key={screen.id} className="mb-3"><strong>{screen.objectName}</strong><div className="row g-2 mt-1">{SCREEN_REGION_KEYS.map((regionKey) => <div className={regionKey === "content" ? "col-12" : "col-6"} key={regionKey}><div className="border border-2 border-dashed rounded p-2 bg-light h-100" style={{ minHeight: regionKey === "content" ? 90 : 58 }} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const type = event.dataTransfer.getData("application/x-lowcode-component"); if (type) void createScreenInstance(screen, regionKey, type); }}><span className="small text-uppercase text-muted">{regionKey}</span><PlacementInstances items={objects.filter((item) => item.objectType === "COMPONENT_INSTANCE" && item.definition.placement === "screen_region" && item.definition.screenId === screen.objectKey && item.definition.region === regionKey)} busy={busy} selectedId={selectedId} onSelect={setSelectedId} onMove={(items, from, to) => void reorderInstances(items, from, to)} onRemove={(item) => void removeInstance(item)} /></div></div>)}</div></div>)}
             </div></div>
           )}
 

@@ -163,6 +163,90 @@ function RecordEditor({
   </div>;
 }
 
+interface BindingOption {
+  value: string;
+  label: string;
+}
+
+function BindingEditor({
+  value,
+  options,
+  onChange,
+}: {
+  value: Record<string, unknown>;
+  options: BindingOption[];
+  onChange: (value: Record<string, unknown>) => void;
+}) {
+  const entries = Object.entries(value);
+  const listId = `binding-sources-${options.map((option) => option.value).join("-").replace(/[^a-z0-9_-]/gi, "").slice(0, 40)}`;
+  const add = () => {
+    let index = entries.length + 1;
+    while (`property_${index}` in value) index += 1;
+    onChange({ ...value, [`property_${index}`]: options[0]?.value ?? "" });
+  };
+  return <div className="col-12">
+    <div className="d-flex align-items-center mb-2"><strong>Bindings</strong><button type="button" className="btn btn-sm btn-outline-primary ms-auto" onClick={add}><Plus size={13} /> Add</button></div>
+    {entries.length === 0 && <div className="small text-muted border rounded p-2">No bindings configured.</div>}
+    {options.length > 0 && <datalist id={listId}>{options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</datalist>}
+    {entries.map(([key, item], index) => <div className="row g-2 mb-2" key={`binding-row-${index}`}>
+      <div className="col-md-5"><input aria-label="Bindings key" className="form-control form-control-sm font-monospace" value={key} onChange={(event) => onChange(renameRecordKey(value, key, event.target.value))} placeholder="Component prop" /></div>
+      <div className="col-md-6"><input aria-label="Bindings source" list={options.length ? listId : undefined} className="form-control form-control-sm font-monospace" value={typeof item === "string" ? item : String(item ?? "")} onChange={(event) => onChange({ ...value, [key]: event.target.value })} placeholder="collectionAlias.field" /></div>
+      <div className="col-md-1"><button type="button" aria-label={`Remove ${key}`} className="btn btn-sm btn-outline-danger" onClick={() => onChange(Object.fromEntries(entries.filter(([candidate]) => candidate !== key)))}><Trash2 size={13} /></button></div>
+    </div>)}
+    {options.length > 0 && <div className="small text-muted">เลือก source จาก Collection schema ได้ หรือพิมพ์ path เอง</div>}
+  </div>;
+}
+
+const bindingOptionsFor = (
+  object: StudioObject,
+  objects: StudioObject[],
+  relations: Relation[],
+): BindingOption[] => {
+  const pageKeys = new Set<string>();
+  if (object.definition.placement === "page_panel" && typeof object.definition.pageId === "string") {
+    pageKeys.add(object.definition.pageId);
+  }
+  if (object.definition.placement === "screen_region" && typeof object.definition.screenId === "string") {
+    const screen = objects.find((candidate) =>
+      candidate.objectType === "SCREEN" && candidate.objectKey === object.definition.screenId,
+    );
+    relations
+      .filter((relation) => relation.screenObjectId === screen?.id)
+      .forEach((relation) => {
+        const page = objects.find((candidate) => candidate.id === relation.pageObjectId);
+        if (page) pageKeys.add(page.objectKey);
+      });
+  }
+
+  const collections = new Map(
+    objects.filter((candidate) => candidate.objectType === "COLLECTION")
+      .map((candidate) => [candidate.objectKey, candidate]),
+  );
+  const options: BindingOption[] = [];
+  objects
+    .filter((candidate) => candidate.objectType === "PAGE" && pageKeys.has(candidate.objectKey))
+    .forEach((page) => {
+      const loads = Array.isArray(page.definition.collections) ? page.definition.collections : [];
+      loads.map(record).forEach((load) => {
+        const alias = typeof load.alias === "string" ? load.alias : "";
+        const collectionId = typeof load.collectionId === "string" ? load.collectionId : "";
+        if (!alias) return;
+        options.push({ value: alias, label: `${alias} · all rows` });
+        const collection = collections.get(collectionId);
+        const fields = Array.isArray(collection?.definition.fields) ? collection.definition.fields : [];
+        fields.map(record).forEach((field) => {
+          if (typeof field.id === "string") {
+            options.push({
+              value: `${alias}.${field.id}`,
+              label: `${alias}.${field.id} · ${String(field.name ?? field.id)}`,
+            });
+          }
+        });
+      });
+    });
+  return [...new Map(options.map((option) => [option.value, option])).values()];
+};
+
 export function TemplatePropertyEditor({ object, objects, relations, busy, onRename, onSaveDefinition, onSaveScreenPages }: Props) {
   const initialRelations = relations
     .filter((item) => item.screenObjectId === object.id)
@@ -187,6 +271,7 @@ export function TemplatePropertyEditor({ object, objects, relations, busy, onRen
   const eventSteps = stepsFrom(draft.eventSteps);
   const setEventSteps = (next: StudioEventStep[]) => set("eventSteps", normalizeEventSteps(next));
   const componentDefinition = record(draft.definition);
+  const bindingOptions = bindingOptionsFor(object, objects, relations);
 
   const togglePage = (pageId: string) => {
     if (screenPageIds.includes(pageId)) {
@@ -244,7 +329,7 @@ export function TemplatePropertyEditor({ object, objects, relations, busy, onRen
 
           {object.objectType === "COMPONENT" && <><div className="col-md-4"><label className="form-label small">Component type</label><select className="form-select form-select-sm" value={String(draft.componentType ?? "standard")} onChange={(event) => set("componentType", event.target.value)}><option value="standard">Standard</option><option value="html">HTML</option></select></div><div className="col-md-3"><label className="form-label small">Version</label><input type="number" min={1} className="form-control form-control-sm" value={Number(draft.version ?? 1)} onChange={(event) => set("version", Math.max(1, Number(event.target.value)))} /></div>{draft.componentType === "html" ? <div className="col-md-5 d-flex align-items-end"><button type="button" className="btn btn-outline-primary w-100" onClick={() => setShowHtmlStudio(true)}><Braces size={15} className="me-1" />Open HTML Studio</button></div> : <div className="col-md-5"><label className="form-label small">Standard component</label><input className="form-control form-control-sm" value={String(componentDefinition.standardType ?? "TextComponent")} onChange={(event) => set("definition", { ...componentDefinition, standardType: event.target.value })} /></div>}</>}
 
-          {object.objectType === "COMPONENT_INSTANCE" && <><div className="col-md-4"><label className="form-label small">Source</label><input className="form-control form-control-sm" value={String(draft.standardType ?? draft.componentId ?? "—")} disabled /></div><div className="col-md-4"><label className="form-label small">Placement</label><input className="form-control form-control-sm" value={draft.placement === "screen_region" ? `${String(draft.screenId)} / ${String(draft.region)}` : `${String(draft.pageId)} / ${String(draft.panelId)}`} disabled /></div><div className="col-md-4"><label className="form-label small">Load order</label><input type="number" min={0} className="form-control form-control-sm" value={Number(draft.loadOrder ?? 0)} onChange={(event) => set("loadOrder", Math.max(0, Number(event.target.value)))} /></div><RecordEditor label="Props" value={record(draft.props)} onChange={(value) => set("props", value)} /><RecordEditor label="Bindings" value={record(draft.bindings)} onChange={(value) => set("bindings", value)} /></>}
+          {object.objectType === "COMPONENT_INSTANCE" && <><div className="col-md-4"><label className="form-label small">Source</label><input className="form-control form-control-sm" value={String(draft.standardType ?? draft.componentId ?? "—")} disabled /></div><div className="col-md-4"><label className="form-label small">Placement</label><input className="form-control form-control-sm" value={draft.placement === "screen_region" ? `${String(draft.screenId)} / ${String(draft.region)}` : `${String(draft.pageId)} / ${String(draft.panelId)}`} disabled /></div><div className="col-md-4"><label className="form-label small">Load order</label><input type="number" min={0} className="form-control form-control-sm" value={Number(draft.loadOrder ?? 0)} onChange={(event) => set("loadOrder", Math.max(0, Number(event.target.value)))} /></div><RecordEditor label="Props" value={record(draft.props)} onChange={(value) => set("props", value)} /><BindingEditor value={record(draft.bindings)} options={bindingOptions} onChange={(value) => set("bindings", value)} /></>}
         </div>
 
         {object.objectType !== "SCREEN" && <div className="d-flex justify-content-end mt-3"><button className="btn btn-primary" disabled={busy} onClick={() => void save()}><Save size={15} className="me-1" />Save properties</button></div>}

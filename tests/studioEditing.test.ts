@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildScreenPageUpdate, moveItem, normalizeEventSteps, normalizePanels, parseStudioValue, renameRecordKey } from "@/lib/template/studioEditing";
+import { buildScreenPageUpdate, componentPlacementKey, moveItem, normalizeEventSteps, normalizePanels, orderComponents, parseStudioValue, placementOf, renameRecordKey } from "@/lib/template/studioEditing";
 
 describe("Template Studio editing helpers", () => {
   it("reorders without mutating the input", () => {
@@ -39,5 +39,22 @@ describe("Template Studio editing helpers", () => {
       { id: "b", phase: "afterLoad", order: 8, action: "second" },
       { id: "a", phase: "onload", order: 2, action: "first" },
     ]).map((step) => step.order)).toEqual([0, 1]);
+  });
+
+  it("creates stable placement identities for page panels and Screen regions", () => {
+    expect(componentPlacementKey({ placement: "page_panel", pageId: "page.home", panelId: "main" }))
+      .toBe("page_panel:page.home:main");
+    expect(placementOf({ placement: "screen_region", screenId: "screen.main", region: "header" }))
+      .toEqual({ placement: "screen_region", screenId: "screen.main", region: "header" });
+    expect(placementOf({ placement: "page_panel", pageId: "", panelId: "main" })).toBeNull();
+  });
+
+  it("orders component instances by loadOrder without mutating server state", () => {
+    const input = [
+      { id: "b", objectKey: "instance.b", editVersion: 1, definition: { loadOrder: 2 } },
+      { id: "a", objectKey: "instance.a", editVersion: 1, definition: { loadOrder: 0 } },
+    ];
+    expect(orderComponents(input).map((item) => item.id)).toEqual(["a", "b"]);
+    expect(input.map((item) => item.id)).toEqual(["b", "a"]);
   });
 });
