@@ -3,6 +3,7 @@ import {
   TEMPLATE_DEFINITION_SCHEMA_VERSION,
   type TemplateDefinition,
 } from "./contracts";
+import { validateModuleSetting } from "@/lib/modules/moduleSettings";
 
 export interface TemplateDefinitionIssue {
   code: string;
@@ -102,6 +103,15 @@ function validateTypedTemplateDefinition(
       issue("duplicate_id", path, `Duplicate id '${id}'`);
     }
   }
+
+  for (const moduleKey of duplicateValues(definition.modules.map((item) => item.moduleKey))) {
+    issue("duplicate_module_key", "modules", `Duplicate module key '${moduleKey}'`);
+  }
+  definition.modules.forEach((module, index) => {
+    validateModuleSetting(module).issues.forEach((moduleIssue) => {
+      issue(moduleIssue.code, `modules[${index}].${moduleIssue.path}`, moduleIssue.message);
+    });
+  });
 
   for (const tableName of duplicateValues(
     definition.collections.map((collection) => collection.tableName),

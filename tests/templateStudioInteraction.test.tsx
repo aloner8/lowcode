@@ -40,6 +40,28 @@ const collection = {
 };
 
 describe("Template Studio browser interactions", () => {
+  it("edits a Files Module through the policy-aware form", async () => {
+    const user = userEvent.setup();
+    const onSaveDefinition = vi.fn(async (_definition: Record<string, unknown>) => undefined);
+    const moduleObject = {
+      id: "module-row",
+      objectType: "MODULE",
+      objectKey: "module.files",
+      objectName: "Files",
+      editVersion: 1,
+      definition: { moduleKey: "auth", enabled: true, config: { providers: ["local"], allowRegister: false, afterLogin: "/" } },
+    };
+
+    render(<TemplatePropertyEditor object={moduleObject} objects={[moduleObject]} relations={[]} busy={false} onRename={vi.fn()} onSaveDefinition={onSaveDefinition} onSaveScreenPages={vi.fn()} />);
+    await user.selectOptions(screen.getByLabelText("Module"), "files");
+    const workingPath = screen.getByLabelText("Working path");
+    await user.clear(workingPath);
+    await user.type(workingPath, "/records");
+    await user.click(screen.getByRole("button", { name: /Save properties/i }));
+
+    expect(onSaveDefinition).toHaveBeenCalledWith({ moduleKey: "files", enabled: true, config: { workingPath: "/records" } });
+  });
+
   it("creates an Object through the Studio API flow without JSON editing", async () => {
     const user = userEvent.setup();
     const objects: Array<Record<string, unknown>> = [];

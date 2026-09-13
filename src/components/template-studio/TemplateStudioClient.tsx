@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { SCREEN_REGION_KEYS } from "@/lib/template/contracts";
 import { COMPONENT_PALETTE } from "@/lib/engine/ComponentRegistry";
+import { createDefaultModuleConfig } from "@/lib/modules/moduleSettings";
 import { TemplatePropertyEditor } from "@/components/template-studio/TemplatePropertyEditor";
 import { TemplateRuntimePreview } from "@/components/template-studio/TemplateRuntimePreview";
 import {
@@ -243,7 +244,7 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
 
   const definitionFor = (type: ObjectType, key: string, name: string): Record<string, unknown> => {
     if (type === "STARTUP") return { mainCss: "", browserActions: [] };
-    if (type === "MODULE") return { moduleKey: key, enabled: true, config: {} };
+    if (type === "MODULE") return { moduleKey: "auth", enabled: true, config: createDefaultModuleConfig("auth") };
     if (type === "ROUTE") {
       return {
         path: routes.length ? `/${safeKeyPart(name)}` : "/",

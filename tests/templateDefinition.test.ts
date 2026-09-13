@@ -14,6 +14,18 @@ describe("template definition foundation contract", () => {
     });
   });
 
+  it("rejects duplicate and runtime-unsupported Module Settings", () => {
+    const definition = cloneDefinition();
+    definition.modules = [
+      { id: "module.mail-a", moduleKey: "mail", enabled: true, config: {} },
+      { id: "module.mail-b", moduleKey: "mail", enabled: true, config: {} },
+    ];
+
+    const issues = validateTemplateDefinition(definition).issues;
+    expect(issues).toContainEqual(expect.objectContaining({ code: "duplicate_module_key" }));
+    expect(issues).toContainEqual(expect.objectContaining({ code: "unsupported_module" }));
+  });
+
   it("requires the default page to belong to the screen", () => {
     const definition = cloneDefinition();
     definition.screenPages = [];

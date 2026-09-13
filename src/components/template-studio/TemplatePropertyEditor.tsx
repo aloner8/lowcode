@@ -21,6 +21,12 @@ import {
   type StudioPanel,
 } from "@/lib/template/studioEditing";
 import type { ComponentType } from "@/types";
+import {
+  createDefaultModuleConfig,
+  MODULE_SETTING_CATALOG,
+  type SupportedModuleKey,
+  validateModuleSetting,
+} from "@/lib/modules/moduleSettings";
 
 interface StudioObject {
   id: string;
@@ -380,6 +386,16 @@ export function TemplatePropertyEditor({ object, objects, relations, busy, onRen
 
   const set = (key: string, value: unknown) => setDraft((current) => ({ ...current, [key]: value }));
   const save = () => onSaveDefinition(draft);
+  const moduleKey = MODULE_SETTING_CATALOG.some((item) => item.key === draft.moduleKey)
+    ? draft.moduleKey as SupportedModuleKey
+    : null;
+  const moduleConfig = record(draft.config);
+  const moduleValidation = object.objectType === "MODULE"
+    ? validateModuleSetting({ moduleKey: String(draft.moduleKey ?? ""), enabled: draft.enabled, config: moduleConfig })
+    : { valid: true, issues: [] };
+  const selectModule = (nextKey: SupportedModuleKey) => {
+    setDraft({ ...draft, moduleKey: nextKey, config: createDefaultModuleConfig(nextKey) });
+  };
   const panels = panelsFrom(draft.panels);
   const setPanels = (next: StudioPanel[]) => set("panels", normalizePanels(next));
   const fields = fieldsFrom(draft.fields);
@@ -456,7 +472,13 @@ export function TemplatePropertyEditor({ object, objects, relations, busy, onRen
 
           {object.objectType === "STARTUP" && <div className="col-12"><label className="form-label small">Main CSS</label><textarea rows={8} className="form-control form-control-sm font-monospace" value={String(draft.mainCss ?? "")} onChange={(event) => set("mainCss", event.target.value)} /></div>}
 
-          {object.objectType === "MODULE" && <><div className="col-md-8"><label className="form-label small">Module key</label><input className="form-control form-control-sm" value={String(draft.moduleKey ?? "")} onChange={(event) => set("moduleKey", event.target.value)} /></div><div className="col-md-4 d-flex align-items-end"><label className="form-check"><input className="form-check-input" type="checkbox" checked={draft.enabled === true} onChange={(event) => set("enabled", event.target.checked)} /> <span className="form-check-label">Enabled</span></label></div></>}
+          {object.objectType === "MODULE" && <>
+            <div className="col-md-8"><label className="form-label small">Module</label><select aria-label="Module" className="form-select form-select-sm" value={String(draft.moduleKey ?? "")} onChange={(event) => selectModule(event.target.value as SupportedModuleKey)}>{moduleKey === null && <option value={String(draft.moduleKey ?? "")} disabled>Unsupported: {String(draft.moduleKey ?? "unknown")}</option>}{MODULE_SETTING_CATALOG.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}</select><div className="form-text">{MODULE_SETTING_CATALOG.find((item) => item.key === moduleKey)?.description ?? "Choose a module supported by this runtime image."}</div></div>
+            <div className="col-md-4 d-flex align-items-end"><label className="form-check form-switch"><input className="form-check-input" type="checkbox" checked={draft.enabled === true} onChange={(event) => set("enabled", event.target.checked)} /> <span className="form-check-label">Enabled</span></label></div>
+            {moduleKey === "auth" && <><div className="col-md-6"><label className="form-label small">Provider</label><input className="form-control form-control-sm" value="local" disabled /></div><div className="col-md-6"><label className="form-label small">After login</label><input aria-label="After login" className="form-control form-control-sm" value={String(moduleConfig.afterLogin ?? "/")} onChange={(event) => set("config", { ...moduleConfig, providers: ["local"], allowRegister: false, afterLogin: event.target.value })} /></div><div className="col-12 small text-muted">Registration is locked off until verification/reset Mail is available.</div></>}
+            {moduleKey === "files" && <div className="col-12"><label className="form-label small">Working path</label><input aria-label="Working path" className="form-control form-control-sm font-monospace" value={String(moduleConfig.workingPath ?? "/documents")} onChange={(event) => set("config", { workingPath: event.target.value })} /><div className="form-text">Tenant-scoped path only; parent traversal is rejected.</div></div>}
+            {!moduleValidation.valid && <div className="col-12"><div className="alert alert-warning py-2 mb-0">{moduleValidation.issues.map((item) => <div className="small" key={`${item.code}:${item.path}`}>{item.message}</div>)}</div></div>}
+          </>}
 
           {object.objectType === "ROUTE" && <><div className="col-md-5"><label className="form-label small">Path</label><input className="form-control form-control-sm" value={String(draft.path ?? "")} onChange={(event) => set("path", event.target.value)} /></div><div className="col-md-5"><label className="form-label small">Screen</label><select className="form-select form-select-sm" value={String(draft.screenId ?? "")} onChange={(event) => set("screenId", event.target.value)}>{screens.map((screen) => <option key={screen.id} value={screen.objectKey}>{screen.objectName}</option>)}</select></div><div className="col-md-2 d-flex align-items-end"><label className="form-check"><input className="form-check-input" type="checkbox" checked={draft.isDefault === true} onChange={(event) => set("isDefault", event.target.checked)} /> Default</label></div></>}
 
@@ -491,7 +513,7 @@ export function TemplatePropertyEditor({ object, objects, relations, busy, onRen
           {object.objectType === "COMPONENT_INSTANCE" && <><div className="col-md-4"><label className="form-label small">Source</label><input className="form-control form-control-sm" value={String(draft.standardType ?? draft.componentId ?? "—")} disabled /></div><div className="col-md-4"><label className="form-label small">Placement</label><input className="form-control form-control-sm" value={draft.placement === "screen_region" ? `${String(draft.screenId)} / ${String(draft.region)}` : `${String(draft.pageId)} / ${String(draft.panelId)}`} disabled /></div><div className="col-md-4"><label className="form-label small">Load order</label><input type="number" min={0} className="form-control form-control-sm" value={Number(draft.loadOrder ?? 0)} onChange={(event) => set("loadOrder", Math.max(0, Number(event.target.value)))} /></div><ComponentPropsEditor standardType={instanceStandardType} value={record(draft.props)} onChange={(value) => set("props", value)} /><BindingEditor value={record(draft.bindings)} options={bindingOptions} onChange={(value) => set("bindings", value)} /></>}
         </div>
 
-        {object.objectType !== "SCREEN" && <div className="d-flex justify-content-end mt-3"><button className="btn btn-primary" disabled={busy} onClick={() => void save()}><Save size={15} className="me-1" />Save properties</button></div>}
+        {object.objectType !== "SCREEN" && <div className="d-flex justify-content-end mt-3"><button className="btn btn-primary" disabled={busy || !moduleValidation.valid} onClick={() => void save()}><Save size={15} className="me-1" />Save properties</button></div>}
       </div>
     </div>
   );
