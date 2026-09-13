@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createDefaultJwtAuthService } from '@/types';
 import { getServiceDefinition, listServiceDefinitions } from '@/lib/services/catalog';
 import { normalizeServiceBinding, validateServiceBinding } from '@/lib/services/bindings';
+import { validateAppBindingOverridePolicy } from '@/lib/services/configPolicy';
 import { validateSchema } from '@/lib/services/schemaValidator';
 import { validateServicesForPublish } from '@/lib/services/publishValidation';
 import { issueJwt, verifyJwt } from '@/lib/services/jwtAuthService';
@@ -56,6 +57,62 @@ describe('publish validation', () => {
     const result = validateServicesForPublish([createDefaultJwtAuthService('demo')], []);
     expect(result.valid, result.errors.join('\n')).toBe(true);
     expect(result.services[0].status).toBe('published');
+  });
+});
+
+describe('app service override policy', () => {
+  it('lets app overrides narrow config policy without changing the connection contract', () => {
+    const parent = createDefaultJwtAuthService('demo');
+    parent.policy = {
+      allowedOperations: ['login', 'me', 'refresh'],
+      requiredPermissions: { me: ['profile.read', 'profile.audit'] },
+      rateLimit: { requests: 100, windowSeconds: 60 },
+    };
+    const override = structuredClone(parent);
+    override.scope = 'app';
+    override.policy = {
+      allowedOperations: ['login', 'me'],
+      requiredPermissions: { me: ['profile.read'] },
+      rateLimit: { requests: 50, windowSeconds: 120 },
+    };
+
+    const result = validateAppBindingOverridePolicy([parent], override);
+    expect(result.valid, result.errors.join('\n')).toBe(true);
+  });
+
+  it('rejects app overrides that expand platform connection policy', () => {
+    const parent = createDefaultJwtAuthService('demo');
+    parent.enabled = false;
+    parent.policy = {
+      allowedOperations: ['login'],
+      requiredPermissions: { login: ['auth.login'] },
+      rateLimit: { requests: 10, windowSeconds: 60 },
+    };
+    const override = structuredClone(parent);
+    override.enabled = true;
+    override.serviceRef = { serviceKey: 'notification.email', version: '1.0.0' };
+    override.policy = {
+      allowedOperations: ['login', 'me'],
+      requiredPermissions: { login: ['auth.login', 'admin.root'] },
+      rateLimit: { requests: 20, windowSeconds: 10 },
+    };
+
+    const result = validateAppBindingOverridePolicy([parent], override);
+    expect(result.valid).toBe(false);
+    expect(result.errors.join(' ')).toContain('cannot change serviceKey');
+    expect(result.errors.join(' ')).toContain('cannot enable a disabled platform connection');
+    expect(result.errors.join(' ')).toContain('cannot add operations: me');
+    expect(result.errors.join(' ')).toContain("cannot add permissions for 'login': admin.root");
+    expect(result.errors.join(' ')).toContain('cannot raise rateLimit.requests');
+    expect(result.errors.join(' ')).toContain('cannot shorten rateLimit.windowSeconds');
+  });
+
+  it('requires app overrides to point at a platform-published binding', () => {
+    const override = createDefaultJwtAuthService('demo');
+    override.id = 'service.auth.other';
+    const result = validateAppBindingOverridePolicy([createDefaultJwtAuthService('demo')], override);
+    expect(result.valid).toBe(false);
+    expect(result.errors.join(' ')).toContain('must reference a platform-published connection');
   });
 });
 

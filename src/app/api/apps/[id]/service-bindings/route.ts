@@ -3,6 +3,7 @@ import { getCoreDb } from '@/lib/db/coreDb';
 import { requireSiteSession } from '@/lib/auth/apiAuth';
 import { resolveAppServiceBindings } from '@/lib/services/appBindings';
 import { validateServiceBinding } from '@/lib/services/bindings';
+import { validateAppBindingOverridePolicy } from '@/lib/services/configPolicy';
 import { validateBindingSecretReferences } from '@/lib/services/secrets';
 import type { StudioServiceDefinition } from '@/types';
 import { getServiceDefinition } from '@/lib/services/catalog';
@@ -21,9 +22,11 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
   const scope = await appScope(id); if (!scope) return NextResponse.json({ error: 'App not found' }, { status: 404 });
   const input = await request.json().catch(() => null) as StudioServiceDefinition | null;
   if (!input) return NextResponse.json({ error: 'Binding is required' }, { status: 400 });
-  const checked = validateServiceBinding(input); const errors = [...checked.errors, ...validateBindingSecretReferences(checked.binding)];
+  const checked = validateServiceBinding(input);
+  const policy = validateAppBindingOverridePolicy(scope.studio_services, checked.binding);
+  const errors = [...checked.errors, ...policy.errors, ...validateBindingSecretReferences(policy.binding)];
   if (errors.length) return NextResponse.json({ valid: false, errors }, { status: 422 });
-  const binding = checked.binding;
+  const binding = policy.binding;
   const definition = getServiceDefinition(binding.serviceRef!.serviceKey, binding.serviceRef!.version)!;
   await getCoreDb().query(`INSERT INTO public.service_definitions(service_key,version,display_name,kind,lifecycle,definition) VALUES($1,$2,$3,$4,$5,$6::jsonb) ON CONFLICT(service_key,version) DO UPDATE SET definition=excluded.definition,display_name=excluded.display_name,kind=excluded.kind,lifecycle=excluded.lifecycle`, [definition.serviceKey, definition.version, definition.displayName, definition.kind, definition.lifecycle, JSON.stringify(definition)]);
   await getCoreDb().query(
