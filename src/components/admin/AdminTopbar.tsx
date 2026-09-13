@@ -10,9 +10,10 @@ import { UserProfile } from '@/types';
 interface AdminTopbarProps {
   readonly user: UserProfile;
   readonly onOpenMenu: () => void;
+  readonly showMenuButton?: boolean;
 }
 
-export default function AdminTopbar({ user, onOpenMenu }: AdminTopbarProps) {
+export default function AdminTopbar({ user, onOpenMenu, showMenuButton = true }: AdminTopbarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const current = navItemFor(pathname);
@@ -72,7 +73,7 @@ export default function AdminTopbar({ user, onOpenMenu }: AdminTopbarProps) {
   return (
     <header className="adm-topbar d-flex align-items-center justify-content-between gap-3 px-3 px-md-4">
       <div className="d-flex align-items-center gap-2 gap-md-3 min-w-0">
-        <button
+        {showMenuButton && <button
           type="button"
           className="btn btn-link p-2 d-lg-none text-decoration-none"
           style={{ color: 'var(--gov-ink)' }}
@@ -81,7 +82,7 @@ export default function AdminTopbar({ user, onOpenMenu }: AdminTopbarProps) {
           aria-controls="admin-sidebar"
         >
           <Menu size={20} />
-        </button>
+        </button>}
 
         <div className="min-w-0">
           <h1 className="adm-page-title text-truncate">{pageTitle}</h1>

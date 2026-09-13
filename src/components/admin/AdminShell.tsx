@@ -27,6 +27,7 @@ export default function AdminShell({
   readonly mainClassName?: string;
 }) {
   const pathname = usePathname();
+  const isDashboard = pathname === '/admin';
   const [isOpen, setIsOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -62,16 +63,18 @@ export default function AdminShell({
 
   return (
     <div className="adm-shell d-flex min-vh-100">
-      <AdminSidebar
-        user={user}
-        isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
-        isCollapsed={isCollapsed}
-        onToggleCollapse={toggleCollapse}
-      />
+      {!isDashboard && (
+        <AdminSidebar
+          user={user}
+          isOpen={isOpen}
+          onClose={() => setIsOpen(false)}
+          isCollapsed={isCollapsed}
+          onToggleCollapse={toggleCollapse}
+        />
+      )}
 
       <div className="d-flex flex-column flex-grow-1 min-w-0">
-        <AdminTopbar user={user} onOpenMenu={() => setIsOpen(true)} />
+        <AdminTopbar user={user} onOpenMenu={() => setIsOpen(true)} showMenuButton={!isDashboard} />
         <main className={`flex-grow-1 ${mainClassName}`}>{children}</main>
       </div>
     </div>
