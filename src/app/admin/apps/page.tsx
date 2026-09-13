@@ -37,6 +37,15 @@ interface TestApp {
   surfaces: Record<string, { url?: string | null; port?: number | null }>;
 }
 
+interface DomainRecord {
+  id: string;
+  domain: string;
+  isPrimary: boolean;
+  readinessStatus: 'PENDING_DNS' | 'PENDING_PROXY' | 'READY';
+  verificationToken: string | null;
+  lastError: string | null;
+}
+
 export default function TenantAppsPage() {
   const [apps, setApps] = useState<SiteApp[]>([]);
   const [testApps, setTestApps] = useState<TestApp[]>([]);
@@ -55,6 +64,7 @@ export default function TenantAppsPage() {
 
   const [domainTarget, setDomainTarget] = useState<SiteApp | null>(null);
   const [newDomain, setNewDomain] = useState('');
+  const [domainRecords, setDomainRecords] = useState<DomainRecord[]>([]);
 
   const [overrideTarget, setOverrideTarget] = useState<SiteApp | null>(null);
   const [disabledFeatures, setDisabledFeatures] = useState('');
@@ -139,10 +149,43 @@ export default function TenantAppsPage() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'เพิ่มโดเมนไม่สำเร็จ');
       setNewDomain('');
+      setDomainRecords((current) => [...current, payload.domain as DomainRecord]);
       await loadData();
-      setDomainTarget(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'เพิ่มโดเมนไม่สำเร็จ');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openDomainModal = async (app: SiteApp) => {
+    setDomainTarget(app);
+    setNewDomain('');
+    setDomainRecords([]);
+    try {
+      const response = await fetch(`/api/apps/${app.appId}/domains`, { cache: 'no-store' });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'อ่านสถานะโดเมนไม่สำเร็จ');
+      setDomainRecords(payload.domains as DomainRecord[]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'อ่านสถานะโดเมนไม่สำเร็จ');
+    }
+  };
+
+  const handleDomainReadiness = async (domainId: string, action: 'VERIFY_DNS' | 'CONFIRM_PROXY') => {
+    if (!domainTarget) return;
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/apps/${domainTarget.appId}/domains`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domainId, action }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'ตรวจสอบโดเมนไม่สำเร็จ');
+      setDomainRecords(payload.domains as DomainRecord[]);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ตรวจสอบโดเมนไม่สำเร็จ');
     } finally {
       setBusy(false);
     }
@@ -157,6 +200,7 @@ export default function TenantAppsPage() {
       );
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'ลบโดเมนไม่สำเร็จ');
+      setDomainRecords((current) => current.filter((item) => item.domain !== domain));
       await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ลบโดเมนไม่สำเร็จ');
@@ -452,7 +496,7 @@ export default function TenantAppsPage() {
                     <button
                       type="button"
                       className="adm-btn is-quiet is-sm"
-                      onClick={() => { setDomainTarget(app); setNewDomain(''); }}
+                      onClick={() => void openDomainModal(app)}
                     >
                       <Globe size={14} aria-hidden="true" /> โดเมน
                     </button>
@@ -598,12 +642,33 @@ export default function TenantAppsPage() {
           หนึ่งโดเมนผูกได้กับเว็บไซต์เดียวเท่านั้น หลังเพิ่มแล้วให้เริ่มบริการใหม่ด้วย <code>npm run sites</code>
         </p>
 
-        {domainTarget && domainTarget.domains.length > 0 && (
+        {domainRecords.length > 0 && (
           <div className="mt-3">
-            <p className="adm-label d-block mb-2">โดเมนที่ผูกไว้แล้ว</p>
-            <div className="d-flex flex-wrap gap-1">
-              {domainTarget.domains.map((domain) => (
-                <span key={domain} className="adm-tag is-fixed">{domain}</span>
+            <p className="adm-label d-block mb-2">สถานะโดเมน</p>
+            <div className="d-flex flex-column gap-2">
+              {domainRecords.map((domain) => (
+                <div key={domain.id} className="border rounded p-2 d-flex align-items-center justify-content-between gap-2">
+                  <div className="min-w-0">
+                    <span className="font-monospace d-block text-truncate">{domain.domain}</span>
+                    <span className={`adm-chip mt-1 ${domain.readinessStatus === 'READY' ? 'is-ok' : domain.readinessStatus === 'PENDING_PROXY' ? 'is-warn' : 'is-off'}`}>
+                      {domain.readinessStatus === 'READY' ? 'พร้อมใช้งาน' : domain.readinessStatus === 'PENDING_PROXY' ? 'รอยืนยัน Proxy' : 'รอตรวจ DNS'}
+                    </span>
+                    {domain.lastError && <span className="adm-cell-sub d-block mt-1">{domain.lastError}</span>}
+                    {domain.readinessStatus === 'PENDING_DNS' && domain.verificationToken && (
+                      <code className="adm-cell-sub d-block mt-1 text-break">TXT _matchanu-verification = matchanu-site-verification={domain.verificationToken}</code>
+                    )}
+                  </div>
+                  <div className="d-flex gap-1 flex-shrink-0">
+                    {domain.readinessStatus === 'PENDING_PROXY' ? (
+                      <button type="button" className="adm-btn is-sm" disabled={busy} onClick={() => void handleDomainReadiness(domain.id, 'CONFIRM_PROXY')}>ยืนยัน Proxy</button>
+                    ) : domain.readinessStatus !== 'READY' ? (
+                      <button type="button" className="adm-btn is-quiet is-sm" disabled={busy} onClick={() => void handleDomainReadiness(domain.id, 'VERIFY_DNS')}>ตรวจ DNS</button>
+                    ) : null}
+                    {!domain.isPrimary && domainTarget && (
+                      <button type="button" className="adm-btn is-danger is-sm" disabled={busy} onClick={() => void handleRemoveDomain(domainTarget, domain.domain)} aria-label={`ลบโดเมน ${domain.domain}`}><Trash2 size={12} /></button>
+                    )}
+                  </div>
+                </div>
               ))}
             </div>
           </div>

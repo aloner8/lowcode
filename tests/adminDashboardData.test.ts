@@ -59,6 +59,21 @@ describe("P6 role-scoped Dashboard data", () => {
     expect(mocks.query.mock.calls[0][1]).toEqual(["user-a", false]);
   });
 
+  it("does not advertise the canonical hostname before domain readiness", async () => {
+    mocks.query.mockResolvedValue({
+      rowCount: 1,
+      rows: [{
+        id: "app-a", app_slug: "records", app_name: "Records",
+        subdomain: "pending.example.test", port: 33001, package_name: "standard",
+        package_expires_at: null, is_active: true, is_suspended: false,
+        primary_domain: null, platform_id: null,
+      }],
+    });
+    await expect(loadDashboardSites("user-a", false)).resolves.toEqual([
+      expect.objectContaining({ primaryDomain: null }),
+    ]);
+  });
+
   it("scopes audit activity to visible platform IDs and skips empty scope", async () => {
     await expect(fetchPlatformAudit({ platformIds: [], limit: 6 })).resolves.toEqual({ logs: [], total: 0 });
     expect(mocks.query).not.toHaveBeenCalled();

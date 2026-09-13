@@ -30,9 +30,9 @@ export function generateNginxConfig(sites: SiteRecord[], options: NginxOptions =
   const sitesHost = options.sitesHost ?? 'sites';
 
   const siteBlocks = sites
-    .filter((site) => site.isActive)
+    .filter((site) => site.isActive && site.domains.length > 0)
     .map((site) => {
-      const names = [...new Set([...site.domains, site.subdomain, `${site.appSlug}.localhost`])]
+      const names = [...new Set(site.domains)]
         .filter(Boolean)
         .join(' ');
 

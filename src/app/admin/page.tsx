@@ -170,7 +170,7 @@ export default async function AdminDashboardPage() {
                             <span className="adm-cell-sub">{site.appSlug}</span>
                           </td>
                           <td>
-                            <code>{site.primaryDomain}</code>
+                            {site.primaryDomain ? <code>{site.primaryDomain}</code> : <span className="adm-chip is-warn">รอ Domain พร้อมใช้งาน</span>}
                             <span className="adm-cell-sub d-block">พอร์ต {site.port}</span>
                           </td>
                           <td>{site.packageName}</td>

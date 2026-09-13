@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { getCoreDb } from '@/lib/db/coreDb';
+import { randomBytes } from 'node:crypto';
 import type { ThemeConfig, TenantOverrides } from '@/types';
 
 /**
@@ -26,6 +27,20 @@ export interface SiteRecord {
   platformId: string | null;
   platformSlug: string | null;
   domains: string[];
+}
+
+export interface AppDomainRecord {
+  id: string;
+  domain: string;
+  isPrimary: boolean;
+  forceHttps: boolean;
+  isActive: boolean;
+  readinessStatus: 'PENDING_DNS' | 'PENDING_PROXY' | 'READY';
+  dnsCheckedAt: string | null;
+  proxyCheckedAt: string | null;
+  verifiedAt: string | null;
+  verificationToken: string | null;
+  lastError: string | null;
 }
 
 interface SiteRow {
@@ -84,7 +99,7 @@ export async function findSiteByHost(host: string): Promise<SiteRecord | null> {
   if (!hostname) return null;
 
   const result = await getCoreDb().query<SiteRow>(
-    `${SELECT_SITES} WHERE $1 = ANY(domains) OR LOWER(subdomain) = $1 LIMIT 1`,
+    `${SELECT_SITES} WHERE $1 = ANY(domains) LIMIT 1`,
     [hostname],
   );
   return result.rowCount ? toSite(result.rows[0]) : null;
@@ -101,17 +116,47 @@ export async function buildDomainMap(): Promise<Record<string, string>> {
   const map: Record<string, string> = {};
   for (const site of sites) {
     for (const domain of site.domains) map[domain] = site.appSlug;
-    if (site.subdomain) map[site.subdomain.toLowerCase()] = site.appSlug;
   }
   return map;
 }
 
-export async function addSiteDomain(appId: string, domain: string, isPrimary = false): Promise<void> {
-  await getCoreDb().query(
-    `INSERT INTO public.app_domains (app_id, domain, is_primary) VALUES ($1, LOWER(BTRIM($2)), $3)
-     ON CONFLICT (LOWER(BTRIM(domain))) DO UPDATE SET app_id = excluded.app_id, is_active = TRUE`,
-    [appId, domain, isPrimary],
+const mapDomain = (row: {
+  id: string; domain: string; is_primary: boolean; force_https: boolean; is_active: boolean;
+  readiness_status: AppDomainRecord['readinessStatus']; dns_checked_at: Date | null;
+  proxy_checked_at: Date | null; verified_at: Date | null; last_error: string | null;
+  verification_token: string | null;
+}): AppDomainRecord => ({
+  id: row.id,
+  domain: row.domain,
+  isPrimary: row.is_primary,
+  forceHttps: row.force_https,
+  isActive: row.is_active,
+  readinessStatus: row.readiness_status,
+  dnsCheckedAt: row.dns_checked_at?.toISOString() ?? null,
+  proxyCheckedAt: row.proxy_checked_at?.toISOString() ?? null,
+  verifiedAt: row.verified_at?.toISOString() ?? null,
+  verificationToken: row.verification_token,
+  lastError: row.last_error,
+});
+
+const DOMAIN_COLUMNS = `id, domain, is_primary, force_https, is_active,
+  readiness_status, dns_checked_at, proxy_checked_at, verified_at, verification_token, last_error`;
+
+export async function listAppDomains(appId: string): Promise<AppDomainRecord[]> {
+  const result = await getCoreDb().query(`SELECT ${DOMAIN_COLUMNS}
+    FROM public.app_domains WHERE app_id = $1 ORDER BY is_primary DESC, domain`, [appId]);
+  return result.rows.map(mapDomain);
+}
+
+export async function addSiteDomain(appId: string, domain: string, isPrimary = false): Promise<AppDomainRecord> {
+  const verificationToken = randomBytes(18).toString('base64url');
+  const result = await getCoreDb().query(
+    `INSERT INTO public.app_domains (app_id, domain, is_primary, readiness_status, verification_token)
+     VALUES ($1, LOWER(BTRIM($2)), $3, 'PENDING_DNS', $4)
+     RETURNING ${DOMAIN_COLUMNS}`,
+    [appId, domain, isPrimary, verificationToken],
   );
+  return mapDomain(result.rows[0]);
 }
 
 export async function removeSiteDomain(appId: string, domain: string): Promise<boolean> {

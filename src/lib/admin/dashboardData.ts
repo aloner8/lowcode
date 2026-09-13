@@ -13,7 +13,7 @@ export interface DashboardSiteSummary {
   appId: string;
   appSlug: string;
   appName: string;
-  primaryDomain: string;
+  primaryDomain: string | null;
   port: number;
   packageName: string;
   expiresAt: string | null;
@@ -88,6 +88,7 @@ export async function loadDashboardSites(actorId: string, isGod: boolean): Promi
            app.platform_id,
            (SELECT domain.domain FROM public.app_domains domain
              WHERE domain.app_id = app.id AND domain.is_active
+               AND domain.readiness_status = 'READY'
              ORDER BY domain.is_primary DESC, domain.domain LIMIT 1) AS primary_domain
     FROM visible_apps app
     ORDER BY app.is_active DESC, app.app_name
@@ -97,7 +98,7 @@ export async function loadDashboardSites(actorId: string, isGod: boolean): Promi
     appId: row.id,
     appSlug: row.app_slug,
     appName: row.app_name,
-    primaryDomain: row.primary_domain ?? row.subdomain,
+    primaryDomain: row.primary_domain,
     port: row.port,
     packageName: row.package_name,
     expiresAt: row.package_expires_at ? row.package_expires_at.toISOString().slice(0, 10) : null,
