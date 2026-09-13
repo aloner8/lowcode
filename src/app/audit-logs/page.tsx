@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { AlertCircle, RefreshCw, Search, SearchX, FileSearch, History } from 'lucide-react';
 import AdminModal from '@/components/admin/AdminModal';
 import { auditActionLabel as actionLabel, auditActionTone as actionTone } from '@/lib/admin/auditLabels';
@@ -15,7 +17,9 @@ const thaiDateTime = (iso: string) =>
     minute: '2-digit',
   });
 
-export default function AuditLogsPage() {
+function AuditLogsContent() {
+  const searchParams = useSearchParams();
+  const entityId = searchParams.get('entityId') ?? '';
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -27,7 +31,9 @@ export default function AuditLogsPage() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/audit-logs?limit=200', { cache: 'no-store' });
+      const query = new URLSearchParams({ limit: '200' });
+      if (entityId) query.set('entityId', entityId);
+      const response = await fetch(`/api/audit-logs?${query}`, { cache: 'no-store' });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'ไม่สามารถอ่านประวัติการใช้งานได้');
       setLogs(payload.logs as AuditLog[]);
@@ -37,10 +43,11 @@ export default function AuditLogsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [entityId]);
 
   useEffect(() => {
-    void loadLogs();
+    const timer = window.setTimeout(() => void loadLogs(), 0);
+    return () => window.clearTimeout(timer);
   }, [loadLogs]);
 
   // Only the actions actually present are offered, so the filter never has a
@@ -67,8 +74,9 @@ export default function AuditLogsPage() {
     <div className="d-flex flex-column gap-3">
       <div className="adm-toolbar">
         <p className="adm-toolbar-note">
-          บันทึกทุกการเปลี่ยนแปลงในระบบ พร้อมข้อมูลก่อนและหลังแก้ไข — แสดง 200 รายการล่าสุด
+          {entityId ? 'กำลังแสดง Audit Log ที่เกี่ยวข้องกับ App ที่เลือก' : 'บันทึกทุกการเปลี่ยนแปลงในระบบ พร้อมข้อมูลก่อนและหลังแก้ไข — แสดง 200 รายการล่าสุด'}
         </p>
+        {entityId && <Link href="/audit-logs" className="adm-btn is-quiet is-sm">ล้างตัวกรอง App</Link>}
         <button type="button" className="adm-btn is-quiet is-sm" onClick={() => void loadLogs()} disabled={loading}>
           <RefreshCw size={15} className={loading ? 'adm-spin' : ''} aria-hidden="true" /> โหลดใหม่
         </button>
@@ -219,4 +227,8 @@ export default function AuditLogsPage() {
       </AdminModal>
     </div>
   );
+}
+
+export default function AuditLogsPage() {
+  return <Suspense fallback={<div className="adm-card adm-empty"><p className="adm-empty-text">กำลังโหลด…</p></div>}><AuditLogsContent /></Suspense>;
 }

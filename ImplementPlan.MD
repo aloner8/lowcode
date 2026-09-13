@@ -282,6 +282,8 @@ Auth/Files ในระยะนี้คือส่วนแรกของ Sh
 
 ### P6 — Dashboard และการบริหารระบบครบตามบทบาท
 
+**สถานะ: ผ่านเกณฑ์ในขอบเขต P6 แล้ว** — checkpoint `21c8996` ถึง `dfa69fb` และ checkpoint ปิดระยะครอบคลุม Dashboard ตามบทบาท, Customer/App detail, impersonation ที่ตรวจย้อนหลังได้, Suspend policy, quota แบบ atomic, domain readiness, Start/Stop ที่รอ health จริง และ resource metrics แบบ background รวมถึงจำกัด Audit Log ของ Tenant ตาม App/ผู้กระทำ ชุด acceptance รวมของ P6 ผ่าน 17 test files / 62 tests พร้อม typecheck, lint เฉพาะไฟล์ที่แก้ และ production build; การ apply migration/restart service และ rehearsal บน staging เป็นงาน P7 โดยยังไม่มีการเปลี่ยน gateway/Nginx/systemd ในระยะนี้
+
 ขึ้นกับ P1/P3 และใช้ข้อมูลจาก P5 งาน: Dashboard ไม่มีเมนูซ้ายของทั้งสองบทบาท, ตารางแม่แบบ/App, Admin Customer detail, impersonation, Suspend ตามนโยบายที่ปิดแล้ว, quota, domain และ Start/Stop jobs พร้อม health/metrics
 
 โครง Dashboard ทำไว้ตั้งแต่ P1 ได้ แต่ระยะนี้ต้องต่อข้อมูลและคำสั่งจริงครบ

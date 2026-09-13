@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Boxes, ExternalLink, Users } from "lucide-react";
+import { Boxes, Users } from "lucide-react";
 import { loadCustomerDetail } from "@/lib/admin/customerData";
 import AppRuntimeControl from "@/components/admin/AppRuntimeControl";
 
@@ -125,7 +125,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         <div className="adm-card-head"><h2 className="adm-card-title">เว็บไซต์</h2></div>
         <div className="table-responsive"><table className="adm-table">
           <thead><tr><th>App</th><th>แม่แบบ</th><th>แพ็กเกจ</th><th className="text-end">Runtime</th></tr></thead>
-          <tbody>{customer.apps.length ? customer.apps.map((app) => <tr key={app.id}><td><Link className="adm-cell-strong adm-link" href={`/site/${app.slug}`}>{app.name} <ExternalLink size={13} aria-hidden="true" /></Link><span className="adm-cell-sub d-block">{app.slug}</span>{app.isSuspended && <span className="adm-chip is-danger mt-1">App ถูกระงับ</span>}</td><td>{app.templateName}</td><td>{app.packageName}</td><td className="text-end"><AppRuntimeControl appId={app.id} initial={{ desiredState: app.desiredState, observedState: app.observedState, error: app.runtimeError, healthCheckedAt: app.healthCheckedAt, metrics: app.runtimeMetrics, metricsAt: app.runtimeMetricsAt }} /></td></tr>) : <tr><td colSpan={4} className="text-center adm-cell-sub">ยังไม่มี App</td></tr>}</tbody>
+          <tbody>{customer.apps.length ? customer.apps.map((app) => <tr key={app.id}><td><Link className="adm-cell-strong adm-link" href={`/admin/apps/${app.id}`}>{app.name}</Link><span className="adm-cell-sub d-block">{app.slug}</span>{app.isSuspended && <span className="adm-chip is-danger mt-1">App ถูกระงับ</span>}</td><td>{app.templateName}</td><td>{app.packageName}</td><td className="text-end"><AppRuntimeControl appId={app.id} initial={{ desiredState: app.desiredState, observedState: app.observedState, error: app.runtimeError, healthCheckedAt: app.healthCheckedAt, metrics: app.runtimeMetrics, metricsAt: app.runtimeMetricsAt }} /></td></tr>) : <tr><td colSpan={4} className="text-center adm-cell-sub">ยังไม่มี App</td></tr>}</tbody>
         </table></div>
       </section>
     </div>

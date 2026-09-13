@@ -87,4 +87,18 @@ describe("P6 role-scoped Dashboard data", () => {
     expect(mocks.query.mock.calls[0][1]).toEqual([["platform-a"], "agency-admin"]);
     expect(mocks.query.mock.calls[1][1]).toEqual([["platform-a"], "agency-admin", 6, 0]);
   });
+
+  it("supports a tenant visibility boundary spanning Platform and App audit records", async () => {
+    mocks.query
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ count: "0" }] })
+      .mockResolvedValueOnce({ rowCount: 0, rows: [] });
+    await fetchPlatformAudit({
+      scopePlatformIds: ["platform-a"], scopeAppIds: ["app-a"], scopeActor: "agency-admin", entityId: "app-a", limit: 10,
+    });
+    const [sql, params] = mocks.query.mock.calls[0];
+    expect(sql).toContain("l.entity_type IN ('APP', 'RUNTIME')");
+    expect(sql).toContain("l.performed_by = $3");
+    expect(sql).toContain("l.entity_id = $4");
+    expect(params).toEqual([["platform-a"], ["app-a"], "agency-admin", "app-a"]);
+  });
 });

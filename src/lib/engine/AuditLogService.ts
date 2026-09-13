@@ -79,8 +79,13 @@ export interface AuditQuery {
   platformId?: string;
   platformIds?: string[];
   performedBy?: string;
+  entityId?: string;
   entityType?: AuditLogEntityType;
   action?: string;
+  /** Mandatory visibility boundary for non-GOD callers. */
+  scopePlatformIds?: string[];
+  scopeAppIds?: string[];
+  scopeActor?: string;
   limit?: number;
   offset?: number;
 }
@@ -93,6 +98,17 @@ export async function fetchPlatformAudit(query: AuditQuery = {}): Promise<{ logs
   const params: unknown[] = [];
 
   if (query.platformIds?.length === 0) return { logs: [], total: 0 };
+  if (query.scopePlatformIds && query.scopeAppIds) {
+    if (!query.scopeActor || (query.scopePlatformIds.length === 0 && query.scopeAppIds.length === 0)) {
+      return { logs: [], total: 0 };
+    }
+  }
+
+  if (query.scopePlatformIds && query.scopeAppIds && query.scopeActor) {
+    params.push(query.scopePlatformIds, query.scopeAppIds, query.scopeActor);
+    conditions.push(`((l.platform_id = ANY($${params.length - 2}::uuid[]) AND l.performed_by = $${params.length})
+      OR (l.entity_type IN ('APP', 'RUNTIME') AND l.entity_id = ANY($${params.length - 1}::uuid[])))`);
+  }
 
   if (query.platformId) {
     params.push(query.platformId);
@@ -105,6 +121,10 @@ export async function fetchPlatformAudit(query: AuditQuery = {}): Promise<{ logs
   if (query.performedBy) {
     params.push(query.performedBy);
     conditions.push(`l.performed_by = $${params.length}`);
+  }
+  if (query.entityId) {
+    params.push(query.entityId);
+    conditions.push(`l.entity_id = $${params.length}`);
   }
   if (query.entityType) {
     params.push(query.entityType);
