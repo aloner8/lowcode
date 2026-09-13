@@ -14,6 +14,8 @@ const WHOLE: Record<string, string> = {
   BUILD_RUNTIME: 'สร้างระบบสำหรับทดสอบ',
   PROVISION_MODULE: 'ติดตั้งส่วนเสริม',
   PUBLISH_DATABASE: 'เผยแพร่ฐานข้อมูล',
+  START_APP: 'เริ่ม App',
+  STOP_APP: 'หยุด App',
 };
 
 const VERBS: Record<string, string> = {

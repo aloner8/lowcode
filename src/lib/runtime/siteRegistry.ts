@@ -27,6 +27,12 @@ export interface SiteRecord {
   platformId: string | null;
   platformSlug: string | null;
   domains: string[];
+  desiredState: 'RUNNING' | 'STOPPED';
+  observedState: 'UNPROVISIONED' | 'PROVISIONING' | 'STOPPED' | 'STARTING' | 'RUNNING' | 'STOPPING' | 'FAILED';
+  runtimeError: string | null;
+  healthCheckedAt: string | null;
+  runtimeMetrics: { memoryRssBytes?: number; uptimeSeconds?: number } | null;
+  runtimeMetricsAt: string | null;
 }
 
 export interface AppDomainRecord {
@@ -57,6 +63,12 @@ interface SiteRow {
   platform_id: string | null;
   platform_slug: string | null;
   domains: string[];
+  desired_state: SiteRecord['desiredState'];
+  observed_state: SiteRecord['observedState'];
+  runtime_error_detail: string | null;
+  health_checked_at: Date | null;
+  runtime_metrics: SiteRecord['runtimeMetrics'];
+  runtime_metrics_at: Date | null;
 }
 
 const toSite = (row: SiteRow): SiteRecord => ({
@@ -73,11 +85,19 @@ const toSite = (row: SiteRow): SiteRecord => ({
   platformId: row.platform_id,
   platformSlug: row.platform_slug,
   domains: row.domains ?? [],
+  desiredState: row.desired_state,
+  observedState: row.observed_state,
+  runtimeError: row.runtime_error_detail,
+  healthCheckedAt: row.health_checked_at?.toISOString() ?? null,
+  runtimeMetrics: row.runtime_metrics,
+  runtimeMetricsAt: row.runtime_metrics_at?.toISOString() ?? null,
 });
 
 const SELECT_SITES = `
   SELECT app_id, app_slug, app_name, port, subdomain, tenant_db_name, is_active,
-         theme_config, tenant_overrides, seo_settings, platform_id, platform_slug, domains
+         theme_config, tenant_overrides, seo_settings, platform_id, platform_slug, domains,
+         desired_state, observed_state, runtime_error_detail, health_checked_at,
+         runtime_metrics, runtime_metrics_at
   FROM public.site_registry
 `;
 

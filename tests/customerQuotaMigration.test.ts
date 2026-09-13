@@ -19,6 +19,11 @@ describe('P6 atomic Customer quota migration', () => {
     expect(migration).toContain('Customer running App quota exceeded');
   });
 
+  it('reuses an idempotency key only for the same App and action', () => {
+    expect(migration).toContain('v_existing_app_id <> p_app_id');
+    expect(migration).toContain('v_existing_operation_type <> CASE');
+  });
+
   it('rejects quota reductions below current usage', () => {
     expect(migration).toContain('Template quota is below current usage');
     expect(migration).toContain('App quota is below current usage');

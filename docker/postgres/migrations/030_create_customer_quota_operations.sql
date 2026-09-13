@@ -81,10 +81,13 @@ DECLARE
     v_current_desired TEXT;
     v_observed_state TEXT;
     v_is_suspended BOOLEAN;
+    v_schema_revision TEXT;
     v_max_running INTEGER;
     v_running_count INTEGER;
     v_operation_id UUID;
     v_operation_type TEXT;
+    v_existing_operation_type TEXT;
+    v_existing_app_id UUID;
 BEGIN
     IF p_desired_state NOT IN ('RUNNING', 'STOPPED') THEN
         RAISE EXCEPTION 'desired state must be RUNNING or STOPPED' USING ERRCODE = '22023';
@@ -94,9 +97,9 @@ BEGIN
     END IF;
 
     SELECT template.customer_id, template.id, customer.quotas,
-           app.desired_state, app.observed_state, app.is_suspended
+           app.desired_state, app.observed_state, app.is_suspended, app.schema_revision
     INTO v_customer_id, v_template_id, v_quotas,
-         v_current_desired, v_observed_state, v_is_suspended
+         v_current_desired, v_observed_state, v_is_suspended, v_schema_revision
     FROM public.apps app
     JOIN public.templates template ON template.id = app.template_id
     JOIN public.customers customer ON customer.id = template.customer_id
@@ -109,16 +112,24 @@ BEGIN
         RAISE EXCEPTION 'App access denied' USING ERRCODE = '42501';
     END IF;
 
-    SELECT operation.id INTO v_operation_id
+    SELECT operation.id, operation.operation_type, operation.app_id
+    INTO v_operation_id, v_existing_operation_type, v_existing_app_id
     FROM public.app_operations operation
     WHERE operation.customer_id = v_customer_id
       AND operation.operation_key = BTRIM(p_operation_key);
     IF FOUND THEN
+        IF v_existing_app_id <> p_app_id
+           OR v_existing_operation_type <> CASE WHEN p_desired_state = 'RUNNING' THEN 'START' ELSE 'STOP' END THEN
+            RAISE EXCEPTION 'operation key was already used for another App or action' USING ERRCODE = '22023';
+        END IF;
         RETURN QUERY SELECT v_operation_id, TRUE;
         RETURN;
     END IF;
 
     IF p_desired_state = 'RUNNING' THEN
+        IF v_schema_revision IS NULL THEN
+            RAISE EXCEPTION 'App schema is not provisioned' USING ERRCODE = 'P0001';
+        END IF;
         IF v_is_suspended THEN
             RAISE EXCEPTION 'App is suspended' USING ERRCODE = 'P0001';
         END IF;

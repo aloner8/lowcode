@@ -390,6 +390,8 @@ export type AuditLogAction =
   | "SUSPEND_CUSTOMER"
   | "RESUME_CUSTOMER"
   | "UPDATE_CUSTOMER_QUOTAS"
+  | "START_APP"
+  | "STOP_APP"
   | "LOGIN";
 
 export interface AuditLog {

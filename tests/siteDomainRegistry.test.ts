@@ -12,6 +12,8 @@ const site = (domains: string[]): SiteRecord => ({
   subdomain: 'pending.example.test', tenantDbName: 'app_db_agency', isActive: true,
   themeConfig: {} as SiteRecord['themeConfig'], tenantOverrides: {}, seoSettings: {},
   platformId: null, platformSlug: null, domains,
+  desiredState: 'STOPPED', observedState: 'STOPPED', runtimeError: null,
+  healthCheckedAt: null, runtimeMetrics: null, runtimeMetricsAt: null,
 });
 
 describe('P6 collision-safe domain registry', () => {

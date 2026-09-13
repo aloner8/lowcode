@@ -40,6 +40,12 @@ export interface CustomerDetail extends CustomerSummary {
     isActive: boolean;
     isSuspended: boolean;
     packageName: string;
+    desiredState: "RUNNING" | "STOPPED";
+    observedState: "UNPROVISIONED" | "PROVISIONING" | "STOPPED" | "STARTING" | "RUNNING" | "STOPPING" | "FAILED";
+    runtimeError: string | null;
+    healthCheckedAt: string | null;
+    runtimeMetrics: { memoryRssBytes?: number; uptimeSeconds?: number } | null;
+    runtimeMetricsAt: string | null;
   }>;
 }
 
@@ -134,9 +140,15 @@ export async function loadCustomerDetail(customerId: string): Promise<CustomerDe
     db.query<{
       id: string; app_slug: string; app_name: string; template_name: string;
       is_active: boolean; is_suspended: boolean; package_name: string;
+      desired_state: CustomerDetail["apps"][number]["desiredState"];
+      observed_state: CustomerDetail["apps"][number]["observedState"];
+      runtime_error_detail: string | null; health_checked_at: Date | null;
+      runtime_metrics: CustomerDetail["apps"][number]["runtimeMetrics"]; runtime_metrics_at: Date | null;
     }>(`
       SELECT app.id, app.app_slug, app.app_name, template.template_name,
-             app.is_active, app.is_suspended, app.package_name
+             app.is_active, app.is_suspended, app.package_name,
+             app.desired_state, app.observed_state, app.runtime_error_detail,
+             app.health_checked_at, app.runtime_metrics, app.runtime_metrics_at
       FROM public.apps app
       JOIN public.templates template ON template.id = app.template_id
       WHERE template.customer_id = $1
@@ -173,6 +185,12 @@ export async function loadCustomerDetail(customerId: string): Promise<CustomerDe
       isActive: app.is_active,
       isSuspended: app.is_suspended,
       packageName: app.package_name,
+      desiredState: app.desired_state,
+      observedState: app.observed_state,
+      runtimeError: app.runtime_error_detail,
+      healthCheckedAt: app.health_checked_at?.toISOString() ?? null,
+      runtimeMetrics: app.runtime_metrics,
+      runtimeMetricsAt: app.runtime_metrics_at?.toISOString() ?? null,
     })),
   };
 }
