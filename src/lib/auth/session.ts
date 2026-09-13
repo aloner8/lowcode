@@ -33,6 +33,13 @@ export interface SessionPayload {
   fullName: string;
   role: GlobalRole;
   mustChangePassword: boolean;
+  /** Original operator retained only while a GOD account is acting as a tenant. */
+  impersonator?: {
+    sub: string;
+    username: string;
+    email: string;
+    fullName: string;
+  };
   iat: number;
   exp: number;
 }

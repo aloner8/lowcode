@@ -41,4 +41,19 @@ describe("P6 Dashboard shell", () => {
     expect(container.querySelector("#admin-sidebar")).not.toBeNull();
     expect(screen.getByRole("button", { name: "เปิดเมนู" })).toBeTruthy();
   });
+
+  it("keeps impersonation visible and provides an explicit return action", () => {
+    navigation.pathname = "/admin";
+    render(
+      <AdminShell
+        user={user("TENANT_USER")}
+        impersonation={{ originalFullName: "Central Admin", originalUsername: "admin" }}
+      >
+        <p>Tenant view</p>
+      </AdminShell>,
+    );
+    expect(screen.getByText(/กำลังสวมสิทธิ์เป็น/)).toBeTruthy();
+    const button = screen.getByRole("button", { name: "กลับบัญชี Admin" });
+    expect(button.closest("form")?.getAttribute("action")).toBe("/api/admin/impersonation/stop");
+  });
 });

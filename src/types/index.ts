@@ -384,6 +384,8 @@ export type AuditLogAction =
   | "UPDATE_USER"
   | "DELETE_USER"
   | "CHANGE_PASSWORD"
+  | "START_IMPERSONATION"
+  | "END_IMPERSONATION"
   | "LOGIN";
 
 export interface AuditLog {

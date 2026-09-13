@@ -33,8 +33,8 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
       <section className="adm-card">
         <div className="adm-card-head"><h2 className="adm-card-title"><Users size={17} aria-hidden="true" /> สมาชิก</h2></div>
         <div className="table-responsive"><table className="adm-table">
-          <thead><tr><th>ชื่อ</th><th>บัญชี</th><th className="text-end">สิทธิ์ Customer</th></tr></thead>
-          <tbody>{customer.members.length ? customer.members.map((member) => <tr key={member.id}><td className="adm-cell-strong">{member.fullName}</td><td>{member.username}<span className="adm-cell-sub d-block">{member.email}</span></td><td className="text-end"><span className="adm-chip is-info">{member.role}</span></td></tr>) : <tr><td colSpan={3} className="text-center adm-cell-sub">ยังไม่มีสมาชิก</td></tr>}</tbody>
+          <thead><tr><th>ชื่อ</th><th>บัญชี</th><th>สิทธิ์ Customer</th><th className="text-end">ตรวจสอบมุมมอง</th></tr></thead>
+          <tbody>{customer.members.length ? customer.members.map((member) => <tr key={member.id}><td className="adm-cell-strong">{member.fullName}</td><td>{member.username}<span className="adm-cell-sub d-block">{member.email}</span></td><td><span className="adm-chip is-info">{member.role}</span></td><td className="text-end">{member.canImpersonate ? <form action="/api/admin/impersonation" method="post"><input type="hidden" name="targetUserId" value={member.id} /><button type="submit" className="btn btn-sm btn-outline-primary">สวมสิทธิ์</button></form> : <span className="adm-cell-sub">ไม่พร้อมใช้งาน</span>}</td></tr>) : <tr><td colSpan={4} className="text-center adm-cell-sub">ยังไม่มีสมาชิก</td></tr>}</tbody>
         </table></div>
       </section>
 

@@ -26,13 +26,13 @@ describe("P6 GOD Customer data", () => {
   it("returns a complete Customer detail view", async () => {
     mocks.query
       .mockResolvedValueOnce({ rowCount: 1, rows: [customerRow] })
-      .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: "user-a", username: "owner", email: "owner@example.test", full_name: null, customer_role: "OWNER" }] })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: "user-a", username: "owner", email: "owner@example.test", full_name: null, customer_role: "OWNER", global_role: "TENANT_USER", is_active: true, must_change_password: false }] })
       .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: "template-a", template_slug: "records", template_name: "Records", is_public: false, published_revision_id: "revision-a", app_count: "3" }] })
       .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: "app-a", app_slug: "records-a", app_name: "Records A", template_name: "Records", is_active: true, is_suspended: false, package_name: "Standard" }] });
 
     await expect(loadCustomerDetail("customer-a")).resolves.toEqual(expect.objectContaining({
       id: "customer-a", quotas: { maxApps: 10 }, createdAt: "2026-01-01T00:00:00.000Z",
-      members: [expect.objectContaining({ fullName: "owner", role: "OWNER" })],
+      members: [expect.objectContaining({ fullName: "owner", role: "OWNER", canImpersonate: true })],
       templates: [expect.objectContaining({ name: "Records", appCount: 3 })],
       apps: [expect.objectContaining({ name: "Records A", templateName: "Records" })],
     }));

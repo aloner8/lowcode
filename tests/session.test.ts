@@ -22,6 +22,20 @@ describe('session cookie', () => {
     expect(verified?.role).toBe('GOD');
   });
 
+  it('round-trips the signed original operator during impersonation', async () => {
+    const token = await signSession({
+      ...payload,
+      role: 'TENANT_USER',
+      impersonator: {
+        sub: '22222222-2222-2222-2222-222222222222',
+        username: 'god-admin',
+        email: 'god@example.com',
+        fullName: 'God Admin',
+      },
+    });
+    expect((await verifySession(token))?.impersonator?.username).toBe('god-admin');
+  });
+
   it('rejects a payload whose body was tampered with', async () => {
     const token = await signSession(payload);
     const [body, signature] = token.split('.');

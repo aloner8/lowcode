@@ -131,6 +131,22 @@ export async function getCurrentUser(): Promise<UserProfile | null> {
   }
 }
 
+export interface ImpersonationContext {
+  originalFullName: string;
+  originalUsername: string;
+}
+
+/** Signed display context for the persistent acting-as warning in AdminShell. */
+export async function getImpersonationContext(): Promise<ImpersonationContext | null> {
+  const cookieStore = await cookies();
+  const session = await verifySession(cookieStore.get(SESSION_COOKIE)?.value);
+  if (!session?.impersonator) return null;
+  return {
+    originalFullName: session.impersonator.fullName || session.impersonator.username,
+    originalUsername: session.impersonator.username,
+  };
+}
+
 export async function changePasswordAction(
   _prevState: unknown,
   formData: FormData,

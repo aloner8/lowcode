@@ -21,6 +21,7 @@ export interface CustomerDetail extends CustomerSummary {
     email: string;
     fullName: string;
     role: "OWNER" | "EDITOR" | "VIEWER";
+    canImpersonate: boolean;
   }>;
   templates: Array<{
     id: string;
@@ -99,9 +100,11 @@ export async function loadCustomerDetail(customerId: string): Promise<CustomerDe
     db.query<{
       id: string; username: string; email: string; full_name: string | null;
       customer_role: CustomerDetail["members"][number]["role"];
+      global_role: "GOD" | "TENANT_USER"; is_active: boolean; must_change_password: boolean;
     }>(`
       SELECT user_account.id, user_account.username, user_account.email,
-             user_account.full_name, membership.customer_role
+             user_account.full_name, user_account.global_role, user_account.is_active,
+             user_account.must_change_password, membership.customer_role
       FROM public.customer_memberships membership
       JOIN public.platform_users user_account ON user_account.id = membership.user_id
       WHERE membership.customer_id = $1
@@ -145,6 +148,7 @@ export async function loadCustomerDetail(customerId: string): Promise<CustomerDe
       email: member.email,
       fullName: member.full_name ?? member.username,
       role: member.customer_role,
+      canImpersonate: member.global_role === "TENANT_USER" && member.is_active && !member.must_change_password,
     })),
     templates: templateResult.rows.map((template) => ({
       id: template.id,
