@@ -306,6 +306,8 @@ Checkpoint synthetic restore (13 กันยายน 2026): `npm run migration
 
 Checkpoint sequence restore: rehearsal เพิ่มตรวจ last_value/is_called/settings และ insert หลัง restore; ผ่าน 42 tables / 51 rows และ 3 sequences, identity ต่อ ID ถูกแม้ค่าล่าสุดถูกลบ และ sequence ที่ยังไม่ใช้เริ่มถูกค่า พร้อม P1/P3 acceptance, FK, targeted lint/syntax check ยังคงไม่ใช่หลักฐานกู้คืน App จริงหรือ role/ownership/filesystem preservation
 
+**Next gate — ต้องระบุ App/แหล่งข้อมูล staging:** ตรวจ 13 กันยายน 2026 เวลา 18:19 Europe/Berlin ไม่พบ snapshot/dump ของ App ที่พร้อมใช้จากการค้นไฟล์ repository, ไม่มี Docker container/volume ชื่อ lowcode และ protected store ไม่มี credential ของ Low Code staging การตรวจนี้ไม่ได้ยืนยันว่าไม่มีข้อมูลอยู่ที่อื่น ขั้นถัดไปต้องระบุ App ตัวอย่างและตำแหน่งสำเนา staging/offline ที่จะใช้ก่อนเริ่ม inventory/mapping/restore จริง ไม่ถือผล synthetic เป็นการปิด P7 และไม่สร้างสำเนาจาก production โดยเดาแหล่งข้อมูลหรือ credentials
+
 ขึ้นกับ P4–P6 งาน: migration dry-run, mapping ID/binding/style, เปรียบเทียบหน้าจอ/ข้อมูล, stage app ตัวอย่าง, backup/restore rehearsal และเลือก App ใช้ renderer ใหม่ทีละตัว
 
 เกณฑ์ผ่าน: แอปตัวอย่างเดิมผ่านงานจริง, รายงานจำนวน Object และ reference ตรง, ไม่มีข้อมูลหาย, ย้อนกลับ renderer/config ได้เมื่อ schema รองรับ และมีขั้นคืนข้อมูลสำหรับกรณีที่ต้อง restore
