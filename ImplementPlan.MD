@@ -2,7 +2,7 @@
 
 วันที่: 12 กันยายน 2026
 
-สถานะ: แผนรวมและข้อเสนอสำหรับทบทวน ยังไม่ได้เริ่ม implementation ตามแผนนี้
+สถานะ: อยู่ระหว่าง implementation; สถานะและหลักฐานรายระยะอยู่ในส่วน 7 โดย P7 ยังไม่ผ่าน acceptance
 
 ## 1. เป้าหมายและวิธีอ่านแผน
 
@@ -232,7 +232,7 @@ Module Setting ใช้ลำดับ library default → Platform policy → 
 
 ## 7. ลำดับ Implement และเกณฑ์ผ่าน
 
-สถานะล่าสุดวันที่ 13 กันยายน 2026: P0–P5 มี checkpoint ที่ implement และ commit แล้วตามลำดับ dependency; P6 เป็นระยะถัดไป ส่วน P7–P8 ยังไม่เริ่ม การผ่านระยะต้องยึดทั้งโค้ดและผลทดสอบ ไม่ใช่ข้อความสถานะเพียงอย่างเดียว
+สถานะล่าสุดวันที่ 13 กันยายน 2026: P0–P6 มี checkpoint ที่ implement และ commit แล้วตามลำดับ dependency; P7 เริ่ม inventory tooling แต่ยังไม่มี staging/restore evidence ส่วน P8 ยังไม่เริ่ม การผ่านระยะต้องยึดทั้งโค้ดและผลทดสอบ ไม่ใช่ข้อความสถานะเพียงอย่างเดียว
 
 ### P0 — ตรวจ baseline และปิด contract ที่กระทบทั้งระบบ
 
@@ -293,6 +293,8 @@ Auth/Files ในระยะนี้คือส่วนแรกของ Sh
 ### P7 — ย้ายแอปเดิม ทดลองใช้งาน และเปิดใช้ทีละกลุ่ม
 
 **สถานะ: เริ่ม checkpoint inventory แล้ว ยังไม่ผ่าน P7** — เพิ่ม `npm run migration:inventory` สำหรับ Core DB snapshot แบบ read-only พร้อม metadata checksum, mapping counts และ reference checks; focused tests ผ่าน 5 tests, typecheck และ targeted lint ผ่าน เครื่องมือยังไม่ถูกรันกับ DB จริง และไม่อนุมัติ apply แม้รายงานว่าง ขั้นถัดไปคือ inventory สำเนา staging, asset/binding/style mapping และ backup/restore rehearsal ตาม [คู่มือ inventory](docs/P7_MIGRATION_INVENTORY.md)
+
+Checkpoint เปรียบเทียบ offline: `npm run migration:compare -- before.json after.json` ตรวจรายงานครบ/ไม่ซ้ำ, count/checksum drift, mapping และ reference โดยไม่เชื่อ summary และไม่อนุมัติ apply ชุด inventory/comparison รวมผ่าน 14 tests พร้อม typecheck, targeted lint และ CLI smoke (exit 0/2/1); ยังไม่มีรายงาน staging จริงหรือหลักฐาน preservation ของ payload/asset/style
 
 ขึ้นกับ P4–P6 งาน: migration dry-run, mapping ID/binding/style, เปรียบเทียบหน้าจอ/ข้อมูล, stage app ตัวอย่าง, backup/restore rehearsal และเลือก App ใช้ renderer ใหม่ทีละตัว
 

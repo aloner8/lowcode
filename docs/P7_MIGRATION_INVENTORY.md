@@ -28,3 +28,15 @@ Checksum คำนวณจาก identity/version/status metadata ที่ก�
 - `readyForApply` เป็น `false` เสมอในเครื่องมือ checkpoint นี้ แม้ฐานข้อมูลว่างหรือ mapping/reference ครบ เพราะ Core metadata ไม่ได้พิสูจน์ asset preservation, staging conversion หรือ restore rehearsal
 
 รายงาน dry-run ไม่ใช่หลักฐาน backup หรือ restore งาน apply/cutover ต้องรอสำเนา staging, backup manifest และ restore rehearsal ตาม ImplementPlan
+
+## เปรียบเทียบรายงาน offline
+
+```bash
+npm run migration:compare -- before.json after.json
+```
+
+อ่าน JSON สองไฟล์เท่านั้น ไม่เชื่อม DB และไม่เขียนไฟล์ ตรวจ schema/รายการที่ครบและไม่ซ้ำก่อนเทียบด้วย key (ลำดับรายการไม่สำคัญ) เปรียบเทียบ count และ metadata checksum พร้อม unresolved mappings และ reference violations โดยไม่เชื่อค่า summary ที่มากับไฟล์
+
+Exit code: `0` เมื่อ metadata ตรงกัน, mapping ครบและ reference ปลายทางสะอาด; `2` เมื่อพบความต่าง/ข้อมูลไม่พร้อม; `1` เมื่ออ่านหรือ validate ไฟล์ไม่ได้ ไม่มี exit code ใดเป็นการอนุมัติ apply และ `readyForApply` คง false เสมอ
+
+การเปลี่ยน ID/version/status/updated_at โดยตั้งใจระหว่าง conversion อาจทำให้ checksum ต่าง ต้องทบทวนกับ mapping ที่ชัดเจน ไม่ใช่สรุปว่าข้อมูลหายทันที ในทางกลับกัน checksum ตรงกันไม่ได้พิสูจน์ว่า business payload, asset หรือ style คงเดิม เพราะไม่ได้รวมข้อมูลเหล่านั้นใน fingerprint
