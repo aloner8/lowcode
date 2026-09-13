@@ -292,6 +292,8 @@ Auth/Files ในระยะนี้คือส่วนแรกของ Sh
 
 ### P7 — ย้ายแอปเดิม ทดลองใช้งาน และเปิดใช้ทีละกลุ่ม
 
+**สถานะ: เริ่ม checkpoint inventory แล้ว ยังไม่ผ่าน P7** — เพิ่ม `npm run migration:inventory` สำหรับ Core DB snapshot แบบ read-only พร้อม metadata checksum, mapping counts และ reference checks; focused tests ผ่าน 5 tests, typecheck และ targeted lint ผ่าน เครื่องมือยังไม่ถูกรันกับ DB จริง และไม่อนุมัติ apply แม้รายงานว่าง ขั้นถัดไปคือ inventory สำเนา staging, asset/binding/style mapping และ backup/restore rehearsal ตาม [คู่มือ inventory](docs/P7_MIGRATION_INVENTORY.md)
+
 ขึ้นกับ P4–P6 งาน: migration dry-run, mapping ID/binding/style, เปรียบเทียบหน้าจอ/ข้อมูล, stage app ตัวอย่าง, backup/restore rehearsal และเลือก App ใช้ renderer ใหม่ทีละตัว
 
 เกณฑ์ผ่าน: แอปตัวอย่างเดิมผ่านงานจริง, รายงานจำนวน Object และ reference ตรง, ไม่มีข้อมูลหาย, ย้อนกลับ renderer/config ได้เมื่อ schema รองรับ และมีขั้นคืนข้อมูลสำหรับกรณีที่ต้อง restore

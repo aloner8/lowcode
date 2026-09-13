@@ -14,6 +14,7 @@
     "sites": "node scripts/run-sites.mjs",
     "sites:dev": "node scripts/run-sites.mjs --dev",
     "sites:list": "node scripts/run-sites.mjs --list",
+    "migration:inventory": "node scripts/migration-inventory.mjs",
     "secrets": "node scripts/generate-secrets.mjs",
     "seed:site": "node scripts/seed-municipal-site.mjs",
     "build:modules": "npm run build --workspace=@matchanu/sharemodule",
