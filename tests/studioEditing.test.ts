@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildScreenPageUpdate, moveItem, normalizePanels } from "@/lib/template/studioEditing";
+import { buildScreenPageUpdate, moveItem, normalizeEventSteps, normalizePanels, parseStudioValue, renameRecordKey } from "@/lib/template/studioEditing";
 
 describe("Template Studio editing helpers", () => {
   it("reorders without mutating the input", () => {
@@ -18,5 +18,26 @@ describe("Template Studio editing helpers", () => {
       { pageObjectId: "page-b", sortOrder: 0, isDefault: true },
       { pageObjectId: "page-a", sortOrder: 1, isDefault: false },
     ]);
+  });
+
+  it("preserves scalar property types entered in structured editors", () => {
+    expect(parseStudioValue("true")).toBe(true);
+    expect(parseStudioValue("12.5")).toBe(12.5);
+    expect(parseStudioValue("0012")).toBe("0012");
+    expect(parseStudioValue(" hello ")).toBe(" hello ");
+  });
+
+  it("renames property keys without overwriting a sibling", () => {
+    expect(renameRecordKey({ title: "A", count: 2 }, "title", "label"))
+      .toEqual({ label: "A", count: 2 });
+    expect(renameRecordKey({ title: "A", count: 2 }, "title", "count"))
+      .toEqual({ title: "A", count: 2 });
+  });
+
+  it("normalizes Screen event order after drag-style reordering", () => {
+    expect(normalizeEventSteps([
+      { id: "b", phase: "afterLoad", order: 8, action: "second" },
+      { id: "a", phase: "onload", order: 2, action: "first" },
+    ]).map((step) => step.order)).toEqual([0, 1]);
   });
 });

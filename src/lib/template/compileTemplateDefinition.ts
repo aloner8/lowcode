@@ -75,7 +75,7 @@ export function compileTemplateDefinition(
   template: CompilableTemplateRow,
   objects: CompilableObjectRow[],
   screenPages: CompilableScreenPageRow[],
-  revisionId: string,
+  revisionId?: string,
 ): CompileTemplateResult {
   const compileIssues: TemplateDefinitionIssue[] = [];
   const startupRows = rowsOfType(objects, "STARTUP");
@@ -97,9 +97,9 @@ export function compileTemplateDefinition(
       id: template.id,
       customerId: template.customer_id,
       name: template.template_name,
-      status: "published",
+      status: revisionId ? "published" : "draft",
       editVersion: Number(template.edit_version),
-      revision: revisionId,
+      ...(revisionId ? { revision: revisionId } : {}),
     },
     startup: startup as unknown as TemplateStartupDefinition,
     modules: rowsOfType(objects, "MODULE").map((row) =>

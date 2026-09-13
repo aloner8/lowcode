@@ -91,6 +91,19 @@ describe("Template revision compiler", () => {
     expect(result.definition.screens[0].defaultPageId).toBe("page.contacts");
   });
 
+  it("compiles an editable Draft without claiming an immutable revision", () => {
+    const source = fixture();
+    const result = compileTemplateDefinition(
+      source.template,
+      source.objects,
+      source.screenPages,
+    );
+
+    expect(result.issues).toEqual([]);
+    expect(result.definition.template.status).toBe("draft");
+    expect(result.definition.template.revision).toBeUndefined();
+  });
+
   it("rejects an incomplete Startup Object", () => {
     const source = fixture();
     const startup = source.objects.find((item) => item.object_type === "STARTUP")!;

@@ -5,6 +5,7 @@ import {
   Boxes,
   Braces,
   Database,
+  Eye,
   FileText,
   Layers3,
   Map,
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 import { SCREEN_REGION_KEYS } from "@/lib/template/contracts";
 import { TemplatePropertyEditor } from "@/components/template-studio/TemplatePropertyEditor";
+import { TemplateRuntimePreview } from "@/components/template-studio/TemplateRuntimePreview";
 import type { StudioPageRelation } from "@/lib/template/studioEditing";
 
 type ObjectType =
@@ -84,6 +86,7 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
   const [newKey, setNewKey] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [message, setMessage] = useState("กำลังโหลด Template…");
 
   const load = useCallback(async () => {
@@ -355,6 +358,55 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
     }
   };
 
+  const createScreenInstance = async (
+    screen: StudioObject,
+    regionKey: (typeof SCREEN_REGION_KEYS)[number],
+    standardType: string,
+  ) => {
+    setBusy(true);
+    try {
+      const suffix = crypto.randomUUID().slice(0, 8);
+      const instance = await saveObject(
+        "COMPONENT_INSTANCE",
+        `instance.${safeKeyPart(standardType)}-${suffix}`,
+        standardType,
+        {
+          placement: "screen_region",
+          screenId: screen.objectKey,
+          region: regionKey,
+          loadOrder: objects.filter((object) =>
+            object.objectType === "COMPONENT_INSTANCE" &&
+            object.definition.placement === "screen_region" &&
+            object.definition.screenId === screen.objectKey,
+          ).length,
+          source: "standard",
+          standardType,
+          props: {},
+          bindings: {},
+        },
+      );
+      const regions = (screen.definition.regions as Array<{
+        key: string;
+        componentInstanceIds: string[];
+      }> | undefined) ?? [];
+      await updateObject(screen, {
+        ...screen.definition,
+        regions: regions.map((region) => region.key === regionKey
+          ? {
+              ...region,
+              componentInstanceIds: [...(region.componentInstanceIds ?? []), instance.objectKey],
+            }
+          : region),
+      });
+      await load();
+      setMessage(`วาง ${standardType} ลง ${screen.objectName}/${regionKey} แล้ว`);
+    } catch (error) {
+      setMessage(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const createAutoForm = async (collection: StudioObject) => {
     const page = pages[0];
     const panel = (page?.definition.panels as Array<{ id: string }> | undefined)?.[0];
@@ -446,7 +498,10 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
     }
   };
 
-  const saveSelectedScreenPages = async (relations: StudioPageRelation[]) => {
+  const saveSelectedScreenPages = async (
+    relations: StudioPageRelation[],
+    definition: Record<string, unknown>,
+  ) => {
     if (!selected || selected.objectType !== "SCREEN") return;
     const defaultPage = pages.find((page) => relations.some((item) => item.pageObjectId === page.id && item.isDefault));
     if (!defaultPage) {
@@ -455,7 +510,7 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
     }
     setBusy(true);
     try {
-      await updateObject(selected, { ...selected.definition, defaultPageId: defaultPage.objectKey });
+      await updateObject(selected, { ...definition, defaultPageId: defaultPage.objectKey });
       const latestTemplate = await request(`/api/templates/${templateId}`, { method: "GET" });
       await request(`/api/templates/${templateId}/screen-pages`, {
         method: "PUT",
@@ -489,6 +544,7 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
           <span className="input-group-text"><Search size={14} /></span>
           <input className="form-control" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ค้น Object ในแม่แบบ" />
         </div>
+        <button className="btn btn-sm btn-outline-light d-flex align-items-center gap-1" disabled={busy} onClick={() => setShowPreview(true)}><Eye size={14} />Preview</button>
         <button className="btn btn-sm btn-success" disabled={busy} onClick={() => void publish()}>Publish</button>
       </header>
 
@@ -551,6 +607,16 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
             </div></div>
           )}
 
+          {activeSection === "screens" && (
+            <div className="card border-0 shadow-sm mb-3"><div className="card-body">
+              <div className="small fw-semibold mb-2">ลาก Standard Component ลง Screen region</div>
+              <div className="d-flex gap-2 flex-wrap mb-3">
+                {standardComponents.map((type) => <span key={type} draggable onDragStart={(event) => event.dataTransfer.setData("application/x-lowcode-component", type)} className="badge text-bg-light border p-2" style={{ cursor: "grab" }}>{type}</span>)}
+              </div>
+              {screens.map((screen) => <div key={screen.id} className="mb-3"><strong>{screen.objectName}</strong><div className="row g-2 mt-1">{SCREEN_REGION_KEYS.map((regionKey) => <div className={regionKey === "content" ? "col-12" : "col-6"} key={regionKey}><div className="border border-2 border-dashed rounded p-2 bg-light h-100" style={{ minHeight: regionKey === "content" ? 90 : 58 }} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const type = event.dataTransfer.getData("application/x-lowcode-component"); if (type) void createScreenInstance(screen, regionKey, type); }}><span className="small text-uppercase text-muted">{regionKey}</span><div className="d-flex gap-1 flex-wrap mt-1">{objects.filter((item) => item.objectType === "COMPONENT_INSTANCE" && item.definition.placement === "screen_region" && item.definition.screenId === screen.objectKey && item.definition.region === regionKey).map((item) => <span className="badge text-bg-primary" key={item.id}>{item.objectName}</span>)}</div></div></div>)}</div></div>)}
+            </div></div>
+          )}
+
           <div className="row g-2">
             {visibleObjects.map((object) => (
               <div className="col-12 col-xl-6" key={object.id}>
@@ -569,6 +635,7 @@ export function TemplateStudioClient({ templateId }: { readonly templateId: stri
           {selected && <TemplatePropertyEditor key={`${selected.id}:${selected.editVersion}:${screenPages.map((item) => `${item.id}:${item.sortOrder}:${item.isDefault}`).join("|")}`} object={selected} objects={objects} relations={screenPages} busy={busy} onRename={() => void renameSelected()} onSaveDefinition={saveSelectedDefinition} onSaveScreenPages={saveSelectedScreenPages} />}
         </main>
       </div>
+      {showPreview && <TemplateRuntimePreview templateId={templateId} onClose={() => setShowPreview(false)} />}
     </div>
   );
 }

@@ -1,8 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDown, ArrowUp, Plus, Save, Trash2 } from "lucide-react";
-import { buildScreenPageUpdate, moveItem, normalizePanels, type StudioPanel } from "@/lib/template/studioEditing";
+import { ArrowDown, ArrowUp, Braces, Plus, Save, Trash2, Workflow } from "lucide-react";
+import { HtmlStudioShell } from "@/components/html-studio";
+import type { HtmlStudioDocument } from "@/lib/html-studio";
+import {
+  buildScreenPageUpdate,
+  moveItem,
+  normalizeEventSteps,
+  normalizePanels,
+  parseStudioValue,
+  renameRecordKey,
+  type StudioEventStep,
+  type StudioPanel,
+} from "@/lib/template/studioEditing";
 
 interface StudioObject {
   id: string;
@@ -27,7 +38,10 @@ interface Props {
   busy: boolean;
   onRename: () => void;
   onSaveDefinition: (definition: Record<string, unknown>) => Promise<void>;
-  onSaveScreenPages: (relations: ReturnType<typeof buildScreenPageUpdate>) => Promise<void>;
+  onSaveScreenPages: (
+    relations: ReturnType<typeof buildScreenPageUpdate>,
+    definition: Record<string, unknown>,
+  ) => Promise<void>;
 }
 
 const record = (value: unknown): Record<string, unknown> =>
@@ -76,6 +90,79 @@ const fieldsFrom = (value: unknown): CollectionField[] => Array.isArray(value)
     })
   : [];
 
+const eventPhases: StudioEventStep["phase"][] = [
+  "onload", "afterLoad", "setLayout", "afterSetLayout", "changePage", "afterChangePage",
+];
+
+const stepsFrom = (value: unknown): StudioEventStep[] => Array.isArray(value)
+  ? value.map((step, index) => {
+      const item = record(step);
+      const phase = eventPhases.includes(item.phase as StudioEventStep["phase"])
+        ? item.phase as StudioEventStep["phase"]
+        : "onload";
+      return {
+        id: String(item.id ?? `step.${index + 1}`),
+        phase,
+        order: Number(item.order ?? index),
+        action: String(item.action ?? ""),
+        input: record(item.input),
+      };
+    })
+  : [];
+
+const emptyHtmlDocument = (object: StudioObject): HtmlStudioDocument => {
+  const now = new Date().toISOString();
+  return {
+    id: `html-${object.objectKey.replace(/[^A-Za-z0-9_-]/g, "-")}`,
+    scope: "app",
+    kind: "shared-template",
+    name: object.objectName,
+    version: 1,
+    schemaVersion: 1,
+    root: [{
+      id: "root",
+      kind: "element",
+      tag: "section",
+      classList: ["p-3"],
+      children: [{ id: "text", kind: "text", text: object.objectName }],
+    }],
+    styleSheet: {
+      scopeId: `component-${object.objectKey.replace(/[^A-Za-z0-9_-]/g, "-")}`,
+      rules: [],
+    },
+    dependencies: [],
+    settings: { cssScope: "component", dataPolicy: "collection-read", scriptPolicy: "none" },
+    createdAt: now,
+    updatedAt: now,
+  };
+};
+
+function RecordEditor({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: Record<string, unknown>;
+  onChange: (value: Record<string, unknown>) => void;
+}) {
+  const entries = Object.entries(value);
+  const add = () => {
+    let index = entries.length + 1;
+    while (`property_${index}` in value) index += 1;
+    onChange({ ...value, [`property_${index}`]: "" });
+  };
+  return <div className="col-12">
+    <div className="d-flex align-items-center mb-2"><strong>{label}</strong><button type="button" className="btn btn-sm btn-outline-primary ms-auto" onClick={add}><Plus size={13} /> Add</button></div>
+    {entries.length === 0 && <div className="small text-muted border rounded p-2">No {label.toLowerCase()} configured.</div>}
+    {entries.map(([key, item], index) => <div className="row g-2 mb-2" key={`property-row-${index}`}>
+      <div className="col-md-5"><input aria-label={`${label} key`} className="form-control form-control-sm font-monospace" value={key} onChange={(event) => onChange(renameRecordKey(value, key, event.target.value))} /></div>
+      <div className="col-md-6"><input aria-label={`${label} value`} className="form-control form-control-sm" value={item === null ? "null" : String(item)} onChange={(event) => onChange({ ...value, [key]: parseStudioValue(event.target.value) })} /></div>
+      <div className="col-md-1"><button type="button" aria-label={`Remove ${key}`} className="btn btn-sm btn-outline-danger" onClick={() => onChange(Object.fromEntries(entries.filter(([candidate]) => candidate !== key)))}><Trash2 size={13} /></button></div>
+    </div>)}
+  </div>;
+}
+
 export function TemplatePropertyEditor({ object, objects, relations, busy, onRename, onSaveDefinition, onSaveScreenPages }: Props) {
   const initialRelations = relations
     .filter((item) => item.screenObjectId === object.id)
@@ -87,6 +174,7 @@ export function TemplatePropertyEditor({ object, objects, relations, busy, onRen
   const [defaultPageId, setDefaultPageId] = useState(
     initialRelations.find((item) => item.isDefault)?.pageObjectId ?? "",
   );
+  const [showHtmlStudio, setShowHtmlStudio] = useState(false);
   const pages = objects.filter((item) => item.objectType === "PAGE");
   const screens = objects.filter((item) => item.objectType === "SCREEN");
 
@@ -96,6 +184,9 @@ export function TemplatePropertyEditor({ object, objects, relations, busy, onRen
   const setPanels = (next: StudioPanel[]) => set("panels", normalizePanels(next));
   const fields = fieldsFrom(draft.fields);
   const setFields = (next: CollectionField[]) => set("fields", next);
+  const eventSteps = stepsFrom(draft.eventSteps);
+  const setEventSteps = (next: StudioEventStep[]) => set("eventSteps", normalizeEventSteps(next));
+  const componentDefinition = record(draft.definition);
 
   const togglePage = (pageId: string) => {
     if (screenPageIds.includes(pageId)) {
@@ -108,6 +199,22 @@ export function TemplatePropertyEditor({ object, objects, relations, busy, onRen
       if (!defaultPageId) setDefaultPageId(pageId);
     }
   };
+
+  if (showHtmlStudio) {
+    const document = componentDefinition.document as HtmlStudioDocument | undefined;
+    return <HtmlStudioShell
+      document={document ?? emptyHtmlDocument(object)}
+      onClose={() => setShowHtmlStudio(false)}
+      onSave={(nextDocument) => {
+        setDraft((current) => ({
+          ...current,
+          componentType: "html",
+          definition: { ...record(current.definition), document: nextDocument },
+        }));
+        setShowHtmlStudio(false);
+      }}
+    />;
+  }
 
   return (
     <div className="card border-0 shadow-sm mt-3">
@@ -129,11 +236,15 @@ export function TemplatePropertyEditor({ object, objects, relations, busy, onRen
 
           {object.objectType === "COLLECTION" && <><div className="col-md-6"><label className="form-label small">Table name</label><input className="form-control form-control-sm" value={String(draft.tableName ?? "")} onChange={(event) => set("tableName", event.target.value)} /></div><div className="col-md-6"><label className="form-label small d-block">Public access</label>{["publicRead", "publicCreate", "publicUpdate"].map((key) => <label className="form-check form-check-inline" key={key}><input className="form-check-input" type="checkbox" checked={record(draft.access)[key] === true} onChange={(event) => set("access", { ...record(draft.access), [key]: event.target.checked })} /> {key.replace("public", "")}</label>)}</div><div className="col-12"><div className="d-flex align-items-center mb-2"><strong>Fields</strong><button className="btn btn-sm btn-outline-primary ms-auto" onClick={() => setFields([...fields, { id: `field_${fields.length + 1}`, name: `Field ${fields.length + 1}`, type: "string", required: false }])}><Plus size={14} /> Add field</button></div>{fields.map((field, index) => <div className="row g-2 border rounded p-2 mb-2" key={index}><div className="col-md-3"><label className="form-label small mb-0">Column</label><input className="form-control form-control-sm" value={field.id} onChange={(event) => setFields(fields.map((item, itemIndex) => itemIndex === index ? { ...item, id: event.target.value } : item))} /></div><div className="col-md-3"><label className="form-label small mb-0">Label</label><input className="form-control form-control-sm" value={field.name} onChange={(event) => setFields(fields.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} /></div><div className="col-md-2"><label className="form-label small mb-0">Type</label><select className="form-select form-select-sm" value={field.type} onChange={(event) => setFields(fields.map((item, itemIndex) => itemIndex === index ? { ...item, type: event.target.value as CollectionField["type"] } : item))}>{fieldTypes.map((type) => <option value={type} key={type}>{type}</option>)}</select></div><div className="col-md-3 d-flex align-items-end gap-3"><label className="form-check"><input className="form-check-input" type="checkbox" checked={field.required} onChange={(event) => setFields(fields.map((item, itemIndex) => itemIndex === index ? { ...item, required: event.target.checked } : item))} /> Required</label><label className="form-check"><input className="form-check-input" type="radio" name={`pk-${object.id}`} checked={field.primaryKey === true} onChange={() => setFields(fields.map((item, itemIndex) => ({ ...item, primaryKey: itemIndex === index })))} /> PK</label></div><div className="col-md-1 d-flex align-items-end"><button className="btn btn-sm btn-outline-danger" disabled={fields.length === 1 || field.primaryKey === true} onClick={() => setFields(fields.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={14} /></button></div></div>)}</div></>}
 
-          {object.objectType === "SCREEN" && <><div className="col-12"><label className="form-label small">CSS</label><textarea rows={4} className="form-control form-control-sm font-monospace" value={String(draft.css ?? "")} onChange={(event) => set("css", event.target.value)} /></div><div className="col-12"><div className="fw-semibold mb-2">Pages in this Screen</div>{pages.map((page) => { const selected = screenPageIds.includes(page.id); const index = screenPageIds.indexOf(page.id); return <div className="d-flex align-items-center gap-2 border rounded p-2 mb-2" key={page.id}><input type="checkbox" checked={selected} onChange={() => togglePage(page.id)} /><span className="flex-grow-1">{page.objectName}</span>{selected && <><label className="small"><input type="radio" name={`default-${object.id}`} checked={defaultPageId === page.id} onChange={() => setDefaultPageId(page.id)} /> Default</label><button className="btn btn-sm btn-light" disabled={index <= 0} onClick={() => setScreenPageIds(moveItem(screenPageIds, index, index - 1))}><ArrowUp size={14} /></button><button className="btn btn-sm btn-light" disabled={index < 0 || index >= screenPageIds.length - 1} onClick={() => setScreenPageIds(moveItem(screenPageIds, index, index + 1))}><ArrowDown size={14} /></button></>}</div>; })}<button className="btn btn-sm btn-primary" disabled={busy || !screenPageIds.length} onClick={() => void onSaveScreenPages(buildScreenPageUpdate(screenPageIds, defaultPageId))}><Save size={14} className="me-1" />Save Screen Pages</button></div></>}
+          {object.objectType === "SCREEN" && <><div className="col-12"><label className="form-label small">CSS</label><textarea rows={4} className="form-control form-control-sm font-monospace" value={String(draft.css ?? "")} onChange={(event) => set("css", event.target.value)} /></div><div className="col-12"><div className="fw-semibold mb-2">Pages in this Screen</div>{pages.map((page) => { const selected = screenPageIds.includes(page.id); const index = screenPageIds.indexOf(page.id); return <div className="d-flex align-items-center gap-2 border rounded p-2 mb-2" key={page.id}><input type="checkbox" checked={selected} onChange={() => togglePage(page.id)} /><span className="flex-grow-1">{page.objectName}</span>{selected && <><label className="small"><input type="radio" name={`default-${object.id}`} checked={defaultPageId === page.id} onChange={() => setDefaultPageId(page.id)} /> Default</label><button type="button" className="btn btn-sm btn-light" disabled={index <= 0} onClick={() => setScreenPageIds(moveItem(screenPageIds, index, index - 1))}><ArrowUp size={14} /></button><button type="button" className="btn btn-sm btn-light" disabled={index < 0 || index >= screenPageIds.length - 1} onClick={() => setScreenPageIds(moveItem(screenPageIds, index, index + 1))}><ArrowDown size={14} /></button></>}</div>; })}</div></>}
+
+          {object.objectType === "SCREEN" && <div className="col-12"><div className="d-flex align-items-center mb-2"><Workflow size={15} className="me-2 text-primary" /><strong>Lifecycle event steps</strong><button type="button" className="btn btn-sm btn-outline-primary ms-auto" onClick={() => setEventSteps([...eventSteps, { id: `step.${crypto.randomUUID().slice(0, 8)}`, phase: "onload", order: eventSteps.length, action: "" }])}><Plus size={13} /> Add step</button></div>{eventSteps.length === 0 && <div className="small text-muted border rounded p-2">No lifecycle actions configured.</div>}{eventSteps.map((step, index) => <div className="row g-2 border rounded p-2 mb-2" key={step.id}><div className="col-md-3"><label className="form-label small mb-0">Phase</label><select className="form-select form-select-sm" value={step.phase} onChange={(event) => setEventSteps(eventSteps.map((item) => item.id === step.id ? { ...item, phase: event.target.value as StudioEventStep["phase"] } : item))}>{eventPhases.map((phase) => <option key={phase} value={phase}>{phase}</option>)}</select></div><div className="col-md-6"><label className="form-label small mb-0">Action</label><input className="form-control form-control-sm" value={step.action} onChange={(event) => setEventSteps(eventSteps.map((item) => item.id === step.id ? { ...item, action: event.target.value } : item))} placeholder="loadSession, setTheme, …" /></div><div className="col-md-3 d-flex align-items-end gap-1"><button type="button" className="btn btn-sm btn-light" disabled={index === 0} onClick={() => setEventSteps(moveItem(eventSteps, index, index - 1))}><ArrowUp size={14} /></button><button type="button" className="btn btn-sm btn-light" disabled={index === eventSteps.length - 1} onClick={() => setEventSteps(moveItem(eventSteps, index, index + 1))}><ArrowDown size={14} /></button><button type="button" className="btn btn-sm btn-outline-danger" onClick={() => setEventSteps(eventSteps.filter((item) => item.id !== step.id))}><Trash2 size={14} /></button></div></div>)}<button type="button" className="btn btn-sm btn-primary mt-2" disabled={busy || !screenPageIds.length || eventSteps.some((step) => !step.action.trim())} onClick={() => void onSaveScreenPages(buildScreenPageUpdate(screenPageIds, defaultPageId), draft)}><Save size={14} className="me-1" />Save Screen + Pages</button></div>}
 
           {object.objectType === "PAGE" && <><div className="col-12"><label className="form-label small">CSS</label><textarea rows={4} className="form-control form-control-sm font-monospace" value={String(draft.css ?? "")} onChange={(event) => set("css", event.target.value)} /></div><div className="col-12"><div className="d-flex align-items-center mb-2"><strong>Panels</strong><button className="btn btn-sm btn-outline-primary ms-auto" onClick={() => setPanels([...panels, { id: `panel.${crypto.randomUUID().slice(0, 8)}`, name: `Panel ${panels.length + 1}`, order: panels.length, responsive: { desktop: 12, tablet: 12, mobile: 12 } }])}><Plus size={14} /> Add panel</button></div>{panels.map((panel, index) => <div className="row g-2 border rounded p-2 mb-2" key={panel.id}><div className="col-lg-4"><input className="form-control form-control-sm" value={panel.name} onChange={(event) => setPanels(panels.map((item) => item.id === panel.id ? { ...item, name: event.target.value } : item))} /></div>{(["desktop", "tablet", "mobile"] as const).map((device) => <div className="col-3 col-lg-2" key={device}><label className="form-label small mb-0">{device}</label><input type="number" min={1} max={12} className="form-control form-control-sm" value={panel.responsive[device]} onChange={(event) => setPanels(panels.map((item) => item.id === panel.id ? { ...item, responsive: { ...item.responsive, [device]: Number(event.target.value) } } : item))} /></div>)}<div className="col-3 col-lg-2 d-flex align-items-end gap-1"><button className="btn btn-sm btn-light" disabled={index === 0} onClick={() => setPanels(moveItem(panels, index, index - 1))}><ArrowUp size={14} /></button><button className="btn btn-sm btn-light" disabled={index === panels.length - 1} onClick={() => setPanels(moveItem(panels, index, index + 1))}><ArrowDown size={14} /></button><button className="btn btn-sm btn-outline-danger" disabled={panels.length === 1} onClick={() => setPanels(panels.filter((item) => item.id !== panel.id))}><Trash2 size={14} /></button></div></div>)}</div></>}
 
-          {(object.objectType === "COMPONENT" || object.objectType === "COMPONENT_INSTANCE") && <div className="col-12 alert alert-light mb-0">Component source: <code>{String(draft.standardType ?? draft.componentId ?? record(draft.definition).standardType ?? "—")}</code> · load order {String(draft.loadOrder ?? "—")}</div>}
+          {object.objectType === "COMPONENT" && <><div className="col-md-4"><label className="form-label small">Component type</label><select className="form-select form-select-sm" value={String(draft.componentType ?? "standard")} onChange={(event) => set("componentType", event.target.value)}><option value="standard">Standard</option><option value="html">HTML</option></select></div><div className="col-md-3"><label className="form-label small">Version</label><input type="number" min={1} className="form-control form-control-sm" value={Number(draft.version ?? 1)} onChange={(event) => set("version", Math.max(1, Number(event.target.value)))} /></div>{draft.componentType === "html" ? <div className="col-md-5 d-flex align-items-end"><button type="button" className="btn btn-outline-primary w-100" onClick={() => setShowHtmlStudio(true)}><Braces size={15} className="me-1" />Open HTML Studio</button></div> : <div className="col-md-5"><label className="form-label small">Standard component</label><input className="form-control form-control-sm" value={String(componentDefinition.standardType ?? "TextComponent")} onChange={(event) => set("definition", { ...componentDefinition, standardType: event.target.value })} /></div>}</>}
+
+          {object.objectType === "COMPONENT_INSTANCE" && <><div className="col-md-4"><label className="form-label small">Source</label><input className="form-control form-control-sm" value={String(draft.standardType ?? draft.componentId ?? "—")} disabled /></div><div className="col-md-4"><label className="form-label small">Placement</label><input className="form-control form-control-sm" value={draft.placement === "screen_region" ? `${String(draft.screenId)} / ${String(draft.region)}` : `${String(draft.pageId)} / ${String(draft.panelId)}`} disabled /></div><div className="col-md-4"><label className="form-label small">Load order</label><input type="number" min={0} className="form-control form-control-sm" value={Number(draft.loadOrder ?? 0)} onChange={(event) => set("loadOrder", Math.max(0, Number(event.target.value)))} /></div><RecordEditor label="Props" value={record(draft.props)} onChange={(value) => set("props", value)} /><RecordEditor label="Bindings" value={record(draft.bindings)} onChange={(value) => set("bindings", value)} /></>}
         </div>
 
         {object.objectType !== "SCREEN" && <div className="d-flex justify-content-end mt-3"><button className="btn btn-primary" disabled={busy} onClick={() => void save()}><Save size={15} className="me-1" />Save properties</button></div>}
