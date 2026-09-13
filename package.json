@@ -17,6 +17,7 @@
     "migration:inventory": "node scripts/migration-inventory.mjs",
     "migration:compare": "node scripts/migration-compare.mjs",
     "migration:assets": "node scripts/migration-assets.mjs",
+    "migration:assets:compare": "node scripts/migration-assets-compare.mjs",
     "secrets": "node scripts/generate-secrets.mjs",
     "seed:site": "node scripts/seed-municipal-site.mjs",
     "build:modules": "npm run build --workspace=@matchanu/sharemodule",

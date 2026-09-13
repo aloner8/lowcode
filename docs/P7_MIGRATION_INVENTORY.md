@@ -57,4 +57,14 @@ Use only a trusted, quiescent copy containing the selected App's assets, not a r
 
 Symlinks at the root or within the tree and special files are rejected. Detected file/directory mutations abort with a generic error and exit 1; no partial JSON is emitted. This is not an atomic snapshot or an adversarial-filesystem sandbox: operators must provide a stable trusted snapshot and trusted ancestor directories. Exit 0 means the scan completed, never that migration or restore is approved (`readyForApply` stays false).
 
-This manifest covers filesystem bytes and paths only, not DB-backed assets, binding/style semantics, ownership, modes, extended attributes, or links. The metadata `migration:compare` command does not accept asset manifests. Review asset manifests separately until a dedicated asset comparator is implemented; staging mapping and backup/restore rehearsal remain outstanding.
+This manifest covers filesystem bytes and paths only, not DB-backed assets, binding/style semantics, ownership, modes, extended attributes, or links. The metadata `migration:compare` command does not accept asset manifests. Use the dedicated comparator below; staging mapping and backup/restore rehearsal remain outstanding.
+
+## Compare filesystem asset manifests
+
+```bash
+npm run migration:assets:compare -- before-assets.json after-assets.json
+```
+
+This offline command reads two manifests only. It validates v1 markers, relative paths, unique entries, parent directories, file sizes/hashes, counts, total bytes and the aggregate checksum before comparing by path. Independently valid manifests may list entries in different orders. It reports `ADDED`, `REMOVED`, `CONTENT_CHANGED` (including same-size edits), and `TYPE_CHANGED` entries, including changes to empty directories. A rename appears as removal plus addition; it does not infer identity or migration mappings.
+
+Exit codes are `0` for matching assets, `2` for differences, and `1` for invalid/unreadable manifests. Errors are generic and do not echo report contents or input paths. Comparison JSON includes asset names and should remain private. `readyForApply` remains false even for matching empty inventories. Checksums detect internal inconsistency, not forged reports or untrusted origins; this compares supplied evidence, not live storage or restore behavior.
