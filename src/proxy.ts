@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { SESSION_COOKIE, verifySession } from '@/lib/auth/session';
+import { findCustomerAccessBlock } from '@/lib/auth/customerAccess';
 
 /*
  * Next.js 16 renamed the `middleware` file convention to `proxy`.
@@ -10,7 +11,7 @@ import { SESSION_COOKIE, verifySession } from '@/lib/auth/session';
 const PROTECTED_PREFIXES = [
   '/admin', '/studio', '/page-designer', '/form-designer', '/flow-studio', '/process-studio', '/svg-studio', '/module-studio', '/audit-logs', '/site', '/account',
   // Developer demos render arbitrary components; they are internal tools.
-  '/renderer-demo', '/shared-demo',
+  '/renderer-demo', '/shared-demo', '/suspended',
 ];
 
 /** Where an account with a seeded password is sent until it sets its own. */
@@ -85,6 +86,16 @@ export async function proxy(request: NextRequest) {
     // Clear a stale or forged cookie so the browser stops resending it.
     response.cookies.delete(SESSION_COOKIE);
     return response;
+  }
+
+  if (session && isProtected) {
+    const blocked = await findCustomerAccessBlock(session.sub, session.role);
+    if (blocked && path !== '/suspended') {
+      return NextResponse.redirect(new URL('/suspended', request.url));
+    }
+    if (!blocked && path === '/suspended') {
+      return NextResponse.redirect(new URL('/admin', request.url));
+    }
   }
 
   // An account still using the password it was created with cannot reach

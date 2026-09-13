@@ -47,6 +47,7 @@ describe("P6 GOD impersonation API", () => {
     const response = await startImpersonation(request);
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe("http://localhost/admin");
+    expect(mocks.query.mock.calls[0][0]).toContain("customer.status IN ('SUSPENDED', 'ARCHIVED')");
     expect(mocks.signSession).toHaveBeenCalledWith(expect.objectContaining({
       sub: "22222222-2222-2222-2222-222222222222", role: "TENANT_USER",
       impersonator: expect.objectContaining({ sub: god.sub, username: "god" }),

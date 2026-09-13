@@ -7,6 +7,7 @@ import { recordPlatformAudit } from '@/lib/engine/AuditLogService';
 import { SESSION_COOKIE, sessionCookieOptionsFor, signSession, verifySession } from '@/lib/auth/session';
 import { rateLimitHit, rateLimitReset } from '@/lib/security/rateLimit';
 import { GlobalRole, UserProfile } from '@/types';
+import { findCustomerAccessBlock } from '@/lib/auth/customerAccess';
 
 interface PlatformUserRow {
   id: string;
@@ -67,6 +68,10 @@ export async function loginAction(_prevState: unknown, formData: FormData): Prom
     }
     profile = toProfile(result.rows[0]);
     await rateLimitReset('platform_login', rateKey);
+    const blocked = await findCustomerAccessBlock(profile.id, profile.globalRole);
+    if (blocked) {
+      return { error: `บัญชีของหน่วยงาน ${blocked.customerName} ถูกระงับ กรุณาติดต่อผู้ให้บริการ` };
+    }
   } catch (error) {
     console.error('[auth] login failed', error);
     return { error: 'ไม่สามารถตรวจสอบผู้ใช้ได้ กรุณาตรวจสอบการเชื่อมต่อฐานข้อมูล' };

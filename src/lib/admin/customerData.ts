@@ -148,7 +148,7 @@ export async function loadCustomerDetail(customerId: string): Promise<CustomerDe
       email: member.email,
       fullName: member.full_name ?? member.username,
       role: member.customer_role,
-      canImpersonate: member.global_role === "TENANT_USER" && member.is_active && !member.must_change_password,
+      canImpersonate: row.status === "ACTIVE" && member.global_role === "TENANT_USER" && member.is_active && !member.must_change_password,
     })),
     templates: templateResult.rows.map((template) => ({
       id: template.id,

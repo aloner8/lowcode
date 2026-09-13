@@ -24,6 +24,12 @@ export async function POST(request: NextRequest) {
     SELECT id, username, email, full_name, must_change_password
     FROM public.platform_users
     WHERE id = $1 AND global_role = 'TENANT_USER' AND is_active = TRUE
+      AND NOT EXISTS (
+        SELECT 1 FROM public.customer_memberships membership
+        JOIN public.customers customer ON customer.id = membership.customer_id
+        WHERE membership.user_id = platform_users.id
+          AND customer.status IN ('SUSPENDED', 'ARCHIVED')
+      )
   `, [targetUserId]);
   if (!result.rowCount) return NextResponse.json({ error: "ไม่พบผู้ใช้หน่วยงานที่เปิดใช้งาน" }, { status: 404 });
   const target = result.rows[0];

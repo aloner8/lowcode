@@ -352,6 +352,7 @@ export type AuditLogEntityType =
   | "FLOW"
   | "THEME"
   | "USER"
+  | "CUSTOMER"
   | "DATABASE"
   | "COLLECTION"
   | "RUNTIME";
@@ -386,6 +387,8 @@ export type AuditLogAction =
   | "CHANGE_PASSWORD"
   | "START_IMPERSONATION"
   | "END_IMPERSONATION"
+  | "SUSPEND_CUSTOMER"
+  | "RESUME_CUSTOMER"
   | "LOGIN";
 
 export interface AuditLog {

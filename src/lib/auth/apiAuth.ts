@@ -9,6 +9,7 @@ import type {
   GlobalRole,
   SiteRole,
 } from '@/types';
+import { findCustomerAccessBlock } from '@/lib/auth/customerAccess';
 
 /**
  * Authorisation for API route handlers.
@@ -63,6 +64,7 @@ export async function getApiSession(): Promise<ApiSession | null> {
     );
     if (!result.rowCount) return null;
     const row = result.rows[0];
+    if (await findCustomerAccessBlock(payload.sub, row.global_role)) return null;
     return {
       ...payload,
       role: row.global_role,

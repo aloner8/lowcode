@@ -24,6 +24,23 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         <p className="adm-page-sub mb-0">{customer.slug} · {customer.primaryDomain ?? "ยังไม่กำหนดโดเมนหลัก"}</p>
       </div>
 
+      <section className="adm-card p-3 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+        <div>
+          <strong>{customer.status === 'SUSPENDED' ? 'Customer นี้ถูกระงับสิทธิ์เว็บแม่' : 'การควบคุมสิทธิ์เว็บแม่'}</strong>
+          <p className="adm-cell-sub mb-0">การระงับจะตัด session ของสมาชิกและ session สวมสิทธิ์ แต่จะไม่หยุด App และไม่ลบข้อมูล</p>
+        </div>
+        {customer.status === 'ARCHIVED' ? (
+          <span className="adm-chip is-off">Customer ที่เก็บถาวรแก้สถานะจากหน้านี้ไม่ได้</span>
+        ) : (
+          <form action={`/api/admin/customers/${customer.id}/status`} method="post">
+            <input type="hidden" name="status" value={customer.status === 'SUSPENDED' ? 'ACTIVE' : 'SUSPENDED'} />
+            <button type="submit" className={`btn btn-sm ${customer.status === 'SUSPENDED' ? 'btn-success' : 'btn-outline-danger'}`}>
+              {customer.status === 'SUSPENDED' ? 'เปิดสิทธิ์ Customer' : 'ระงับ Customer'}
+            </button>
+          </form>
+        )}
+      </section>
+
       <div className="row g-3">
         {[['สมาชิก', customer.memberCount], ['แม่แบบ', customer.templateCount], ['App', customer.appCount]].map(([label, value]) => (
           <div className="col-12 col-sm-4" key={label}><div className="adm-card p-3"><span className="adm-cell-sub d-block">{label}</span><strong className="fs-3">{value}</strong></div></div>
