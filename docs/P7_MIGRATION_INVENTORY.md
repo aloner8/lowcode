@@ -40,3 +40,9 @@ npm run migration:compare -- before.json after.json
 Exit code: `0` เมื่อ metadata ตรงกัน, mapping ครบและ reference ปลายทางสะอาด; `2` เมื่อพบความต่าง/ข้อมูลไม่พร้อม; `1` เมื่ออ่านหรือ validate ไฟล์ไม่ได้ ไม่มี exit code ใดเป็นการอนุมัติ apply และ `readyForApply` คง false เสมอ
 
 การเปลี่ยน ID/version/status/updated_at โดยตั้งใจระหว่าง conversion อาจทำให้ checksum ต่าง ต้องทบทวนกับ mapping ที่ชัดเจน ไม่ใช่สรุปว่าข้อมูลหายทันที ในทางกลับกัน checksum ตรงกันไม่ได้พิสูจน์ว่า business payload, asset หรือ style คงเดิม เพราะไม่ได้รวมข้อมูลเหล่านั้นใน fingerprint
+
+## Missing table dependencies
+
+The inventory checks table presence before mapping, reference, and tenant-list queries. Missing source tables remain `MISSING`; present source tables retain their row count/checksum even if mapping tables are absent. Those mappings use `mappingStatus: UNAVAILABLE`, `mapped: null`, `unresolved: null`, and explicit `missingDependencies`. Skipped reference checks similarly use `status: UNAVAILABLE`, `violations: null`, and dependency names. An absent `apps` table makes the tenant list unavailable without querying it.
+
+Unknown mapping/reference totals are `null`, never zero. The offline comparator accepts these additive v1 fields but never treats unknown mappings or reference results as complete/clean. Existing v1 reports with measured results remain compatible. Missing columns, permissions, or unexpected SQL errors still abort and roll back; this checkpoint handles absent tables only, not schema repair.

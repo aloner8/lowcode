@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { INVENTORY_SOURCES, REFERENCE_CHECKS } from './migration-inventory.mjs';
 
+const validMissing = (tables, expected) => Array.isArray(tables) && tables.length > 0 && new Set(tables).size === tables.length && tables.every((table) => expected.includes(table));
 const nonnegative = (value) => Number.isSafeInteger(value) && value >= 0;
 function validate(report) {
   if (report?.schemaVersion !== 'p7-migration-inventory.v1' || report.readOnly !== true || report.mode !== 'dry-run') throw new Error('Unsupported inventory report');
@@ -14,9 +15,14 @@ function validate(report) {
     if (row.table !== INVENTORY_SOURCES.find(({ key }) => key === row.key).table) throw new Error('Unexpected source table');
     if (row.status === 'MISSING') {
       if (['count', 'mapped', 'unresolved', 'checksum'].some((key) => row[key] !== null)) throw new Error('Invalid missing source');
-    } else if (row.status !== 'AVAILABLE' || ![row.count, row.mapped, row.unresolved].every(nonnegative) || row.mapped > row.count || row.unresolved !== row.count - row.mapped || !/^[a-f0-9]{32}$/.test(row.checksum)) throw new Error('Invalid source measurements');
+    } else if (row.mappingStatus === 'UNAVAILABLE') {
+      const expected = INVENTORY_SOURCES.find(({ key }) => key === row.key).mappingDependencies ?? [];
+      if (row.status !== 'AVAILABLE' || !nonnegative(row.count) || !/^[a-f0-9]{32}$/.test(row.checksum) || row.mapped !== null || row.unresolved !== null || !validMissing(row.missingDependencies, expected)) throw new Error('Invalid unavailable mapping');
+    } else if (row.mappingStatus !== undefined || row.status !== 'AVAILABLE' || ![row.count, row.mapped, row.unresolved].every(nonnegative) || row.mapped > row.count || row.unresolved !== row.count - row.mapped || !/^[a-f0-9]{32}$/.test(row.checksum)) throw new Error('Invalid source measurements');
   }
-  if (report.references.some((row) => !nonnegative(row.violations))) throw new Error('Invalid reference measurements');
+  if (report.references.some((row) => row.status === 'UNAVAILABLE'
+    ? row.violations !== null || !validMissing(row.missingDependencies, REFERENCE_CHECKS.find(({ key }) => key === row.key).dependencies)
+    : row.status !== undefined || !nonnegative(row.violations))) throw new Error('Invalid reference measurements');
 }
 
 export function compareMigrationInventories(before, after) {

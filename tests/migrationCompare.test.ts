@@ -36,6 +36,19 @@ describe('offline migration comparison', () => {
     if (kind === 'schema') after.schemaVersion = 'unknown';
     expect(() => compareMigrationInventories(inventory(), after)).toThrow();
   });
+  it('keeps unavailable mapping and reference evidence inconclusive', () => {
+    const after = inventory();
+    Object.assign(after.sources[0], { mappingStatus: 'UNAVAILABLE', mapped: null, unresolved: null, missingDependencies: ['customer_memberships'] });
+    Object.assign(after.references[0], { status: 'UNAVAILABLE', violations: null, missingDependencies: ['apps'] });
+    expect(compareMigrationInventories(inventory(), after)).toMatchObject({ metadataUnchanged: true, mappingsComplete: false, referencesClean: false, readyForApply: false });
+  });
+  it('rejects fabricated missing dependencies and unknown reference states', () => {
+    const after = inventory();
+    Object.assign(after.references[0], { status: 'UNAVAILABLE', violations: null, missingDependencies: ['unrelated'] });
+    expect(() => compareMigrationInventories(inventory(), after)).toThrow();
+    Object.assign(after.references[0], { status: 'UNKNOWN', violations: 0 });
+    expect(() => compareMigrationInventories(inventory(), after)).toThrow();
+  });
   it('reports unavailable tables without declaring metadata preserved', () => {
     const after = inventory();
     Object.assign(after.sources[0], { status: 'MISSING', count: null, mapped: null, unresolved: null, checksum: null });
