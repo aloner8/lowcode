@@ -19,7 +19,7 @@ vi.mock("@/lib/services/secrets", () => ({
   secretReferenceStatus: () => ({ configured: true, provider: "environment" }),
 }));
 
-import { PUT } from "@/app/api/apps/[id]/connection-profile/route";
+import { GET, PUT } from "@/app/api/apps/[id]/connection-profile/route";
 
 const actor = {
   sub: "user-a",
@@ -57,6 +57,27 @@ describe("App Connection Profile API", () => {
     vi.clearAllMocks();
     mocks.requireApiSession.mockResolvedValue(actor);
     mocks.requireSiteAccess.mockResolvedValue(null);
+  });
+
+  it("lists selectable profiles for the App customer without exposing SecretRefs", async () => {
+    mocks.query
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ id: "app-a", customer_id: "customer-a", connection_profile_id: "profile-a" }],
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [profile] });
+
+    const response = await GET(new Request("http://local"), {
+      params: Promise.resolve({ id: "app-a" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(mocks.requireSiteAccess).toHaveBeenCalledWith(actor, "app-a", "VIEWER");
+    expect(mocks.query.mock.calls[1][1]).toEqual(["customer-a"]);
+    const body = await response.json();
+    expect(body.connectionProfile.id).toBe("profile-a");
+    expect(body.profiles).toHaveLength(1);
+    expect(JSON.stringify(body)).not.toContain("LOWCODE_CONNECTION_REPORTING_DB_PASSWORD");
   });
 
   it("binds a profile from the same Customer and does not expose SecretRefs", async () => {

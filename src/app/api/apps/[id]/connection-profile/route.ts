@@ -41,17 +41,21 @@ export async function GET(
   );
   if (!app.rowCount) return NextResponse.json({ error: "ไม่พบ App" }, { status: 404 });
   const profileId = app.rows[0].connection_profile_id;
-  if (!profileId) return NextResponse.json({ connectionProfile: null });
-  const profile = await getCoreDb().query<ConnectionProfileRow>(
+  const profiles = await getCoreDb().query<ConnectionProfileRow>(
     `SELECT ${profileColumns}
      FROM public.connection_profiles
-     WHERE id = $1 AND customer_id = $2 AND archived_at IS NULL`,
-    [profileId, app.rows[0].customer_id],
+     WHERE customer_id = $1 AND archived_at IS NULL
+     ORDER BY updated_at DESC, id`,
+    [app.rows[0].customer_id],
+  );
+  const publicProfiles = profiles.rows.map((row) =>
+    toPublicConnectionProfile(row, secretReferenceStatus),
   );
   return NextResponse.json({
-    connectionProfile: profile.rowCount
-      ? toPublicConnectionProfile(profile.rows[0], secretReferenceStatus)
+    connectionProfile: profileId
+      ? publicProfiles.find((profile) => profile.id === profileId) ?? null
       : null,
+    profiles: publicProfiles,
   });
 }
 

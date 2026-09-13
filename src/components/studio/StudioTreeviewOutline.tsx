@@ -117,6 +117,20 @@ interface PlatformComponentInstance {
 
 type QueryResultTab = 'table' | 'json' | 'log';
 type DatabaseSettingPage = 'connection' | 'api' | 'tools';
+type ConnectionProfileStatus = 'DRAFT' | 'READY' | 'DISABLED' | 'ERROR';
+interface PublicConnectionProfile {
+  id: string;
+  profileKey: string;
+  profileName: string;
+  profileType: 'POSTGRES' | 'HTTP' | 'OBJECT_STORAGE';
+  config: Record<string, unknown>;
+  policy: { allowedModuleKeys: string[]; allowRuntimeWrite: boolean };
+  status: ConnectionProfileStatus;
+  editVersion: number;
+  secretReferences: Array<{ key: string; provider: string; configured: boolean }>;
+  lastCheckedAt: string | null;
+  lastErrorCode: string | null;
+}
 
 const COLLECTION_COMPONENT_VARIANTS: Record<string, string[]> = {
   DataTableComponent: ['default', 'compact', 'selectable'],
@@ -378,10 +392,88 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
   const databaseFunctions = ['fn_menu_tree', 'fn_published_posts', 'fn_procurement_feed', 'fn_active_slides', 'fn_site_search'];
   const databaseProcedures = ['sp_increment_site_visit', 'sp_submit_complaint'];
   const databaseSettings = [
-    { id: 'connection' as const, label: 'Connection String', icon: PlugZap },
+    { id: 'connection' as const, label: 'Connection Profile', icon: PlugZap },
     { id: 'api' as const, label: 'API', icon: Braces },
     { id: 'tools' as const, label: 'Tools', icon: Wrench },
   ];
+  const [connectionProfiles, setConnectionProfiles] = useState<PublicConnectionProfile[]>([]);
+  const [activeConnectionProfile, setActiveConnectionProfile] = useState<PublicConnectionProfile | null>(null);
+  const [selectedConnectionProfileId, setSelectedConnectionProfileId] = useState<string>('');
+  const [connectionProfileStatus, setConnectionProfileStatus] = useState<string | null>(null);
+  const [connectionProfileError, setConnectionProfileError] = useState<string | null>(null);
+  const [connectionProfileBusy, setConnectionProfileBusy] = useState(false);
+
+  const loadConnectionProfiles = async () => {
+    if (!appInfo.id) return;
+    setConnectionProfileBusy(true);
+    setConnectionProfileError(null);
+    try {
+      const response = await fetch(`/api/apps/${appInfo.id}/connection-profile`, { cache: 'no-store' });
+      const data = await response.json() as { connectionProfile?: PublicConnectionProfile | null; profiles?: PublicConnectionProfile[]; error?: string };
+      if (!response.ok) throw new Error(data.error || 'Unable to load Connection Profiles');
+      const profiles = data.profiles || [];
+      setConnectionProfiles(profiles);
+      setActiveConnectionProfile(data.connectionProfile || null);
+      setSelectedConnectionProfileId(data.connectionProfile?.id || '');
+      setConnectionProfileStatus(profiles.length ? 'Connection Profiles loaded' : 'ยังไม่มี Connection Profile สำหรับ App นี้');
+    } catch (error) {
+      setConnectionProfiles([]);
+      setActiveConnectionProfile(null);
+      setSelectedConnectionProfileId('');
+      setConnectionProfileError(error instanceof Error ? error.message : 'Unable to load Connection Profiles');
+      setConnectionProfileStatus(null);
+    } finally {
+      setConnectionProfileBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (databaseSettingPage !== 'connection') return;
+    void loadConnectionProfiles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [databaseSettingPage, appInfo.id]);
+
+  const bindConnectionProfile = async (nextProfileId = selectedConnectionProfileId) => {
+    setConnectionProfileBusy(true);
+    setConnectionProfileError(null);
+    try {
+      const profileId = nextProfileId || null;
+      const response = await fetch(`/api/apps/${appInfo.id}/connection-profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profileId,
+          expectedConnectionProfileId: activeConnectionProfile?.id || null,
+        }),
+      });
+      const data = await response.json() as { connectionProfile?: PublicConnectionProfile | null; error?: string };
+      if (!response.ok) throw new Error(data.error || 'Unable to update App Connection Profile');
+      setActiveConnectionProfile(data.connectionProfile || null);
+      setSelectedConnectionProfileId(data.connectionProfile?.id || '');
+      setConnectionProfileStatus(data.connectionProfile ? 'ตั้ง Connection Profile ให้ App แล้ว' : 'ถอด Connection Profile ออกจาก App แล้ว');
+      await loadConnectionProfiles();
+    } catch (error) {
+      setConnectionProfileError(error instanceof Error ? error.message : 'Unable to update App Connection Profile');
+    } finally {
+      setConnectionProfileBusy(false);
+    }
+  };
+
+  const validateConnectionProfile = async (profileId: string) => {
+    setConnectionProfileBusy(true);
+    setConnectionProfileError(null);
+    try {
+      const response = await fetch(`/api/connection-profiles/${profileId}/validate`, { method: 'POST' });
+      const data = await response.json() as { valid?: boolean; errors?: string[]; profile?: PublicConnectionProfile; error?: string };
+      if (!response.ok) throw new Error(data.errors?.join('; ') || data.error || 'Connection Profile validation failed');
+      setConnectionProfileStatus(data.valid ? 'ตรวจ Connection Profile ผ่านแล้ว' : 'Connection Profile ยังไม่พร้อม');
+      await loadConnectionProfiles();
+    } catch (error) {
+      setConnectionProfileError(error instanceof Error ? error.message : 'Connection Profile validation failed');
+    } finally {
+      setConnectionProfileBusy(false);
+    }
+  };
 
   const openRawTableDetail = (tableName: string) => {
     onSelectRawTable(tableName);
@@ -1023,14 +1115,50 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
             </nav>
             <div className="p-4 overflow-auto flex-grow-1">
               {databaseSettingPage === 'connection' && <>
-                <div className="d-flex align-items-center gap-2 mb-1"><PlugZap size={18} className="text-primary" /><h5 className="mb-0 fw-bold">Connection String</h5></div>
-                <p className="text-muted small">ฐานข้อมูลของ App แยกจากฐานข้อมูลแม่ แต่ใช้ PostgreSQL server เดียวกันเป็นค่าเริ่มต้น</p>
-                <div className="row g-2 mb-3 small">
-                  {[['Host', 'core-db'], ['Port', '5432'], ['Database', appInfo.tenantDbName], ['User', 'lowcode_app']].map(([label, value]) => <div className="col-sm-6" key={label}><label className="form-label text-muted mb-1">{label}</label><input className="form-control form-control-sm font-monospace" value={value} readOnly /></div>)}
+                <div className="d-flex align-items-center justify-content-between gap-2 mb-1">
+                  <div className="d-flex align-items-center gap-2"><PlugZap size={18} className="text-primary" /><h5 className="mb-0 fw-bold">Connection Profile</h5></div>
+                  <button type="button" className="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" onClick={() => void loadConnectionProfiles()} disabled={connectionProfileBusy}><Clock3 size={13} />Refresh</button>
                 </div>
-                <label className="form-label small fw-semibold">Default connection string</label>
-                <div className="input-group input-group-sm"><span className="input-group-text"><KeyRound size={13} /></span><input className="form-control font-monospace" value={`postgresql://lowcode_app:••••••••@core-db:5432/${appInfo.tenantDbName}`} readOnly /></div>
-                <div className="alert alert-info py-2 mt-3 mb-0 small">รหัสผ่านจะเก็บเป็น secret ฝั่ง server และจะไม่ส่งกลับมาที่ browser</div>
+                <p className="text-muted small">App ใช้ Connection Profile ฝั่ง server เท่านั้น Browser เห็นแค่ config ที่ไม่ลับและสถานะ SecretRef</p>
+                <div className="row g-2 mb-3 small">
+                  {[['App', appInfo.appSlug], ['Default DB', appInfo.tenantDbName], ['Active profile', activeConnectionProfile?.profileKey || 'ยังไม่ได้เลือก'], ['Status', activeConnectionProfile?.status || 'UNBOUND']].map(([label, value]) => <div className="col-sm-6" key={label}><label className="form-label text-muted mb-1">{label}</label><input className="form-control form-control-sm font-monospace" value={value} readOnly /></div>)}
+                </div>
+                <div className="border rounded-3 p-3 bg-light mb-3">
+                  <label className="form-label small fw-semibold">App connection selector</label>
+                  <div className="input-group input-group-sm">
+                    <span className="input-group-text"><KeyRound size={13} /></span>
+                    <select className="form-select" value={selectedConnectionProfileId} onChange={(event) => setSelectedConnectionProfileId(event.target.value)} disabled={connectionProfileBusy}>
+                      <option value="">No external profile / use provisioned App DB</option>
+                      {connectionProfiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.profileName} · {profile.profileKey} · {profile.status}</option>)}
+                    </select>
+                    <button type="button" className="btn btn-primary" onClick={() => void bindConnectionProfile()} disabled={connectionProfileBusy || selectedConnectionProfileId === (activeConnectionProfile?.id || '')}>Apply</button>
+                  </div>
+                  <div className="d-flex gap-2 flex-wrap mt-2">
+                    {activeConnectionProfile && <button type="button" className="btn btn-outline-success btn-sm d-inline-flex align-items-center gap-1" onClick={() => void validateConnectionProfile(activeConnectionProfile.id)} disabled={connectionProfileBusy}><Play size={13} />Validate active profile</button>}
+                    {activeConnectionProfile && <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => { setSelectedConnectionProfileId(''); void bindConnectionProfile(''); }} disabled={connectionProfileBusy}>Unbind</button>}
+                  </div>
+                </div>
+                {activeConnectionProfile && <div className="border rounded-3 p-3 mb-3">
+                  <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
+                    <div><div className="fw-bold text-dark">{activeConnectionProfile.profileName}</div><code>{activeConnectionProfile.profileKey}</code></div>
+                    <span className={`badge ${activeConnectionProfile.status === 'READY' ? 'bg-success' : activeConnectionProfile.status === 'ERROR' ? 'bg-danger' : activeConnectionProfile.status === 'DISABLED' ? 'bg-secondary' : 'bg-warning text-dark'}`}>{activeConnectionProfile.status}</span>
+                  </div>
+                  <div className="row g-2 small">
+                    {Object.entries(activeConnectionProfile.config).map(([key, value]) => <div className="col-sm-6" key={key}><span className="text-muted d-block">{key}</span><code className="text-break">{Array.isArray(value) ? value.join(', ') : String(value)}</code></div>)}
+                  </div>
+                  <div className="mt-3">
+                    <div className="text-muted small fw-semibold mb-1">Secret references</div>
+                    <div className="d-flex flex-wrap gap-1">
+                      {activeConnectionProfile.secretReferences.map((secret) => <span key={secret.key} className={`badge ${secret.configured ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'}`}>{secret.key}: {secret.provider}{secret.configured ? ' ready' : ' missing'}</span>)}
+                    </div>
+                  </div>
+                  <div className="mt-3 small text-muted">Modules: {activeConnectionProfile.policy.allowedModuleKeys.join(', ') || 'none'} · Runtime write: {activeConnectionProfile.policy.allowRuntimeWrite ? 'allowed' : 'blocked'}</div>
+                  {activeConnectionProfile.lastErrorCode && <div className="alert alert-danger py-2 mt-3 mb-0 small">{activeConnectionProfile.lastErrorCode}</div>}
+                </div>}
+                {!activeConnectionProfile && <div className="alert alert-info py-2 mb-3 small">ยังไม่ได้ผูก Connection Profile ภายนอก App จะใช้ฐานข้อมูลที่ provision ไว้เอง</div>}
+                {connectionProfileStatus && <div className="alert alert-success py-2 mb-2 small">{connectionProfileStatus}</div>}
+                {connectionProfileError && <div className="alert alert-danger py-2 mb-2 small">{connectionProfileError}</div>}
+                <div className="alert alert-warning py-2 mt-3 mb-0 small">ค่า SecretRef ถูกเก็บและตรวจฝั่ง server เท่านั้น UI นี้ไม่แสดงหรือรับรหัสผ่านจริง</div>
               </>}
               {databaseSettingPage === 'api' && <>
                 <div className="d-flex align-items-center gap-2 mb-1"><Braces size={18} className="text-warning" /><h5 className="mb-0 fw-bold">Database API</h5></div><p className="text-muted small">Endpoint กลางสำหรับ Studio และ App ลูก โดยระบบระบุฐานข้อมูลจาก Platform identity</p>
