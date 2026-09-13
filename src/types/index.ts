@@ -389,6 +389,7 @@ export type AuditLogAction =
   | "END_IMPERSONATION"
   | "SUSPEND_CUSTOMER"
   | "RESUME_CUSTOMER"
+  | "UPDATE_CUSTOMER_QUOTAS"
   | "LOGIN";
 
 export interface AuditLog {

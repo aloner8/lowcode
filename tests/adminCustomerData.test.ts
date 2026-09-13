@@ -9,7 +9,7 @@ const customerRow = {
   id: "customer-a", customer_slug: "agency-a", customer_name: "Agency A",
   status: "ACTIVE", primary_domain: "agency.example.test",
   quotas: { maxApps: 10 }, created_at: new Date("2026-01-01T00:00:00.000Z"),
-  member_count: "2", template_count: "1", app_count: "3",
+  member_count: "2", template_count: "1", app_count: "3", running_app_count: "1",
 };
 
 describe("P6 GOD Customer data", () => {
@@ -18,7 +18,7 @@ describe("P6 GOD Customer data", () => {
   it("loads Customer summaries with ownership-derived App counts", async () => {
     mocks.query.mockResolvedValue({ rowCount: 1, rows: [customerRow] });
     await expect(loadCustomerSummaries()).resolves.toEqual([
-      expect.objectContaining({ id: "customer-a", memberCount: 2, templateCount: 1, appCount: 3 }),
+      expect.objectContaining({ id: "customer-a", memberCount: 2, templateCount: 1, appCount: 3, runningAppCount: 1 }),
     ]);
     expect(mocks.query.mock.calls[0][0]).toContain("app.template_id = template.id");
   });

@@ -47,6 +47,28 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         ))}
       </div>
 
+      <section className="adm-card p-3">
+        <div className="adm-card-head px-0 pt-0">
+          <div>
+            <h2 className="adm-card-title">โควต้า Customer</h2>
+            <p className="adm-cell-sub mb-0">ค่า 0 หมายถึงไม่จำกัด · กำลังใช้ App {customer.appCount} และ Running/Reserved {customer.runningAppCount}</p>
+          </div>
+        </div>
+        <form action={`/api/admin/customers/${customer.id}/quotas`} method="post" className="row g-3 align-items-end">
+          {[
+            ['maxTemplates', 'แม่แบบสูงสุด', customer.quotas.maxTemplates ?? 0],
+            ['maxApps', 'App สูงสุด', customer.quotas.maxApps ?? 0],
+            ['maxRunningApps', 'App ที่รันพร้อมกัน', customer.quotas.maxRunningApps ?? 0],
+          ].map(([name, label, value]) => (
+            <div className="col-12 col-md-3" key={name}>
+              <label className="form-label" htmlFor={String(name)}>{label}</label>
+              <input id={String(name)} name={String(name)} type="number" min="0" max="100000" step="1" required className="form-control" defaultValue={value} />
+            </div>
+          ))}
+          <div className="col-12 col-md-3"><button type="submit" className="btn btn-primary w-100">บันทึกโควต้า</button></div>
+        </form>
+      </section>
+
       <section className="adm-card">
         <div className="adm-card-head"><h2 className="adm-card-title"><Users size={17} aria-hidden="true" /> สมาชิก</h2></div>
         <div className="table-responsive"><table className="adm-table">

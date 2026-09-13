@@ -10,6 +10,7 @@ export interface CustomerSummary {
   memberCount: number;
   templateCount: number;
   appCount: number;
+  runningAppCount: number;
 }
 
 export interface CustomerDetail extends CustomerSummary {
@@ -53,6 +54,7 @@ interface CustomerRow {
   member_count: string;
   template_count: string;
   app_count: string;
+  running_app_count: string;
 }
 
 const customerSelect = `
@@ -62,6 +64,10 @@ const customerSelect = `
          COUNT(DISTINCT membership.id)::text AS member_count,
          COUNT(DISTINCT template.id)::text AS template_count,
          COUNT(DISTINCT app.id)::text AS app_count
+         , COUNT(DISTINCT app.id) FILTER (
+             WHERE app.desired_state = 'RUNNING'
+                OR app.observed_state IN ('STARTING', 'RUNNING', 'STOPPING')
+           )::text AS running_app_count
   FROM public.customers customer
   LEFT JOIN public.customer_memberships membership ON membership.customer_id = customer.id
   LEFT JOIN public.templates template
@@ -78,6 +84,7 @@ const mapSummary = (row: CustomerRow): CustomerSummary => ({
   memberCount: Number(row.member_count),
   templateCount: Number(row.template_count),
   appCount: Number(row.app_count),
+  runningAppCount: Number(row.running_app_count),
 });
 
 export async function loadCustomerSummaries(): Promise<CustomerSummary[]> {
