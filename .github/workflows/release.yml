@@ -1,0 +1,101 @@
+name: Release ShareModule and runtime image
+
+on:
+  push:
+    tags:
+      - 'sharemodule-v*'
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: lowcode_core
+          POSTGRES_USER: lowcode_admin
+          POSTGRES_PASSWORD: lowcode_dev_password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U lowcode_admin -d lowcode_core"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      CORE_DATABASE_URL: postgresql://lowcode_admin:lowcode_dev_password@localhost:5432/lowcode_core
+      AUTH_SECRET: release-ci-secret-value-that-is-at-least-32-characters
+      NEXT_TELEMETRY_DISABLED: '1'
+      REGISTRY: ghcr.io
+      IMAGE_NAME: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Apply database migrations
+        run: |
+          for file in docker/postgres/migrations/*.sql; do
+            psql "$CORE_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$file"
+          done
+
+      - name: Verify tag and release versions
+        run: npm run release:verify
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          BUILD_GIT_SHA: ${{ github.sha }}
+
+      - name: Verify source and runtime
+        run: |
+          npm run typecheck
+          npm run lint
+          npm test
+          npm run build
+          node scripts/smoke-sharemodule.mjs
+
+      - name: Pack ShareModule artifact
+        run: |
+          mkdir -p artifacts
+          npm pack --workspace=@matchanu/sharemodule --pack-destination artifacts
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build immutable runtime image
+        run: |
+          PLATFORM_VERSION=$(node -p "require('./package.json').version")
+          SHAREMODULE_VERSION=$(node -p "require('./packages/sharemodule/package.json').version")
+          IMAGE_REF="${REGISTRY}/${IMAGE_NAME,,}:sharemodule-v${SHAREMODULE_VERSION}"
+          docker build \
+            --build-arg GIT_SHA="${GITHUB_SHA}" \
+            --build-arg PLATFORM_VERSION="${PLATFORM_VERSION}" \
+            --build-arg SHAREMODULE_VERSION="${SHAREMODULE_VERSION}" \
+            --build-arg IMAGE_SOURCE="https://github.com/${GITHUB_REPOSITORY}" \
+            --tag "$IMAGE_REF" .
+          docker run --rm --entrypoint node "$IMAGE_REF" scripts/smoke-sharemodule.mjs --http
+          docker run --rm --entrypoint node "$IMAGE_REF" scripts/smoke-worker.mjs
+          docker push "$IMAGE_REF"
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE_REF")
+          printf '%s\n' "{\"tag\":\"${GITHUB_REF_NAME}\",\"gitSha\":\"${GITHUB_SHA}\",\"platformVersion\":\"${PLATFORM_VERSION}\",\"shareModuleVersion\":\"${SHAREMODULE_VERSION}\",\"image\":\"${DIGEST}\"}" > artifacts/release-manifest.json
+
+      - name: Publish GitHub release artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" artifacts/* --verify-tag --generate-notes --title "$GITHUB_REF_NAME"

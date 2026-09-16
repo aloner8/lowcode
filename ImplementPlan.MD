@@ -324,6 +324,8 @@ Checkpoint Auth providers: local registration, Google/LINE/Facebook/Entra author
 
 Checkpoint Google/Media: Google Workspace adapters สำหรับ Maps/Calendar/Drive/Forms/Vision/Gemini, Studio components/property schema และ local QR/Sharp resize ลงแล้วใน ShareModule `0.4.0`; QR/resize พิสูจน์กับไฟล์จริงใน tenant storage และ Google adapter ผ่าน fixed-endpoint/security tests แต่ proof กับ Google test account/Cloud project จริงยัง deferred เพราะไม่มี protected credential.
 
+Checkpoint worker/release/version: image เดียวกันมี runnable outbox worker แบบ one-shot/continuous, bounded batch/timeout/backoff/graceful shutdown, release contract ตรวจ package/export/root pin/build manifest/tag และ workflow `sharemodule-v*` สร้าง package artifact + smoke-tested GHCR digest + release manifest; checkpoint นี้ยังไม่สร้าง/push tag หรือ deploy จริง และ real staging/child-App rollout ยังคง deferred ตามคำสั่ง P7.
+
 ขึ้นกับความพร้อม P5/P7 งาน: Mail SMTP/CC/attachment/template, social/directory Auth, Google/Media, worker/release/version ตาม ShareModule.MD โดยจัดลำดับตามงานที่ผู้ใช้จะใช้จริง
 
 เกณฑ์ผ่านรายโมดูล: UI + service + typed contract + ตัวอย่าง + integration กับระบบทดสอบจริง + package/image/version และแนวทาง rollback ครบ; mock หรือ facade อย่างเดียวไม่ถือว่าเสร็จ

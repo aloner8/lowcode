@@ -18,11 +18,22 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ARG GIT_SHA=unknown
+ARG PLATFORM_VERSION=0.1.0
+ARG SHAREMODULE_VERSION=0.0.0
+ARG IMAGE_SOURCE=https://github.com/aloner8/lowcode
 ENV BUILD_GIT_SHA=$GIT_SHA
 RUN npm run build
 
 # 3. Production runner
 FROM base AS runner
+ARG GIT_SHA=unknown
+ARG PLATFORM_VERSION=0.1.0
+ARG SHAREMODULE_VERSION=0.0.0
+ARG IMAGE_SOURCE=https://github.com/aloner8/lowcode
+LABEL org.opencontainers.image.source=$IMAGE_SOURCE \
+      org.opencontainers.image.revision=$GIT_SHA \
+      org.opencontainers.image.version=$PLATFORM_VERSION \
+      io.matchanu.sharemodule.version=$SHAREMODULE_VERSION
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 

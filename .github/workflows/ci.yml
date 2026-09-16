@@ -60,5 +60,12 @@ jobs:
 
       - name: Build and verify runtime image
         run: |
-          docker build --build-arg GIT_SHA="${{ github.sha }}" -t lowcode-ci:${{ github.sha }} .
+          PLATFORM_VERSION=$(node -p "require('./package.json').version")
+          SHAREMODULE_VERSION=$(node -p "require('./packages/sharemodule/package.json').version")
+          docker build \
+            --build-arg GIT_SHA="${{ github.sha }}" \
+            --build-arg PLATFORM_VERSION="$PLATFORM_VERSION" \
+            --build-arg SHAREMODULE_VERSION="$SHAREMODULE_VERSION" \
+            -t lowcode-ci:${{ github.sha }} .
           docker run --rm --entrypoint node lowcode-ci:${{ github.sha }} scripts/smoke-sharemodule.mjs --http
+          docker run --rm --entrypoint node lowcode-ci:${{ github.sha }} scripts/smoke-worker.mjs

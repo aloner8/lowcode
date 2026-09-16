@@ -442,11 +442,20 @@ Developer ทำเพียงเลือกโมดูล กำหนดข
 - Studio palette/property schema มี QR, Map, Calendar และ Form; Module Setting ปิด/เปิด feature ราย App revision ได้
 - local QR/resize integration ผ่าน; proof กับ Google test account/Cloud project จริงยัง deferred และห้ามอ้างว่า provider ภายนอกผ่าน
 
+### P8 Worker/Release/Version checkpoint — 16 กันยายน 2026
+
+- image เดียวกันรัน `node scripts/service-worker.mjs` ได้ทั้ง continuous และ `--once`; batch/timeout/backoff มีขอบเขตและ SIGTERM หยุดโดยไม่เริ่มงานซ้อน
+- worker เรียก internal outbox endpoint ด้วย Authorization header จาก protected environment เท่านั้น ไม่รับ credential ใน URL และไม่พิมพ์ secret ลง log
+- `npm run release:verify` ตรวจ exact root pin, exported/package/build-manifest version, config schema และ tag `sharemodule-v<version>`
+- release workflow ใช้ tag สร้าง compiled package artifact, build/smoke image, push GHCR แบบ versioned และบันทึก immutable digest ใน release manifest
+- Docker labels เก็บ source/revision/platform/ShareModule version; authenticated version endpoint เป็น runtime proof เดิม
+- ยังไม่ได้สร้าง/push tag, publish artifact/image หรือ deploy; staging/child-App rollout และ rollback proof จริงยัง deferred ตาม P7
+
 - ยังไม่ครบระยะ Foundation: หน้า Connections, การสร้าง default binding/schema จาก module config และ config revision ยังต้องทำ
 - File Manager ยังใช้ API/สิทธิ์ผู้ดูแล site เดิม; ยังไม่เปิดให้ tenant end-user ใช้ด้วย tenant session และยังไม่ใช้ immutable FileRef ID หรือ path policy ใหม่ครบทุกแบบ
 - Auth provider implementation ลงแล้ว; external provider/directory acceptance ด้วยบัญชีจริงยังต้องทำ
 - Mail SMTP/UI implementation ลงแล้ว; external SMTP acceptance และ template collection adapter ภายนอก registry ยังต้องทำ
-- Google/Media adapters ลงแล้ว; external Google acceptance ยัง deferred ส่วน GitHub Release/GHCR publishing และ migration/rollback workflow ยังต้องทำ
+- Google/Media adapters และ release/worker workflow ลงแล้ว; external Google acceptance, GitHub tag/image publish จริง และ staging rollout/rollback proof ยัง deferred
 - ยังไม่ได้ deploy แทน container ที่ใช้งานอยู่หรือเผยแพร่ package ขึ้น registry
 
 ชุดแรกนี้เป็นการวางฐานและย้ายการใช้งานจริงเข้า library โดยยังไม่ถือว่าโมดูลทั้งสี่กลุ่มเสร็จครบตาม Definition of Done

@@ -22,6 +22,8 @@
     "secrets": "node scripts/generate-secrets.mjs",
     "seed:site": "node scripts/seed-municipal-site.mjs",
     "build:modules": "npm run build --workspace=@matchanu/sharemodule",
+    "worker:outbox": "node scripts/service-worker.mjs",
+    "release:verify": "npm run build:modules && node scripts/build-manifest.mjs && node scripts/verify-release.mjs",
     "predev": "npm run build:modules && node scripts/build-manifest.mjs",
     "prebuild": "npm run build:modules && node scripts/build-manifest.mjs",
     "pretypecheck": "npm run build:modules && node scripts/build-manifest.mjs",
