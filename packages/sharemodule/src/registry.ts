@@ -4,7 +4,7 @@ export * from './catalog.js';
 export const MODULE_CATALOG = {
   auth: { serviceKey: 'auth.session', operations: { login: 'login', logout: 'logout', me: 'me', refresh: 'refresh', changePassword: 'changePassword' } },
   files: { serviceKey: 'storage.object', operations: { list: 'list', upload: 'upload', metadata: 'getMetadata', delete: 'delete' } },
-  mail: { serviceKey: 'notification.email', operations: { send: 'sendTemplate', status: 'getDeliveryStatus' } },
+  mail: { serviceKey: 'notification.email', operations: { send: 'sendTemplate', preview: 'previewTemplate', status: 'getDeliveryStatus' } },
 } as const;
 
 export type ModuleName = keyof typeof MODULE_CATALOG;

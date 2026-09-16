@@ -292,6 +292,8 @@ Auth/Files ในระยะนี้คือส่วนแรกของ Sh
 
 ### P7 — ย้ายแอปเดิม ทดลองใช้งาน และเปิดใช้ทีละกลุ่ม
 
+**คำสั่งเจ้าของระบบ 16 กันยายน 2026:** เลื่อนการทดสอบ App ลูก/staging จริงไว้ก่อนเพื่อเดิน P8 ให้จบ งาน P7 ที่ทำแล้วคงอยู่และยังไม่ถือว่าผ่าน; ห้ามตีความผล synthetic เป็นผล real-App และต้องกลับมาปิด acceptance นี้ก่อน production rollout.
+
 **สถานะ: เริ่ม checkpoint inventory แล้ว ยังไม่ผ่าน P7** — เพิ่ม `npm run migration:inventory` สำหรับ Core DB snapshot แบบ read-only พร้อม metadata checksum, mapping counts และ reference checks; focused tests ผ่าน 5 tests, typecheck และ targeted lint ผ่าน เครื่องมือยังไม่ถูกรันกับ DB จริง และไม่อนุมัติ apply แม้รายงานว่าง ขั้นถัดไปคือ inventory สำเนา staging, asset/binding/style mapping และ backup/restore rehearsal ตาม [คู่มือ inventory](docs/P7_MIGRATION_INVENTORY.md)
 
 Checkpoint เปรียบเทียบ offline: `npm run migration:compare -- before.json after.json` ตรวจรายงานครบ/ไม่ซ้ำ, count/checksum drift, mapping และ reference โดยไม่เชื่อ summary และไม่อนุมัติ apply ชุด inventory/comparison รวมผ่าน 14 tests พร้อม typecheck, targeted lint และ CLI smoke (exit 0/2/1); ยังไม่มีรายงาน staging จริงหรือหลักฐาน preservation ของ payload/asset/style
@@ -313,6 +315,10 @@ Checkpoint sequence restore: rehearsal เพิ่มตรวจ last_value/is
 เกณฑ์ผ่าน: แอปตัวอย่างเดิมผ่านงานจริง, รายงานจำนวน Object และ reference ตรง, ไม่มีข้อมูลหาย, ย้อนกลับ renderer/config ได้เมื่อ schema รองรับ และมีขั้นคืนข้อมูลสำหรับกรณีที่ต้อง restore
 
 ### P8 — ขยาย Shared Module และความสามารถขั้นถัดไป
+
+**สถานะ 16 กันยายน 2026:** เริ่ม implementation ต่อโดยเจ้าของระบบให้ข้าม gate App ลูกของ P7 ชั่วคราว ลำดับงาน P8 คือ Mail → Auth providers → Google/Media → worker/release/version โดยแต่ละโมดูลยังต้องผ่าน Definition of Done ของตนเอง และข้อพิสูจน์ provider ภายนอกที่ไม่มี test credential ต้องรายงานเป็น blocker ไม่อ้างว่าเสร็จจาก mock.
+
+Checkpoint Mail backend: SMTP/STARTTLS/TLS, CC, attachment snapshot, template preview, durable lease recovery และสถานะ accepted/unknown ลงแล้ว พร้อม typed client, migration และ local SMTP socket integration; UI template/binding และ external SMTP proof ยังเป็นงานถัดไป จึงยังไม่ถือว่า Mail/P8 เสร็จ.
 
 ขึ้นกับความพร้อม P5/P7 งาน: Mail SMTP/CC/attachment/template, social/directory Auth, Google/Media, worker/release/version ตาม ShareModule.MD โดยจัดลำดับตามงานที่ผู้ใช้จะใช้จริง
 

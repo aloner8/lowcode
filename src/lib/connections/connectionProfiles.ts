@@ -1,4 +1,4 @@
-export const CONNECTION_PROFILE_TYPES = ["POSTGRES", "HTTP", "OBJECT_STORAGE"] as const;
+export const CONNECTION_PROFILE_TYPES = ["POSTGRES", "HTTP", "OBJECT_STORAGE", "SMTP"] as const;
 export type ConnectionProfileType = (typeof CONNECTION_PROFILE_TYPES)[number];
 export type ConnectionProfileStatus = "DRAFT" | "READY" | "DISABLED" | "ERROR";
 
@@ -97,12 +97,14 @@ const requiredSecretKeys: Record<ConnectionProfileType, string[]> = {
   POSTGRES: ["username", "password"],
   HTTP: [],
   OBJECT_STORAGE: ["accessKeyId", "secretAccessKey"],
+  SMTP: [],
 };
 
 const allowedSecretKeys: Record<ConnectionProfileType, string[]> = {
   POSTGRES: requiredSecretKeys.POSTGRES,
   HTTP: ["apiToken", "clientCertificate"],
   OBJECT_STORAGE: requiredSecretKeys.OBJECT_STORAGE,
+  SMTP: ["username", "password"],
 };
 
 const validateTypeConfig = (
@@ -126,13 +128,25 @@ const validateTypeConfig = (
     const hosts = Array.isArray(config.allowedHosts) ? config.allowedHosts : [];
     if (!hosts.length || hosts.some((host) => typeof host !== "string" || !host.trim() || host.includes("/"))) errors.push("HTTP allowedHosts must contain host names");
     if (validUrl(config.baseUrl) && !hosts.includes(new URL(String(config.baseUrl)).hostname)) errors.push("HTTP baseUrl host must be listed in allowedHosts");
-  } else {
+  } else if (type === "OBJECT_STORAGE") {
     const unexpected = unexpectedKeys(config, ["endpoint", "bucket", "region", "forcePathStyle"]);
     if (unexpected.length) errors.push(`Unsupported OBJECT_STORAGE config: ${unexpected.join(", ")}`);
     if (!validUrl(config.endpoint)) errors.push("Object storage endpoint must be an http(s) URL without credentials");
     if (typeof config.bucket !== "string" || !BUCKET_NAME.test(config.bucket)) errors.push("Object storage bucket is invalid");
     if (typeof config.region !== "string" || !config.region.trim() || config.region.length > 100) errors.push("Object storage region is required");
     if (typeof config.forcePathStyle !== "boolean") errors.push("Object storage forcePathStyle must be boolean");
+  } else {
+    const unexpected = unexpectedKeys(config, ["host", "port", "tlsMode", "authMode", "rejectUnauthorized", "connectionTimeoutMs", "socketTimeoutMs", "defaultFromName", "defaultFromAddress"]);
+    if (unexpected.length) errors.push(`Unsupported SMTP config: ${unexpected.join(", ")}`);
+    if (typeof config.host !== "string" || !config.host.trim() || config.host.length > 255) errors.push("SMTP host is required");
+    if (!Number.isInteger(config.port) || Number(config.port) < 1 || Number(config.port) > 65535) errors.push("SMTP port must be an integer from 1 to 65535");
+    if (!["none", "starttls", "tls"].includes(String(config.tlsMode))) errors.push("SMTP tlsMode is invalid");
+    if (!["none", "basic"].includes(String(config.authMode))) errors.push("SMTP authMode is invalid");
+    if (typeof config.rejectUnauthorized !== "boolean") errors.push("SMTP rejectUnauthorized must be boolean");
+    if (!Number.isInteger(config.connectionTimeoutMs) || Number(config.connectionTimeoutMs) < 100 || Number(config.connectionTimeoutMs) > 60_000) errors.push("SMTP connectionTimeoutMs must be an integer from 100 to 60000");
+    if (!Number.isInteger(config.socketTimeoutMs) || Number(config.socketTimeoutMs) < 1_000 || Number(config.socketTimeoutMs) > 300_000) errors.push("SMTP socketTimeoutMs must be an integer from 1000 to 300000");
+    if (typeof config.defaultFromAddress !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(config.defaultFromAddress)) errors.push("SMTP defaultFromAddress is invalid");
+    if (typeof config.defaultFromName !== "string" || !config.defaultFromName.trim() || config.defaultFromName.length > 160) errors.push("SMTP defaultFromName is required");
   }
   return errors;
 };
@@ -175,6 +189,11 @@ export function validateConnectionProfileInput(input: unknown): ConnectionProfil
     if (unexpected.length) errors.push(`Unsupported secret references: ${unexpected.join(", ")}`);
     for (const key of requiredSecretKeys[profileType]) {
       if (typeof secretRefs[key] !== "string" || !secretRefs[key]) errors.push(`Secret reference '${key}' is required`);
+    }
+    if (profileType === "SMTP" && config.authMode === "basic") {
+      for (const key of ["username", "password"]) {
+        if (typeof secretRefs[key] !== "string" || !secretRefs[key]) errors.push(`Secret reference '${key}' is required`);
+      }
     }
     for (const [key, reference] of Object.entries(secretRefs)) {
       if (typeof reference !== "string" || !SECRET_REFERENCE.test(reference)) errors.push(`Secret reference '${key}' has an unsupported format`);

@@ -415,6 +415,15 @@ Developer ทำเพียงเลือกโมดูล กำหนดข
 
 ### ขอบเขตที่ยังต้องทำต่อ
 
+### P8 Mail SMTP checkpoint — 16 กันยายน 2026
+
+- เพิ่ม SMTP transport จริง (`none`/STARTTLS/TLS, optional basic auth) และคง HTTP provider เดิมเพื่อ compatibility
+- typed client รองรับ To หลายคน, CC, attachment FileRef และ template preview
+- snapshot subject/HTML/attachment bytes+checksum ตอน enqueue, outbox ใช้ worker lease/recovery และสถานะ `queued/processing/accepted/failed/unknown`
+- PostgreSQL migration `034` เพิ่ม SMTP Connection Profile และ outbox lease/status แบบ additive
+- integration test เปิด SMTP socket จริงและตรวจ CC/MIME attachments; clean migration `001–034` ผ่าน PostgreSQL 17
+- ยังต้องเพิ่มหน้า UI จัดการ Mail template/binding และ proof กับ SMTP test credential ที่เก็บใน protected store ก่อนถือ Mail ผ่าน Definition of Done เต็มรูปแบบ
+
 - ยังไม่ครบระยะ Foundation: หน้า Connections, การสร้าง default binding/schema จาก module config และ config revision ยังต้องทำ
 - File Manager ยังใช้ API/สิทธิ์ผู้ดูแล site เดิม; ยังไม่เปิดให้ tenant end-user ใช้ด้วย tenant session และยังไม่ใช้ immutable FileRef ID หรือ path policy ใหม่ครบทุกแบบ
 - Auth ใหม่ยังครอบ local login เดิม; registration, revoke/session ใหม่ และ Google/LINE/Facebook/LDAP/AD adapters ยังต้องทำ

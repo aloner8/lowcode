@@ -14,7 +14,14 @@ export interface ModuleClientOptions {
   platformId?: string;
   fetch?: typeof globalThis.fetch;
 }
-export interface MailInput { to: string; template: string; data?: Record<string, unknown> }
+export interface MailInput {
+  to: string | string[];
+  cc?: string[];
+  template: string;
+  data?: Record<string, unknown>;
+  /** Immutable FileRef IDs returned by the Files module. */
+  attachments?: string[];
+}
 export interface ModuleUser { id?: string; userId?: string; email?: string; roles: string[]; permissions: string[] }
 
 export function createModules(options: ModuleClientOptions = {}) {
@@ -44,7 +51,8 @@ export function createModules(options: ModuleClientOptions = {}) {
       changePassword: (input: { currentPassword: string; newPassword: string }, request?: RequestOptions) => call<{ changed: boolean }>('auth', 'changePassword', input, request),
     },
     mail: {
-      send: (input: MailInput, request?: RequestOptions) => call<{ jobId: string; status: string }>('mail', 'send', { to: input.to, templateId: input.template, variables: input.data ?? {} }, request, true),
+      send: (input: MailInput, request?: RequestOptions) => call<{ jobId: string; status: string }>('mail', 'send', { to: input.to, cc: input.cc ?? [], templateId: input.template, variables: input.data ?? {}, attachments: input.attachments ?? [] }, request, true),
+      preview: (input: Omit<MailInput, 'attachments'>, request?: RequestOptions) => call<{ subject: string; html: string; to: string[]; cc: string[] }>('mail', 'preview', { to: input.to, cc: input.cc ?? [], templateId: input.template, variables: input.data ?? {} }, request),
       status: (jobId: string, request?: RequestOptions) => call<{ jobId: string; status: string; attempts: number }>('mail', 'status', { jobId }, request),
     },
   };

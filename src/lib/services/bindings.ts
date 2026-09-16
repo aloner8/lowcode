@@ -29,6 +29,12 @@ export function validateServiceBinding(binding: StudioServiceDefinition): { vali
   if (!definition) errors.push(`Service ${normalized.serviceRef!.serviceKey}@${normalized.serviceRef!.version} is unavailable`);
   if (definition) {
     errors.push(...validateSchema(definition.propertySchema, normalized.config).errors);
+    if (definition.serviceKey === 'notification.email' && normalized.config.transport === 'smtp') {
+      if (typeof normalized.config.smtpHost !== 'string' || !normalized.config.smtpHost.trim()) errors.push('SMTP host is required');
+      if (!Number.isInteger(normalized.config.smtpPort)) errors.push('SMTP port is required');
+      if (!['none', 'starttls', 'tls'].includes(String(normalized.config.smtpTlsMode))) errors.push('SMTP TLS mode is invalid');
+      if (!['none', 'basic'].includes(String(normalized.config.smtpAuthMode))) errors.push('SMTP auth mode is invalid');
+    }
     for (const operation of normalized.policy?.allowedOperations ?? []) if (!definition.operations[operation]) errors.push(`Operation '${operation}' does not exist`);
   }
   return { valid: errors.length === 0, errors, binding: { ...normalized, status: errors.length ? 'invalid' : 'valid', validationErrors: errors } };

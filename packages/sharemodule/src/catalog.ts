@@ -55,15 +55,20 @@ const definitions: SharedServiceDefinition[] = [
   },
   {
     serviceKey: 'notification.email', displayName: 'Email Notification', kind: 'notification', version: '1.0.0', lifecycle: 'active',
-    defaultConfig: { allowedTemplateIds: [], allowedRecipientMode: 'field', dailyQuota: 5000 },
+    defaultConfig: { transport: 'smtp', smtpPort: 587, smtpTlsMode: 'starttls', smtpAuthMode: 'basic', smtpRejectUnauthorized: true, smtpConnectionTimeoutMs: 10000, smtpSocketTimeoutMs: 60000, allowedTemplateIds: [], allowedRecipientMode: 'field', dailyQuota: 5000, maxAttachmentBytes: 26214400 },
     propertySchema: object({
       fromName: { type: 'string', minLength: 1, maxLength: 160 }, fromAddress: { type: 'string', minLength: 3, maxLength: 320 }, replyTo: { type: 'string', maxLength: 320 },
+      transport: { type: 'string', enum: ['http', 'smtp'] }, smtpHost: { type: 'string', minLength: 1, maxLength: 255 },
+      smtpPort: { type: 'integer', minimum: 1, maximum: 65535 }, smtpTlsMode: { type: 'string', enum: ['none', 'starttls', 'tls'] },
+      smtpAuthMode: { type: 'string', enum: ['none', 'basic'] }, smtpRejectUnauthorized: { type: 'boolean' },
+      smtpConnectionTimeoutMs: { type: 'integer', minimum: 100, maximum: 60000 }, smtpSocketTimeoutMs: { type: 'integer', minimum: 1000, maximum: 300000 },
       allowedTemplateIds: { type: 'array', items: { type: 'string', maxLength: 160 } }, allowedRecipientMode: { type: 'string', enum: ['user', 'field', 'fixed-domain'] },
       allowedRecipientDomain: { type: 'string', maxLength: 255 }, dailyQuota: { type: 'integer', minimum: 1, maximum: 100000 },
-      templates: { type: 'object' },
+      maxAttachmentBytes: { type: 'integer', minimum: 1, maximum: 52428800 }, templates: { type: 'object' },
     }, ['fromName', 'fromAddress', 'allowedTemplateIds']),
     operations: {
-      sendTemplate: { inputSchema: object({ templateId: { type: 'string' }, to: { type: 'string' }, variables: { type: 'object' } }, ['templateId', 'to', 'variables']), outputSchema: resultSchema, execution: 'async', idempotency: 'required' },
+      sendTemplate: { inputSchema: object({ templateId: { type: 'string' }, to: {}, cc: { type: 'array', items: { type: 'string' } }, variables: { type: 'object' }, attachments: { type: 'array', items: { type: 'string' } } }, ['templateId', 'to', 'variables']), outputSchema: resultSchema, execution: 'async', idempotency: 'required' },
+      previewTemplate: { inputSchema: object({ templateId: { type: 'string' }, to: {}, cc: { type: 'array', items: { type: 'string' } }, variables: { type: 'object' } }, ['templateId', 'to', 'variables']), outputSchema: resultSchema, requiredPermission: 'mail.preview', execution: 'sync', idempotency: 'none' },
       getDeliveryStatus: { inputSchema: object({ jobId: { type: 'string' } }, ['jobId']), outputSchema: resultSchema, execution: 'sync', idempotency: 'none' },
     },
   },

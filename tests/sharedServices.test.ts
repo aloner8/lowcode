@@ -6,8 +6,30 @@ import { validateAppBindingOverridePolicy } from '@/lib/services/configPolicy';
 import { validateSchema } from '@/lib/services/schemaValidator';
 import { validateServicesForPublish } from '@/lib/services/publishValidation';
 import { issueJwt, verifyJwt } from '@/lib/services/jwtAuthService';
+import { validateBindingSecretReferences } from '@/lib/services/secrets';
 
 describe('shared service catalog', () => {
+  it('validates an SMTP binding and keeps credentials in the protected namespace', () => {
+    const binding = {
+      id: 'mail.office', name: 'Office SMTP', kind: 'notification' as const, enabled: true,
+      serviceRef: { serviceKey: 'notification.email', version: '1.0.0' },
+      config: {
+        transport: 'smtp', smtpHost: 'smtp.internal', smtpPort: 587, smtpTlsMode: 'starttls', smtpAuthMode: 'basic',
+        smtpRejectUnauthorized: true, smtpConnectionTimeoutMs: 10000, smtpSocketTimeoutMs: 60000,
+        fromName: 'Office', fromAddress: 'noreply@example.test', allowedTemplateIds: ['welcome'], maxAttachmentBytes: 1024,
+      },
+      secretRefs: { smtpUsername: 'env://LOWCODE_CONNECTION_SMTP_USER', smtpPassword: 'env://LOWCODE_CONNECTION_SMTP_PASSWORD' },
+      policy: { allowedOperations: ['sendTemplate', 'previewTemplate', 'getDeliveryStatus'] }, containerBindings: [],
+    };
+    expect(validateServiceBinding(binding).valid).toBe(true);
+    expect(validateBindingSecretReferences(binding)).toEqual([
+      "Secret reference 'smtpUsername' is not configured",
+      "Secret reference 'smtpPassword' is not configured",
+    ]);
+    expect(validateBindingSecretReferences({ ...binding, secretRefs: { ...binding.secretRefs, smtpPassword: 'env://PLATFORM_JWT_SECRET' } }))
+      .toContain("SMTP secret reference 'smtpPassword' must use the LOWCODE_CONNECTION_ namespace");
+  });
+
   it('registers the four initial capabilities', () => {
     expect(listServiceDefinitions().map((item) => item.serviceKey)).toEqual([
       'auth.session', 'data.collection', 'storage.object', 'notification.email',

@@ -37,12 +37,12 @@ describe('runtime version compatibility', () => {
 
 describe('typed module client', () => {
   it('maps simple mail properties and keeps an explicit retry key stable', async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ data: { jobId: 'job', status: 'pending' } })));
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ data: { jobId: 'job', status: 'queued' } })));
     const modules = createModules({ baseUrl: '/api/runtime/town/modules', fetch: fetcher });
-    expect(await modules.mail.send({ to: 'user@example.com', template: 'welcome' }, { idempotencyKey: 'business-event-1' })).toEqual({ jobId: 'job', status: 'pending' });
+    expect(await modules.mail.send({ to: 'user@example.com', template: 'welcome' }, { idempotencyKey: 'business-event-1' })).toEqual({ jobId: 'job', status: 'queued' });
     const [url, init] = fetcher.mock.calls[0];
     expect(url).toBe('/api/runtime/town/modules/mail/send');
-    expect(JSON.parse(init!.body as string)).toEqual({ to: 'user@example.com', templateId: 'welcome', variables: {} });
+    expect(JSON.parse(init!.body as string)).toEqual({ to: 'user@example.com', cc: [], templateId: 'welcome', variables: {}, attachments: [] });
     expect(new Headers(init!.headers).get('Idempotency-Key')).toBe('business-event-1');
     expect(init!.credentials).toBe('same-origin');
   });

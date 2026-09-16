@@ -27,6 +27,26 @@ const postgresInput = () => ({
 });
 
 describe("Connection Profile policy", () => {
+  it("validates SMTP metadata while keeping credentials as protected references", () => {
+    const result = validateConnectionProfileInput({
+      profileKey: "mail.office",
+      profileName: "Office SMTP",
+      profileType: "SMTP",
+      config: {
+        host: "smtp.internal", port: 587, tlsMode: "starttls", authMode: "basic",
+        rejectUnauthorized: true, connectionTimeoutMs: 10_000, socketTimeoutMs: 60_000,
+        defaultFromName: "Office", defaultFromAddress: "noreply@example.test",
+      },
+      secretRefs: {
+        username: "env://LOWCODE_CONNECTION_SMTP_USERNAME",
+        password: "env://LOWCODE_CONNECTION_SMTP_PASSWORD",
+      },
+      policy: { allowedModuleKeys: ["mail"], allowRuntimeWrite: true },
+    });
+    expect(result.valid, result.errors.join("\n")).toBe(true);
+    expect(result.value?.profileType).toBe("SMTP");
+  });
+
   it("normalizes a typed SecretRef-only profile", () => {
     const result = validateConnectionProfileInput(postgresInput());
 
