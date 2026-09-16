@@ -316,7 +316,7 @@ Checkpoint sequence restore: rehearsal เพิ่มตรวจ last_value/is
 
 ### P8 — ขยาย Shared Module และความสามารถขั้นถัดไป
 
-**สถานะ 16 กันยายน 2026:** เริ่ม implementation ต่อโดยเจ้าของระบบให้ข้าม gate App ลูกของ P7 ชั่วคราว ลำดับงาน P8 คือ Mail → Auth providers → Google/Media → worker/release/version โดยแต่ละโมดูลยังต้องผ่าน Definition of Done ของตนเอง และข้อพิสูจน์ provider ภายนอกที่ไม่มี test credential ต้องรายงานเป็น blocker ไม่อ้างว่าเสร็จจาก mock.
+**สถานะ 16 กันยายน 2026: implementation complete / production acceptance deferred.** เจ้าของระบบให้ข้าม gate App ลูกของ P7 ชั่วคราว; Mail → Auth providers → Google/Media → worker/release/version ลงครบและผ่าน local acceptance ที่พิสูจน์ได้แล้ว แต่ P7 real-App/staging, external providers, tag/image publish และ staged rollback ยังคง deferred จึงห้ามตีความสถานะนี้ว่า production rollout ผ่าน ดู matrix สุดท้ายที่ [P8_FINAL_ACCEPTANCE.md](docs/P8_FINAL_ACCEPTANCE.md).
 
 Checkpoint Mail: SMTP/STARTTLS/TLS, CC, attachment snapshot, template preview, durable lease recovery, structured Studio template/binding UI และสถานะ accepted/unknown ลงแล้ว พร้อม typed client, migration และ local SMTP socket integration; external SMTP account proof ยัง deferred เพราะไม่มี protected test credential.
 

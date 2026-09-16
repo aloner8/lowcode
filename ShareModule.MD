@@ -460,4 +460,6 @@ Developer ทำเพียงเลือกโมดูล กำหนดข
 
 ชุดแรกนี้เป็นการวางฐานและย้ายการใช้งานจริงเข้า library โดยยังไม่ถือว่าโมดูลทั้งสี่กลุ่มเสร็จครบตาม Definition of Done
 
+P8 implementation ปิดที่ ShareModule `0.4.0` ตาม [final acceptance matrix](docs/P8_FINAL_ACCEPTANCE.md): local code/package/image/worker proof ผ่าน ส่วน real child-App/staging, external provider accounts, release publish และ rollout/rollback proof ยัง deferred และไม่ถูกรวมเป็นผลผ่าน.
+
 ผลตรวจชุดแรก: unit tests ผ่าน 134 รายการ/ข้าม 1, TypeScript ผ่าน, lint ไม่มี error (ยังมี warning เดิม), package dry-run ผ่าน และ Docker image `lowcode-sharemodule:local` build สำเร็จ ทดสอบ import compiled exports และ HTTP server ภายใน image โดยไม่ mount โค้ดจากเครื่องผ่านแล้ว ทั้ง authentication guard และ cross-origin guard ทำงาน ส่วนการตรวจ UI ผ่าน browser ยังไม่ได้ทำเพราะไม่มี browser เชื่อมต่อ และยังไม่ได้ทดสอบ integration ของ provider ภายนอก
