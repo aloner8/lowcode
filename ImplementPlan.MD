@@ -292,9 +292,9 @@ Auth/Files ในระยะนี้คือส่วนแรกของ Sh
 
 ### P7 — ย้ายแอปเดิม ทดลองใช้งาน และเปิดใช้ทีละกลุ่ม
 
-**คำสั่งเจ้าของระบบ 16 กันยายน 2026:** เลื่อนการทดสอบ App ลูก/staging จริงไว้ก่อนเพื่อเดิน P8 ให้จบ งาน P7 ที่ทำแล้วคงอยู่และยังไม่ถือว่าผ่าน; ห้ามตีความผล synthetic เป็นผล real-App และต้องกลับมาปิด acceptance นี้ก่อน production rollout.
+**คำสั่งเจ้าของระบบ 16 กันยายน 2026:** อนุมัติให้ใช้ App legacy ตัวอย่างขนาดเล็กที่รันกับ PostgreSQL/asset จริงและมี automated tests เป็น staging proof แทน snapshot ลูกค้าที่ยังไม่มีแหล่งข้อมูล/credential โดยยังห้ามตีความเป็น production-data, production-volume หรือ RTO proof.
 
-**สถานะ: เริ่ม checkpoint inventory แล้ว ยังไม่ผ่าน P7** — เพิ่ม `npm run migration:inventory` สำหรับ Core DB snapshot แบบ read-only พร้อม metadata checksum, mapping counts และ reference checks; focused tests ผ่าน 5 tests, typecheck และ targeted lint ผ่าน เครื่องมือยังไม่ถูกรันกับ DB จริง และไม่อนุมัติ apply แม้รายงานว่าง ขั้นถัดไปคือ inventory สำเนา staging, asset/binding/style mapping และ backup/restore rehearsal ตาม [คู่มือ inventory](docs/P7_MIGRATION_INVENTORY.md)
+**สถานะ: ผ่าน implementation/self-contained staging acceptance แล้ว; production rollout proof ยัง deferred** — `npm run migration:rehearse:fixture-app` สร้าง legacy App จริงใน disposable PostgreSQL 17 พร้อม Page/Component/Collection/binding/asset, ทำ inventory → additive conversion → runtime/CRUD → rollback/recutover → Core/tenant/assets restore ครบ unresolved mappings ลด 6→0, reference violations เป็น 0 และ checksum ทุกส่วนที่ต้องรักษาตรงกัน ดูหลักฐานที่ [P7 fixture App rehearsal](docs/P7_FIXTURE_APP_REHEARSAL.md). เครื่องมือ `npm run migration:inventory` สำหรับ snapshot ที่ได้รับอนุญาตยังคงเป็น read-only และไม่อนุมัติ production apply โดยตัวมันเอง.
 
 Checkpoint เปรียบเทียบ offline: `npm run migration:compare -- before.json after.json` ตรวจรายงานครบ/ไม่ซ้ำ, count/checksum drift, mapping และ reference โดยไม่เชื่อ summary และไม่อนุมัติ apply ชุด inventory/comparison รวมผ่าน 14 tests พร้อม typecheck, targeted lint และ CLI smoke (exit 0/2/1); ยังไม่มีรายงาน staging จริงหรือหลักฐาน preservation ของ payload/asset/style
 
@@ -308,7 +308,7 @@ Checkpoint synthetic restore (13 กันยายน 2026): `npm run migration
 
 Checkpoint sequence restore: rehearsal เพิ่มตรวจ last_value/is_called/settings และ insert หลัง restore; ผ่าน 42 tables / 51 rows และ 3 sequences, identity ต่อ ID ถูกแม้ค่าล่าสุดถูกลบ และ sequence ที่ยังไม่ใช้เริ่มถูกค่า พร้อม P1/P3 acceptance, FK, targeted lint/syntax check ยังคงไม่ใช่หลักฐานกู้คืน App จริงหรือ role/ownership/filesystem preservation
 
-**Next gate — ต้องระบุ App/แหล่งข้อมูล staging:** ตรวจ 13 กันยายน 2026 เวลา 18:19 Europe/Berlin ไม่พบ snapshot/dump ของ App ที่พร้อมใช้จากการค้นไฟล์ repository, ไม่มี Docker container/volume ชื่อ lowcode และ protected store ไม่มี credential ของ Low Code staging การตรวจนี้ไม่ได้ยืนยันว่าไม่มีข้อมูลอยู่ที่อื่น ขั้นถัดไปต้องระบุ App ตัวอย่างและตำแหน่งสำเนา staging/offline ที่จะใช้ก่อนเริ่ม inventory/mapping/restore จริง ไม่ถือผล synthetic เป็นการปิด P7 และไม่สร้างสำเนาจาก production โดยเดาแหล่งข้อมูลหรือ credentials
+**Production-only follow-up:** ก่อนย้ายลูกค้าจริงต้องระบุ App และ authorized quiescent snapshot แล้วรัน inventory/backup/restore ซ้ำพร้อมวัด volume, RTO/RPO, roles/ownership, DNS/proxy และ external providers; ห้ามเดาแหล่ง production หรือ credential. งานนี้ไม่บล็อก P7 implementation/self-contained staging gate ที่เจ้าของอนุมัติแล้ว.
 
 ขึ้นกับ P4–P6 งาน: migration dry-run, mapping ID/binding/style, เปรียบเทียบหน้าจอ/ข้อมูล, stage app ตัวอย่าง, backup/restore rehearsal และเลือก App ใช้ renderer ใหม่ทีละตัว
 

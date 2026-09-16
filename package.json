@@ -19,6 +19,7 @@
     "migration:assets": "node scripts/migration-assets.mjs",
     "migration:assets:compare": "node scripts/migration-assets-compare.mjs",
     "migration:rehearse:synthetic": "node scripts/migration-restore-rehearsal.mjs",
+    "migration:rehearse:fixture-app": "node scripts/p7-fixture-app-rehearsal.mjs",
     "secrets": "node scripts/generate-secrets.mjs",
     "seed:site": "node scripts/seed-municipal-site.mjs",
     "build:modules": "npm run build --workspace=@matchanu/sharemodule",

@@ -7,9 +7,10 @@ Branch: `dev`
 ShareModule: `0.4.0`
 
 P8 implementation is complete for the locally provable scope. It is not a
-production-rollout acceptance: the owner explicitly deferred the P7 real
-child-App/staging gate, and protected external provider test infrastructure was
-not available. Those facts remain visible rather than being replaced by mocks.
+production-rollout acceptance: P7 now has an owner-approved self-contained
+legacy App staging rehearsal, while an authorized production customer snapshot
+and protected external provider test infrastructure remain unavailable. Those
+facts remain visible rather than being replaced by mocks.
 
 ## Implemented checkpoints
 
@@ -48,8 +49,9 @@ not available. Those facts remain visible rather than being replaced by mocks.
 
 The following are not represented as passed:
 
-1. P7 inventory/migration/restore and workflow testing with a real child App or
-   staging snapshot.
+1. P7 repetition against an authorized production customer snapshot, including
+   production volume and RTO/RPO measurement. The representative fixture proof
+   is recorded in `docs/P7_FIXTURE_APP_REHEARSAL.md`.
 2. External SMTP account delivery and provider-side delivery evidence.
 3. Real Google/LINE/Facebook/Entra tenant callbacks and a real LDAP/AD directory.
 4. Real Google Cloud consent, revoked-token, pagination/quota, Calendar, Drive,
@@ -60,8 +62,8 @@ The following are not represented as passed:
 ## Closure rule
 
 P8 code implementation is closed at this checkpoint. Production readiness is
-still gated by the five deferred evidence groups above, especially the owner's
-deferred P7 real-App gate. Resume from the runbooks without altering the
+still gated by the five deferred evidence groups above, especially the
+production-data P7 gate. Resume from the runbooks without altering the
 implemented contracts: supply protected test infrastructure, run the external
 acceptance suites, tag the exact package version, deploy by digest, then execute
 the staged rollout/rollback checklist.
