@@ -1183,14 +1183,11 @@ export const StudioTreeviewOutline: React.FC<StudioTreeviewOutlineProps> = ({
 
           {openSections.serviceAssign && (
             <div className="ms-3 ps-2 border-start border-light pt-1 text-secondary extra-small">
-              <div className="p-2 bg-light rounded-2 border mb-1">
-                <span className="fw-bold text-dark d-block mb-0.5">Tenant API Endpoints</span>
-                <code>GET /api/v1/tenant/users</code>
-              </div>
-              <div className="p-2 bg-light rounded-2 border">
-                <span className="fw-bold text-dark d-block mb-0.5">Webhook Handlers</span>
-                <code>POST /api/v1/events/submit</code>
-              </div>
+              {services.length ? services.map((service) => <button type="button" key={service.id} className="btn btn-sm w-100 text-start p-2 bg-light rounded-2 border mb-1" onClick={() => setActivePage('app_workflow')}>
+                <span className="d-flex align-items-center gap-1 fw-bold text-dark"><PlugZap size={11}/>{service.name}<span className={`badge ms-auto ${service.status === 'invalid' ? 'bg-danger' : service.status === 'published' ? 'bg-success' : 'bg-warning text-dark'}`}>{service.status || 'legacy'}</span></span>
+                <code className="d-block text-truncate">{service.serviceRef?.serviceKey || service.id}@{service.serviceRef?.version || 'legacy'}</code>
+                <span>{service.policy?.allowedOperations?.length || 0} allowed operations</span>
+              </button>) : <div className="p-2 bg-light rounded-2 border text-muted">No service bindings. Open App Workflow → Services to add one.</div>}
             </div>
           )}
         </div>

@@ -4,6 +4,7 @@ import { CheckCircle2, Plus, Save, Server, ShieldAlert } from 'lucide-react';
 import { listServiceDefinitions } from '@/lib/services/catalog';
 import { normalizeServiceBinding } from '@/lib/services/bindings';
 import type { JsonSchema, SharedServiceDefinition, StudioServiceDefinition } from '@/types';
+import { MailTemplateEditor } from './MailTemplateEditor';
 
 interface Props { platformId: string; appId?: string | null; services: StudioServiceDefinition[]; collections: Array<{ id: string; name: string; table: string }>; onSave: (service: StudioServiceDefinition) => Promise<void> }
 
@@ -33,7 +34,15 @@ export const SharedServiceManager: React.FC<Props> = ({ platformId, appId, servi
   const definition = draft ? catalog.find((item) => item.serviceKey === draft.serviceRef?.serviceKey) : undefined;
   const add = (item: SharedServiceDefinition) => {
     const count = availableServices.filter((entry) => entry.serviceRef?.serviceKey === item.serviceKey).length + 1; const id = `app.${slug(item.serviceKey)}${count > 1 ? `.${count}` : ''}`;
-    const next: StudioServiceDefinition = { id, name: item.displayName, kind: item.kind, serviceRef: { serviceKey: item.serviceKey, version: item.version }, provider: providerFor(item.kind), scope: 'app', enabled: true, config: { ...item.defaultConfig }, secretRefs: item.kind === 'auth' ? { signingKey: 'env://PLATFORM_JWT_SECRET' } : item.kind === 'notification' ? { providerEndpoint: 'env://MAIL_PROVIDER_ENDPOINT', providerToken: 'env://MAIL_PROVIDER_TOKEN' } : {}, policy: { allowedOperations: Object.keys(item.operations) }, status: 'draft', containerBindings: [] };
+    const secretRefs: Record<string, string> = item.kind === 'auth'
+      ? { signingKey: 'env://PLATFORM_JWT_SECRET' }
+      : item.serviceKey === 'notification.email'
+        ? { smtpUsername: 'env://LOWCODE_CONNECTION_SMTP_USERNAME', smtpPassword: 'env://LOWCODE_CONNECTION_SMTP_PASSWORD' }
+        : {};
+    const config = item.serviceKey === 'notification.email'
+      ? { ...item.defaultConfig, templates: {} }
+      : { ...item.defaultConfig };
+    const next: StudioServiceDefinition = { id, name: item.displayName, kind: item.kind, serviceRef: { serviceKey: item.serviceKey, version: item.version }, provider: providerFor(item.kind), scope: 'app', enabled: true, config, secretRefs, policy: { allowedOperations: Object.keys(item.operations) }, status: 'draft', containerBindings: [] };
     setSelectedId(id); setDraft(next); setStatus('New draft — configure and save');
   };
   const save = async () => {
@@ -47,7 +56,16 @@ export const SharedServiceManager: React.FC<Props> = ({ platformId, appId, servi
     <div className="col-lg-4"><div className="card border h-100"><div className="card-header fw-bold d-flex align-items-center gap-2"><Server size={16}/>{appId ? 'App Service Overrides' : 'Platform Service Bindings'}</div><div className="list-group list-group-flush">{availableServices.map((item) => <button key={item.id} className={`list-group-item list-group-item-action text-start ${selectedId === item.id ? 'active' : ''}`} onClick={() => { setSelectedId(item.id); setDraft(normalizeServiceBinding(item)); setStatus(''); }}><div className="fw-semibold">{item.name}</div><small>{item.id} · {item.status || 'legacy'}</small></button>)}</div><div className="card-body border-top"><div className="small fw-bold mb-2">Service Catalog</div><div className="d-grid gap-2">{catalog.map((item) => <button key={item.serviceKey} className="btn btn-sm btn-outline-primary text-start" onClick={() => add(item)}><Plus size={12}/> {item.displayName} <small className="text-muted">@{item.version}</small></button>)}</div></div></div></div>
     <div className="col-lg-8">{draft && definition ? <div className="card border"><div className="card-header bg-white d-flex justify-content-between align-items-center"><div><b>{draft.name}</b><div className="small text-muted">{definition.serviceKey}@{definition.version}</div></div><span className={`badge ${draft.status === 'invalid' ? 'bg-danger' : draft.status === 'valid' ? 'bg-success' : 'bg-warning text-dark'}`}>{draft.status || 'draft'}</span></div><div className="card-body">
       <div className="row g-3 mb-3"><div className="col-md-7"><label className="form-label small fw-bold">Binding name</label><input className="form-control form-control-sm" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })}/></div><div className="col-md-5"><label className="form-label small fw-bold">Binding ID</label><input className="form-control form-control-sm font-monospace" value={draft.id} disabled={availableServices.some((item) => item.id === draft.id)}/></div></div>
-      <h6>Properties</h6><div className="row g-3">{Object.entries(definition.propertySchema.properties || {}).map(([key, schema]) => <div className={schema.type === 'object' ? 'col-12' : 'col-md-6'} key={key}><label className="form-label small fw-semibold">{schema.title || key}{definition.propertySchema.required?.includes(key) ? ' *' : ''}</label>{editor(schema, draft.config[key], (value) => setDraft({ ...draft, config: { ...draft.config, [key]: value } }), key, collections)}{schema.description && <small className="text-muted">{schema.description}</small>}</div>)}</div>
+      <h6>Properties</h6><div className="row g-3">{Object.entries(definition.propertySchema.properties || {}).filter(([key]) => !(definition.serviceKey === 'notification.email' && key === 'templates')).map(([key, schema]) => <div className={schema.type === 'object' ? 'col-12' : 'col-md-6'} key={key}><label className="form-label small fw-semibold">{schema.title || key}{definition.propertySchema.required?.includes(key) ? ' *' : ''}</label>{editor(schema, draft.config[key], (value) => {
+        const config = { ...draft.config, [key]: value };
+        const secretRefs = definition.serviceKey === 'notification.email' && key === 'transport'
+          ? value === 'smtp'
+            ? { smtpUsername: draft.secretRefs?.smtpUsername || 'env://LOWCODE_CONNECTION_SMTP_USERNAME', smtpPassword: draft.secretRefs?.smtpPassword || 'env://LOWCODE_CONNECTION_SMTP_PASSWORD' }
+            : { providerEndpoint: draft.secretRefs?.providerEndpoint || 'env://LOWCODE_CONNECTION_MAIL_PROVIDER_ENDPOINT', providerToken: draft.secretRefs?.providerToken || 'env://LOWCODE_CONNECTION_MAIL_PROVIDER_TOKEN' }
+          : draft.secretRefs;
+        setDraft({ ...draft, config, secretRefs });
+      }, key, collections)}{schema.description && <small className="text-muted">{schema.description}</small>}</div>)}</div>
+      {definition.serviceKey === 'notification.email' && <div className="mt-3"><MailTemplateEditor value={draft.config.templates} onChange={(templates) => setDraft({ ...draft, config: { ...draft.config, templates, allowedTemplateIds: Object.keys(templates).sort() } })}/></div>}
       <h6 className="mt-4">Operations</h6><div className="d-flex flex-wrap gap-3">{Object.keys(definition.operations).map((operation) => <label className="form-check" key={operation}><input className="form-check-input" type="checkbox" checked={draft.policy?.allowedOperations.includes(operation) || false} onChange={(e) => { const current = draft.policy?.allowedOperations || []; setDraft({ ...draft, policy: { ...(draft.policy || { allowedOperations: [] }), allowedOperations: e.target.checked ? [...current, operation] : current.filter((item) => item !== operation) } }); }}/><span className="form-check-label">{operation}</span></label>)}</div>
       {Object.keys(draft.secretRefs || {}).length > 0 && <><h6 className="mt-4">Secret References</h6>{Object.entries(draft.secretRefs || {}).map(([key, value]) => <div className="input-group input-group-sm mb-2" key={key}><span className="input-group-text">{key}</span><input className="form-control font-monospace" value={value} onChange={(e) => setDraft({ ...draft, secretRefs: { ...(draft.secretRefs || {}), [key]: e.target.value } })}/></div>)}</>}
       {status && <div className={`alert py-2 mt-3 ${draft.status === 'invalid' ? 'alert-danger' : 'alert-info'}`}>{draft.status === 'invalid' ? <ShieldAlert size={14}/> : <CheckCircle2 size={14}/>} {status}</div>}
