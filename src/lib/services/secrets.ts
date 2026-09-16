@@ -21,8 +21,11 @@ export function secretReferenceStatus(reference: string): { configured: boolean;
 }
 
 export function validateBindingSecretReferences(binding: StudioServiceDefinition): string[] {
+  const providers = Array.isArray(binding.config.providers) ? binding.config.providers : ['local'];
+  const socialSecretKeys = providers.flatMap((provider) => ['google', 'line', 'facebook', 'entra'].includes(String(provider)) ? [`${provider}ClientId`, `${provider}ClientSecret`] : []);
+  const directorySecretKeys = providers.some((provider) => provider === 'ldap' || provider === 'ad-ds') ? ['directoryBindDn', 'directoryBindPassword'] : [];
   const required = serviceKeyOf(binding) === 'auth.session'
-    ? ['signingKey']
+    ? ['signingKey', ...socialSecretKeys, ...directorySecretKeys]
     : serviceKeyOf(binding) === 'notification.email'
       ? binding.config.transport === 'smtp'
         ? binding.config.smtpAuthMode === 'none' ? [] : ['smtpUsername', 'smtpPassword']
@@ -37,6 +40,12 @@ export function validateBindingSecretReferences(binding: StudioServiceDefinition
   if (serviceKeyOf(binding) === 'notification.email' && binding.config.transport === 'smtp') {
     for (const [key, reference] of Object.entries(binding.secretRefs || {})) {
       if (!CONNECTION_ENV_REF.test(reference)) errors.push(`SMTP secret reference '${key}' must use the LOWCODE_CONNECTION_ namespace`);
+    }
+  }
+  if (serviceKeyOf(binding) === 'auth.session') {
+    for (const key of [...socialSecretKeys, ...directorySecretKeys]) {
+      const reference = binding.secretRefs?.[key];
+      if (reference && !CONNECTION_ENV_REF.test(reference)) errors.push(`External Auth secret reference '${key}' must use the LOWCODE_CONNECTION_ namespace`);
     }
   }
   return errors;

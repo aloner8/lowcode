@@ -62,6 +62,16 @@ describe('shared service catalog', () => {
     expect(validateServiceBinding(auth).valid).toBe(true);
   });
 
+  it('publishes registration, provider discovery, external login and revocation contracts', () => {
+    const definition = getServiceDefinition('auth.session')!;
+    expect(Object.keys(definition.operations)).toEqual(expect.arrayContaining([
+      'register', 'listProviders', 'startExternalLogin', 'completeExternalLogin', 'revokeSessions',
+    ]));
+    expect(definition.propertySchema.properties?.providers.items?.enum).toEqual([
+      'local', 'google', 'line', 'facebook', 'ldap', 'ad-ds', 'entra',
+    ]);
+  });
+
   it('rejects unknown object properties and bad numeric bounds', () => {
     const schema = getServiceDefinition('auth.session')!.propertySchema;
     expect(validateSchema(schema, { accessTokenTtlSeconds: 10, unexpected: true }).errors).toEqual(expect.arrayContaining([expect.stringContaining('at least'), expect.stringContaining('not allowed')]));

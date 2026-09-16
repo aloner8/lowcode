@@ -7,18 +7,18 @@ describe("Module Setting policy", () => {
     expect(validateModuleSetting({ moduleKey: "files", enabled: true, config: createDefaultModuleConfig("files") }).valid).toBe(true);
   });
 
-  it("rejects modules and Auth config not supported by the runtime image", () => {
+  it("accepts social Auth but rejects unknown providers and external redirects", () => {
     expect(validateModuleSetting({ moduleKey: "google", enabled: true, config: {} }).issues)
       .toContainEqual(expect.objectContaining({ code: "unsupported_module" }));
     expect(validateModuleSetting({
       moduleKey: "auth",
       enabled: true,
-      config: { providers: ["google"], allowRegister: true, afterLogin: "https://outside.example" },
+      config: { providers: ["google", "saml"], allowRegister: true, afterLogin: "https://outside.example" },
     }).issues.map((item) => item.code)).toEqual(expect.arrayContaining([
       "unsupported_auth_provider",
-      "auth_registration_requires_mail",
       "invalid_after_login",
     ]));
+    expect(validateModuleSetting({ moduleKey: "auth", enabled: true, config: { providers: ["local", "google"], allowRegister: true, afterLogin: "/dashboard" } }).valid).toBe(true);
   });
 
   it("rejects Files paths that could escape tenant scope", () => {

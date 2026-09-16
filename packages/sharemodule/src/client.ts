@@ -23,6 +23,7 @@ export interface MailInput {
   attachments?: string[];
 }
 export interface ModuleUser { id?: string; userId?: string; email?: string; roles: string[]; permissions: string[] }
+export type AuthProvider = 'local' | 'google' | 'line' | 'facebook' | 'ldap' | 'ad-ds' | 'entra';
 
 export function createModules(options: ModuleClientOptions = {}) {
   const base = (options.baseUrl ?? '/api/share/v1').replace(/\/$/, '');
@@ -43,11 +44,16 @@ export function createModules(options: ModuleClientOptions = {}) {
   }
   return {
     auth: {
+      register: (input: { email: string; password: string; displayName: string }, request?: RequestOptions) => call<{ user: ModuleUser }>('auth', 'register', input, request, true),
       login: (input: { email?: string; username?: string; password: string }, request?: RequestOptions) => call<{ user: ModuleUser }>('auth', 'login', input, request),
+      directoryLogin: (input: { provider: 'ldap' | 'ad-ds'; username: string; password: string }, request?: RequestOptions) => call<{ user: ModuleUser }>('auth', 'directoryLogin', input, request),
+      providers: (request?: RequestOptions) => call<{ providers: AuthProvider[] }>('auth', 'providers', {}, request),
+      externalLoginUrl: (provider: Exclude<AuthProvider, 'local' | 'ldap' | 'ad-ds'>, runtimeSlug: string) => `/api/runtime/${encodeURIComponent(runtimeSlug)}/auth/providers/${provider}/start`,
       logout: (request?: RequestOptions) => call<{ loggedOut: boolean }>('auth', 'logout', {}, request),
       me: async (request?: RequestOptions) => (await call<{ user: ModuleUser }>('auth', 'me', {}, request)).user,
       can: async (permission: string, request?: RequestOptions) => (await call<{ user: ModuleUser }>('auth', 'me', {}, request)).user.permissions.includes(permission),
       refresh: (request?: RequestOptions) => call<{ user: ModuleUser }>('auth', 'refresh', {}, request),
+      revokeSessions: (request?: RequestOptions) => call<{ revoked: boolean }>('auth', 'revokeSessions', {}, request),
       changePassword: (input: { currentPassword: string; newPassword: string }, request?: RequestOptions) => call<{ changed: boolean }>('auth', 'changePassword', input, request),
     },
     mail: {

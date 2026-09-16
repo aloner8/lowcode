@@ -28,7 +28,7 @@
     "pretest": "npm run build:modules"
   },
   "dependencies": {
-    "@matchanu/sharemodule": "0.2.0",
+    "@matchanu/sharemodule": "0.3.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@tiptap/extension-color": "^3.30.2",
     "@tiptap/extension-highlight": "^3.30.2",
@@ -48,6 +48,7 @@
     "@tiptap/starter-kit": "^3.30.2",
     "@xyflow/react": "^12.11.2",
     "bootstrap": "^5.3.3",
+    "ldapts": "^9.2.0",
     "lucide-react": "^0.475.0",
     "next": "^16.3.3",
     "nodemailer": "^10.0.10",

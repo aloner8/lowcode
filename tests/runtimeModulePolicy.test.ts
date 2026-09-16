@@ -68,7 +68,7 @@ describe("App runtime Module Setting policy", () => {
   });
 
   it("rejects a runtime config that the current image cannot support", async () => {
-    const ctx = context([{ moduleKey: "auth", enabled: true, config: { providers: ["google"], allowRegister: false, afterLogin: "/" } }]);
+    const ctx = context([{ moduleKey: "auth", enabled: true, config: { providers: ["saml"], allowRegister: false, afterLogin: "/" } }]);
     await expect(dispatchModule(ctx, "auth", "me", {}))
       .rejects.toMatchObject({ code: "MODULE_CONFIG_UNSUPPORTED" });
   });

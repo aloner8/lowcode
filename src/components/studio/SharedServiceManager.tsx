@@ -62,6 +62,18 @@ export const SharedServiceManager: React.FC<Props> = ({ platformId, appId, servi
           ? value === 'smtp'
             ? { smtpUsername: draft.secretRefs?.smtpUsername || 'env://LOWCODE_CONNECTION_SMTP_USERNAME', smtpPassword: draft.secretRefs?.smtpPassword || 'env://LOWCODE_CONNECTION_SMTP_PASSWORD' }
             : { providerEndpoint: draft.secretRefs?.providerEndpoint || 'env://LOWCODE_CONNECTION_MAIL_PROVIDER_ENDPOINT', providerToken: draft.secretRefs?.providerToken || 'env://LOWCODE_CONNECTION_MAIL_PROVIDER_TOKEN' }
+          : definition.serviceKey === 'auth.session' && key === 'providers'
+            ? Object.fromEntries([
+                ['signingKey', draft.secretRefs?.signingKey || 'env://PLATFORM_JWT_SECRET'],
+                ...(Array.isArray(value) ? value : []).flatMap((provider) => ['google', 'line', 'facebook', 'entra'].includes(String(provider)) ? [
+                  [`${provider}ClientId`, draft.secretRefs?.[`${provider}ClientId`] || `env://LOWCODE_CONNECTION_${String(provider).toUpperCase()}_CLIENT_ID`],
+                  [`${provider}ClientSecret`, draft.secretRefs?.[`${provider}ClientSecret`] || `env://LOWCODE_CONNECTION_${String(provider).toUpperCase()}_CLIENT_SECRET`],
+                ] : []),
+                ...((Array.isArray(value) ? value : []).some((provider) => provider === 'ldap' || provider === 'ad-ds') ? [
+                  ['directoryBindDn', draft.secretRefs?.directoryBindDn || 'env://LOWCODE_CONNECTION_DIRECTORY_BIND_DN'],
+                  ['directoryBindPassword', draft.secretRefs?.directoryBindPassword || 'env://LOWCODE_CONNECTION_DIRECTORY_BIND_PASSWORD'],
+                ] : []),
+              ])
           : draft.secretRefs;
         setDraft({ ...draft, config, secretRefs });
       }, key, collections)}{schema.description && <small className="text-muted">{schema.description}</small>}</div>)}</div>

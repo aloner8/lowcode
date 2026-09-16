@@ -2,7 +2,7 @@ export * from './catalog.js';
 
 /** Operations belong to the library, never to a page's JSON. */
 export const MODULE_CATALOG = {
-  auth: { serviceKey: 'auth.session', operations: { login: 'login', logout: 'logout', me: 'me', refresh: 'refresh', changePassword: 'changePassword' } },
+  auth: { serviceKey: 'auth.session', operations: { register: 'register', login: 'login', directoryLogin: 'directoryLogin', providers: 'listProviders', startExternalLogin: 'startExternalLogin', completeExternalLogin: 'completeExternalLogin', logout: 'logout', me: 'me', refresh: 'refresh', revokeSessions: 'revokeSessions', changePassword: 'changePassword' } },
   files: { serviceKey: 'storage.object', operations: { list: 'list', upload: 'upload', metadata: 'getMetadata', delete: 'delete' } },
   mail: { serviceKey: 'notification.email', operations: { send: 'sendTemplate', preview: 'previewTemplate', status: 'getDeliveryStatus' } },
 } as const;

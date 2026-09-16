@@ -17,8 +17,8 @@ export interface ModuleSettingValidationResult {
 export const MODULE_SETTING_CATALOG: readonly ModuleSettingDefinition[] = [
   {
     key: "auth",
-    label: "Local Auth",
-    description: "App-local member login. Registration remains closed until verification/reset mail is configured.",
+    label: "Auth",
+    description: "App-local member login with optional Google, LINE, or Facebook federation.",
     defaultConfig: { providers: ["local"], allowRegister: false, afterLogin: "/" },
   },
   {
@@ -63,11 +63,13 @@ export function validateModuleSetting(
     unexpectedKeys(config, ["providers", "allowRegister", "afterLogin"]).forEach((key) =>
       issue("unsupported_module_config", `config.${key}`, `Auth config '${key}' is not supported`),
     );
-    if (!Array.isArray(config.providers) || config.providers.length !== 1 || config.providers[0] !== "local") {
-      issue("unsupported_auth_provider", "config.providers", "P5 Auth supports the local provider only");
+    const providers = Array.isArray(config.providers) ? config.providers : [];
+    const supportedProviders = new Set(["local", "google", "line", "facebook", "ldap", "ad-ds", "entra"]);
+    if (!providers.length || providers.some((provider) => typeof provider !== "string" || !supportedProviders.has(provider)) || new Set(providers).size !== providers.length) {
+      issue("unsupported_auth_provider", "config.providers", "Auth providers must be a unique supported provider selection");
     }
-    if (config.allowRegister !== false) {
-      issue("auth_registration_requires_mail", "config.allowRegister", "Registration requires verification/reset Mail and is not available yet");
+    if (typeof config.allowRegister !== "boolean") {
+      issue("invalid_auth_registration", "config.allowRegister", "allowRegister must be a boolean");
     }
     if (typeof config.afterLogin !== "string" || !/^\/(?!\/)/.test(config.afterLogin) || config.afterLogin.includes("\\")) {
       issue("invalid_after_login", "config.afterLogin", "afterLogin must be a local absolute path");

@@ -6,6 +6,7 @@ import { bindingFor, serviceKeyOf } from './bindings';
 import { resolveSecretReference } from './secrets';
 import type { StudioServiceDefinition } from '@/types';
 import { resolveAppServiceBindings } from './appBindings';
+import { getAppTenantDb, getTenantDb } from '@/lib/db/tenantDb';
 
 export interface ServiceActor {
   type: 'platform-user' | 'tenant-user' | 'anonymous' | 'system';
@@ -13,6 +14,7 @@ export interface ServiceActor {
   roles: string[];
   permissions: string[];
   email?: string;
+  sessionVersion?: number;
 }
 
 export interface ServiceExecutionContext {
@@ -75,7 +77,13 @@ export async function resolveRuntimeContext(request: Request, slug: string): Pro
       const secret = resolveSecretReference(normalized.secretRefs?.signingKey || `env://${config.secretEnvKey}`);
       const claims = verifyJwt(bearer, config, secret);
       if (claims.tokenUse === 'refresh') throw new Error('Refresh token cannot authenticate a service request');
-      actor = { type: 'tenant-user', userId: claims.sub, email: typeof claims.email === 'string' ? claims.email : undefined, roles: Array.isArray(claims.roles) ? claims.roles : [], permissions: Array.isArray(claims.permissions) ? claims.permissions as string[] : [] };
+      const sessionVersion = typeof claims.sessionVersion === 'number' ? claims.sessionVersion : undefined;
+      if (sessionVersion !== undefined) {
+        const { pool } = row.app_id ? await getAppTenantDb(row.app_id) : await getTenantDb(row.platform_id);
+        const current = await pool.query<{ session_version: number }>('SELECT session_version FROM public.auth_users WHERE id=$1 AND is_active=true', [claims.sub]);
+        if (!current.rowCount || current.rows[0].session_version !== sessionVersion) throw new Error('Session has been revoked');
+      }
+      actor = { type: 'tenant-user', userId: claims.sub, email: typeof claims.email === 'string' ? claims.email : undefined, roles: Array.isArray(claims.roles) ? claims.roles : [], permissions: Array.isArray(claims.permissions) ? claims.permissions as string[] : [], sessionVersion };
     } catch { /* An invalid tenant cookie is treated as anonymous. */ }
   }
   const refreshToken = cookieValue(request, tenantRefreshCookieName(slug));
@@ -85,7 +93,7 @@ export async function resolveRuntimeContext(request: Request, slug: string): Pro
       const config = { algorithm: 'HS256' as const, issuer: String(normalized.config.issuer || slug), audience: String(normalized.config.audience || `${slug}-runtime`), accessTokenTtlSeconds: Number(normalized.config.refreshTokenTtlSeconds || 604800), secretEnvKey: String(normalized.config.secretEnvKey || 'PLATFORM_JWT_SECRET') };
       const claims = verifyJwt(refreshToken, config, resolveSecretReference(normalized.secretRefs?.signingKey || `env://${config.secretEnvKey}`));
       if (claims.tokenUse !== 'refresh') throw new Error('Invalid refresh token');
-      refreshActor = { type: 'tenant-user', userId: claims.sub, email: typeof claims.email === 'string' ? claims.email : undefined, roles: Array.isArray(claims.roles) ? claims.roles : [], permissions: Array.isArray(claims.permissions) ? claims.permissions as string[] : [] };
+      refreshActor = { type: 'tenant-user', userId: claims.sub, email: typeof claims.email === 'string' ? claims.email : undefined, roles: Array.isArray(claims.roles) ? claims.roles : [], permissions: Array.isArray(claims.permissions) ? claims.permissions as string[] : [], sessionVersion: typeof claims.sessionVersion === 'number' ? claims.sessionVersion : undefined };
     } catch { /* Invalid refresh cookies never authenticate normal operations. */ }
   }
   const requestIdHeader = request.headers.get('x-request-id');

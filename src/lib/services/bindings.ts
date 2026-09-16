@@ -35,6 +35,14 @@ export function validateServiceBinding(binding: StudioServiceDefinition): { vali
       if (!['none', 'starttls', 'tls'].includes(String(normalized.config.smtpTlsMode))) errors.push('SMTP TLS mode is invalid');
       if (!['none', 'basic'].includes(String(normalized.config.smtpAuthMode))) errors.push('SMTP auth mode is invalid');
     }
+    if (definition.serviceKey === 'auth.session') {
+      const providers = Array.isArray(normalized.config.providers) ? normalized.config.providers.map(String) : ['local'];
+      if (providers.some((provider) => provider === 'ldap' || provider === 'ad-ds')) {
+        if (typeof normalized.config.directoryUrl !== 'string' || !normalized.config.directoryUrl.startsWith('ldaps://')) errors.push('Directory URL must use ldaps://');
+        if (typeof normalized.config.directoryBaseDn !== 'string' || !normalized.config.directoryBaseDn.trim()) errors.push('Directory base DN is required');
+        if (typeof normalized.config.directoryUserFilter !== 'string' || !normalized.config.directoryUserFilter.includes('{{username}}')) errors.push('Directory user filter must include {{username}}');
+      }
+    }
     for (const operation of normalized.policy?.allowedOperations ?? []) if (!definition.operations[operation]) errors.push(`Operation '${operation}' does not exist`);
   }
   return { valid: errors.length === 0, errors, binding: { ...normalized, status: errors.length ? 'invalid' : 'valid', validationErrors: errors } };

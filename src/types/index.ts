@@ -211,6 +211,9 @@ export const createDefaultJwtAuthService = (
   implementation: { owner: "mother", version: 1, module: "auth/jwt" },
   config: {
     identityField: "email",
+    providers: ["local"],
+    allowRegister: false,
+    afterLogin: "/",
     algorithm: "HS256",
     issuer: platformSlug,
     audience: `${platformSlug}-containers`,
@@ -220,7 +223,7 @@ export const createDefaultJwtAuthService = (
   },
   secretRefs: { signingKey: "env://PLATFORM_JWT_SECRET" },
   policy: {
-    allowedOperations: ["login", "logout", "me", "refresh", "changePassword"],
+    allowedOperations: ["register", "login", "directoryLogin", "listProviders", "startExternalLogin", "completeExternalLogin", "logout", "me", "refresh", "revokeSessions", "changePassword"],
   },
   status: "draft",
   containerBindings: [],

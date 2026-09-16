@@ -422,12 +422,21 @@ Developer ทำเพียงเลือกโมดูล กำหนดข
 - snapshot subject/HTML/attachment bytes+checksum ตอน enqueue, outbox ใช้ worker lease/recovery และสถานะ `queued/processing/accepted/failed/unknown`
 - PostgreSQL migration `034` เพิ่ม SMTP Connection Profile และ outbox lease/status แบบ additive
 - integration test เปิด SMTP socket จริงและตรวจ CC/MIME attachments; clean migration `001–034` ผ่าน PostgreSQL 17
-- ยังต้องเพิ่มหน้า UI จัดการ Mail template/binding และ proof กับ SMTP test credential ที่เก็บใน protected store ก่อนถือ Mail ผ่าน Definition of Done เต็มรูปแบบ
+- เพิ่ม structured Mail template editor, safe preview, binding UI และ Service Assign inventory จริงแล้ว; proof กับ SMTP test credential ที่เก็บใน protected storeยัง deferred
+
+### P8 Auth provider checkpoint — 16 กันยายน 2026
+
+- ShareModule `0.3.0` เพิ่ม local registration, provider discovery, Google/LINE/Facebook/Entra OAuth callback และ LDAP/AD DS directory login
+- OAuth ใช้ state แบบ hash/single-use, S256 PKCE, callback binding และ subject เป็น identity หลัก; ไม่ merge ด้วย email อย่างเดียว
+- Directory บังคับ `ldaps://`, escape filter, bind ด้วย user password และ map directory group ไป App-local role ได้
+- password change/revoke เพิ่ม session version เพื่อเพิกถอน access/refresh token รุ่นใหม่ และรักษา legacy rollout compatibility
+- Studio เลือก provider/registration/after-login ได้โดยไม่เห็น credential; SecretRef provider อยู่ server เท่านั้น
+- local HTTP OAuth integration, TLS/filter guard, full tests และ build ผ่าน; proof กับ provider tenant และ directory จริงยัง deferred เพราะไม่มี protected test infrastructure
 
 - ยังไม่ครบระยะ Foundation: หน้า Connections, การสร้าง default binding/schema จาก module config และ config revision ยังต้องทำ
 - File Manager ยังใช้ API/สิทธิ์ผู้ดูแล site เดิม; ยังไม่เปิดให้ tenant end-user ใช้ด้วย tenant session และยังไม่ใช้ immutable FileRef ID หรือ path policy ใหม่ครบทุกแบบ
-- Auth ใหม่ยังครอบ local login เดิม; registration, revoke/session ใหม่ และ Google/LINE/Facebook/LDAP/AD adapters ยังต้องทำ
-- Mail facade ยังใช้ HTTP provider/outbox เดิม; SMTP, CC, attachments, template collection และย้าย tenant outbox ยังต้องทำ
+- Auth provider implementation ลงแล้ว; external provider/directory acceptance ด้วยบัญชีจริงยังต้องทำ
+- Mail SMTP/UI implementation ลงแล้ว; external SMTP acceptance และ template collection adapter ภายนอก registry ยังต้องทำ
 - Google/Media adapters ยังไม่ได้ implement; GitHub Release/GHCR publishing และ migration/rollback workflow ยังต้องทำ
 - ยังไม่ได้ deploy แทน container ที่ใช้งานอยู่หรือเผยแพร่ package ขึ้น registry
 

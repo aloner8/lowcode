@@ -318,7 +318,9 @@ Checkpoint sequence restore: rehearsal เพิ่มตรวจ last_value/is
 
 **สถานะ 16 กันยายน 2026:** เริ่ม implementation ต่อโดยเจ้าของระบบให้ข้าม gate App ลูกของ P7 ชั่วคราว ลำดับงาน P8 คือ Mail → Auth providers → Google/Media → worker/release/version โดยแต่ละโมดูลยังต้องผ่าน Definition of Done ของตนเอง และข้อพิสูจน์ provider ภายนอกที่ไม่มี test credential ต้องรายงานเป็น blocker ไม่อ้างว่าเสร็จจาก mock.
 
-Checkpoint Mail backend: SMTP/STARTTLS/TLS, CC, attachment snapshot, template preview, durable lease recovery และสถานะ accepted/unknown ลงแล้ว พร้อม typed client, migration และ local SMTP socket integration; UI template/binding และ external SMTP proof ยังเป็นงานถัดไป จึงยังไม่ถือว่า Mail/P8 เสร็จ.
+Checkpoint Mail: SMTP/STARTTLS/TLS, CC, attachment snapshot, template preview, durable lease recovery, structured Studio template/binding UI และสถานะ accepted/unknown ลงแล้ว พร้อม typed client, migration และ local SMTP socket integration; external SMTP account proof ยัง deferred เพราะไม่มี protected test credential.
+
+Checkpoint Auth providers: local registration, Google/LINE/Facebook/Entra authorization-code + PKCE/state, LDAP/AD DS over LDAPS, subject identity link, group-role mapping และ session-version revocation ลงแล้วใน ShareModule `0.3.0`; local HTTP adapter integration ผ่าน แต่ proof กับ provider tenant/test directory จริงยัง deferred และห้ามอ้างว่า provider ภายนอกผ่าน.
 
 ขึ้นกับความพร้อม P5/P7 งาน: Mail SMTP/CC/attachment/template, social/directory Auth, Google/Media, worker/release/version ตาม ShareModule.MD โดยจัดลำดับตามงานที่ผู้ใช้จะใช้จริง
 

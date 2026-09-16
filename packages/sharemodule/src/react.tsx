@@ -59,11 +59,11 @@ export function FileManager(props: PickerProps) {
   </div>;
 }
 
-export function Login({ afterLogin = '/', onSuccess }: { afterLogin?: string; onSuccess?: () => void }) {
+export function Login({ afterLogin = '/', providers = ['local'], runtimeSlug, onSuccess }: { afterLogin?: string; providers?: Array<'local' | 'google' | 'line' | 'facebook' | 'ldap' | 'ad-ds' | 'entra'>; runtimeSlug?: string; onSuccess?: () => void }) {
   const modules = useModules();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  return <form onSubmit={async event => {
+  return <div className="sharemodule-login">{providers.includes('local') && <form onSubmit={async event => {
     event.preventDefault(); if (busy) return;
     const form = new FormData(event.currentTarget); setBusy(true); setError('');
     try {
@@ -75,7 +75,23 @@ export function Login({ afterLogin = '/', onSuccess }: { afterLogin?: string; on
   }}>
     <label className="d-block">อีเมล<input className="form-control" name="email" type="email" autoComplete="username" required /></label>
     <label className="d-block mt-2">รหัสผ่าน<input className="form-control" name="password" type="password" autoComplete="current-password" required /></label>
-    {error && <p role="alert" className="text-danger">{error}</p>}
     <button className="btn btn-primary mt-3" type="submit" disabled={busy}>{busy ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}</button>
-  </form>;
+  </form>}
+    {providers.some(provider => provider === 'ldap' || provider === 'ad-ds') && <form className="mt-3" onSubmit={async event => {
+      event.preventDefault(); if (busy) return;
+      const form = new FormData(event.currentTarget); setBusy(true); setError('');
+      try {
+        await modules.auth.directoryLogin({ provider: String(form.get('provider')) === 'ad-ds' ? 'ad-ds' : 'ldap', username: String(form.get('username')), password: String(form.get('password')) });
+        if (onSuccess) onSuccess(); else window.location.assign(new URL(afterLogin, window.location.origin).href);
+      } catch (cause) { setError(cause instanceof Error ? cause.message : 'เข้าสู่ระบบไม่สำเร็จ'); } finally { setBusy(false); }
+    }}>
+      <label className="d-block">Directory<select className="form-select" name="provider">{providers.filter(provider => provider === 'ldap' || provider === 'ad-ds').map(provider => <option value={provider} key={provider}>{provider}</option>)}</select></label>
+      <label className="d-block mt-2">Username<input className="form-control" name="username" autoComplete="username" required/></label>
+      <label className="d-block mt-2">Password<input className="form-control" name="password" type="password" autoComplete="current-password" required/></label>
+      <button className="btn btn-primary mt-3" type="submit" disabled={busy}>{busy ? 'กำลังเข้าสู่ระบบ…' : 'Directory sign in'}</button>
+    </form>}
+    {providers.filter((provider): provider is 'google' | 'line' | 'facebook' | 'entra' => ['google', 'line', 'facebook', 'entra'].includes(provider)).map(provider => <button key={provider} type="button" className="btn btn-outline-secondary mt-2 w-100 text-capitalize" disabled={!runtimeSlug} onClick={() => { if (runtimeSlug) window.location.assign(modules.auth.externalLoginUrl(provider, runtimeSlug)); }}>Continue with {provider}</button>)}
+    {error && <p role="alert" className="text-danger">{error}</p>}
+    {!providers.includes('local') && providers.length === 0 && <p role="alert">No login provider is enabled.</p>}
+  </div>;
 }
