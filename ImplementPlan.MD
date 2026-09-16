@@ -322,6 +322,8 @@ Checkpoint Mail: SMTP/STARTTLS/TLS, CC, attachment snapshot, template preview, d
 
 Checkpoint Auth providers: local registration, Google/LINE/Facebook/Entra authorization-code + PKCE/state, LDAP/AD DS over LDAPS, subject identity link, group-role mapping และ session-version revocation ลงแล้วใน ShareModule `0.3.0`; local HTTP adapter integration ผ่าน แต่ proof กับ provider tenant/test directory จริงยัง deferred และห้ามอ้างว่า provider ภายนอกผ่าน.
 
+Checkpoint Google/Media: Google Workspace adapters สำหรับ Maps/Calendar/Drive/Forms/Vision/Gemini, Studio components/property schema และ local QR/Sharp resize ลงแล้วใน ShareModule `0.4.0`; QR/resize พิสูจน์กับไฟล์จริงใน tenant storage และ Google adapter ผ่าน fixed-endpoint/security tests แต่ proof กับ Google test account/Cloud project จริงยัง deferred เพราะไม่มี protected credential.
+
 ขึ้นกับความพร้อม P5/P7 งาน: Mail SMTP/CC/attachment/template, social/directory Auth, Google/Media, worker/release/version ตาม ShareModule.MD โดยจัดลำดับตามงานที่ผู้ใช้จะใช้จริง
 
 เกณฑ์ผ่านรายโมดูล: UI + service + typed contract + ตัวอย่าง + integration กับระบบทดสอบจริง + package/image/version และแนวทาง rollback ครบ; mock หรือ facade อย่างเดียวไม่ถือว่าเสร็จ

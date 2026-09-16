@@ -10,6 +10,10 @@ export type ComponentType =
   | "GalleryComponent"
   | "ShareFileManager"
   | "ShareLogin"
+  | "ShareQRCode"
+  | "ShareGoogleMap"
+  | "ShareGoogleCalendar"
+  | "ShareGoogleForm"
   | "FileManagerComponent"
   | "FileManagerPopupComponent"
   | "DynamicHtmlComponent"
@@ -161,7 +165,7 @@ export interface StudioServiceDefinition {
   name: string;
   kind: SharedServiceKind;
   serviceRef?: { serviceKey: string; version: string };
-  provider?: "jwt" | "postgres" | "tenant-storage" | "http-email";
+  provider?: "jwt" | "postgres" | "tenant-storage" | "http-email" | "google-workspace" | "local-media";
   scope?: "container" | "platform" | "app";
   enabled: boolean;
   implementation?: { owner: "mother"; version: number; module: string };

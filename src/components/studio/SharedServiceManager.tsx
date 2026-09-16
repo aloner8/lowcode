@@ -8,7 +8,7 @@ import { MailTemplateEditor } from './MailTemplateEditor';
 
 interface Props { platformId: string; appId?: string | null; services: StudioServiceDefinition[]; collections: Array<{ id: string; name: string; table: string }>; onSave: (service: StudioServiceDefinition) => Promise<void> }
 
-const providerFor = (kind: SharedServiceDefinition['kind']): StudioServiceDefinition['provider'] => kind === 'auth' ? 'jwt' : kind === 'data' ? 'postgres' : kind === 'storage' ? 'tenant-storage' : 'http-email';
+const providerFor = (kind: SharedServiceDefinition['kind']): StudioServiceDefinition['provider'] => kind === 'auth' ? 'jwt' : kind === 'data' ? 'postgres' : kind === 'storage' ? 'tenant-storage' : kind === 'google' ? 'google-workspace' : kind === 'media' ? 'local-media' : 'http-email';
 const slug = (value: string) => value.replace(/[^a-z0-9]+/gi, '.').replace(/^\.|\.$/g, '').toLowerCase();
 
 function editor(schema: JsonSchema, value: unknown, set: (value: unknown) => void, key: string, collections: Props['collections']) {
@@ -38,6 +38,8 @@ export const SharedServiceManager: React.FC<Props> = ({ platformId, appId, servi
       ? { signingKey: 'env://PLATFORM_JWT_SECRET' }
       : item.serviceKey === 'notification.email'
         ? { smtpUsername: 'env://LOWCODE_CONNECTION_SMTP_USERNAME', smtpPassword: 'env://LOWCODE_CONNECTION_SMTP_PASSWORD' }
+        : item.serviceKey === 'google.workspace'
+          ? { googleClientId: 'env://LOWCODE_CONNECTION_GOOGLE_API_CLIENT_ID', googleClientSecret: 'env://LOWCODE_CONNECTION_GOOGLE_API_CLIENT_SECRET', googleRefreshToken: 'env://LOWCODE_CONNECTION_GOOGLE_API_REFRESH_TOKEN' }
         : {};
     const config = item.serviceKey === 'notification.email'
       ? { ...item.defaultConfig, templates: {} }
@@ -73,6 +75,16 @@ export const SharedServiceManager: React.FC<Props> = ({ platformId, appId, servi
                   ['directoryBindDn', draft.secretRefs?.directoryBindDn || 'env://LOWCODE_CONNECTION_DIRECTORY_BIND_DN'],
                   ['directoryBindPassword', draft.secretRefs?.directoryBindPassword || 'env://LOWCODE_CONNECTION_DIRECTORY_BIND_PASSWORD'],
                 ] : []),
+              ])
+          : definition.serviceKey === 'google.workspace' && key === 'features'
+            ? Object.fromEntries([
+                ...((Array.isArray(value) ? value : []).some((feature) => ['calendar', 'drive', 'forms'].includes(String(feature))) ? [
+                  ['googleClientId', draft.secretRefs?.googleClientId || 'env://LOWCODE_CONNECTION_GOOGLE_API_CLIENT_ID'],
+                  ['googleClientSecret', draft.secretRefs?.googleClientSecret || 'env://LOWCODE_CONNECTION_GOOGLE_API_CLIENT_SECRET'],
+                  ['googleRefreshToken', draft.secretRefs?.googleRefreshToken || 'env://LOWCODE_CONNECTION_GOOGLE_API_REFRESH_TOKEN'],
+                ] : []),
+                ...((Array.isArray(value) ? value : []).includes('vision') ? [['googleVisionApiKey', draft.secretRefs?.googleVisionApiKey || 'env://LOWCODE_CONNECTION_GOOGLE_VISION_API_KEY']] : []),
+                ...((Array.isArray(value) ? value : []).includes('ai') ? [['googleGeminiApiKey', draft.secretRefs?.googleGeminiApiKey || 'env://LOWCODE_CONNECTION_GOOGLE_GEMINI_API_KEY']] : []),
               ])
           : draft.secretRefs;
         setDraft({ ...draft, config, secretRefs });

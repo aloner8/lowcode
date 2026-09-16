@@ -5,7 +5,7 @@ import { validateSchema } from './schemaValidator';
 export function serviceKeyOf(binding: StudioServiceDefinition): string {
   if (binding.serviceRef?.serviceKey) return binding.serviceRef.serviceKey;
   if (binding.id === 'service.auth.jwt') return 'auth.session';
-  return binding.kind === 'data' ? 'data.collection' : binding.kind === 'storage' ? 'storage.object' : binding.kind === 'notification' ? 'notification.email' : 'auth.session';
+  return binding.kind === 'data' ? 'data.collection' : binding.kind === 'storage' ? 'storage.object' : binding.kind === 'notification' ? 'notification.email' : binding.kind === 'google' ? 'google.workspace' : binding.kind === 'media' ? 'media.local' : 'auth.session';
 }
 
 export function normalizeServiceBinding(binding: StudioServiceDefinition): StudioServiceDefinition {
@@ -42,6 +42,10 @@ export function validateServiceBinding(binding: StudioServiceDefinition): { vali
         if (typeof normalized.config.directoryBaseDn !== 'string' || !normalized.config.directoryBaseDn.trim()) errors.push('Directory base DN is required');
         if (typeof normalized.config.directoryUserFilter !== 'string' || !normalized.config.directoryUserFilter.includes('{{username}}')) errors.push('Directory user filter must include {{username}}');
       }
+    }
+    if (definition.serviceKey === 'google.workspace') {
+      const features = Array.isArray(normalized.config.features) ? normalized.config.features.map(String) : [];
+      if (features.includes('maps') && (typeof normalized.config.browserMapsKey !== 'string' || !normalized.config.browserMapsKey.trim())) errors.push('A domain-restricted browser Maps key is required when Maps is enabled');
     }
     for (const operation of normalized.policy?.allowedOperations ?? []) if (!definition.operations[operation]) errors.push(`Operation '${operation}' does not exist`);
   }

@@ -24,8 +24,13 @@ export function validateBindingSecretReferences(binding: StudioServiceDefinition
   const providers = Array.isArray(binding.config.providers) ? binding.config.providers : ['local'];
   const socialSecretKeys = providers.flatMap((provider) => ['google', 'line', 'facebook', 'entra'].includes(String(provider)) ? [`${provider}ClientId`, `${provider}ClientSecret`] : []);
   const directorySecretKeys = providers.some((provider) => provider === 'ldap' || provider === 'ad-ds') ? ['directoryBindDn', 'directoryBindPassword'] : [];
+  const googleFeatures = Array.isArray(binding.config.features) ? binding.config.features.map(String) : [];
+  const googleWorkspaceKeys = googleFeatures.some((feature) => ['calendar', 'drive', 'forms'].includes(feature)) ? ['googleClientId', 'googleClientSecret', 'googleRefreshToken'] : [];
+  const googleFeatureKeys = [...(googleFeatures.includes('vision') ? ['googleVisionApiKey'] : []), ...(googleFeatures.includes('ai') ? ['googleGeminiApiKey'] : [])];
   const required = serviceKeyOf(binding) === 'auth.session'
     ? ['signingKey', ...socialSecretKeys, ...directorySecretKeys]
+    : serviceKeyOf(binding) === 'google.workspace'
+      ? [...googleWorkspaceKeys, ...googleFeatureKeys]
     : serviceKeyOf(binding) === 'notification.email'
       ? binding.config.transport === 'smtp'
         ? binding.config.smtpAuthMode === 'none' ? [] : ['smtpUsername', 'smtpPassword']
@@ -46,6 +51,12 @@ export function validateBindingSecretReferences(binding: StudioServiceDefinition
     for (const key of [...socialSecretKeys, ...directorySecretKeys]) {
       const reference = binding.secretRefs?.[key];
       if (reference && !CONNECTION_ENV_REF.test(reference)) errors.push(`External Auth secret reference '${key}' must use the LOWCODE_CONNECTION_ namespace`);
+    }
+  }
+  if (serviceKeyOf(binding) === 'google.workspace') {
+    for (const key of [...googleWorkspaceKeys, ...googleFeatureKeys]) {
+      const reference = binding.secretRefs?.[key];
+      if (reference && !CONNECTION_ENV_REF.test(reference)) errors.push(`Google secret reference '${key}' must use the LOWCODE_CONNECTION_ namespace`);
     }
   }
   return errors;

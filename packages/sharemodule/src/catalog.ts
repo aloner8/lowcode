@@ -88,6 +88,41 @@ const definitions: SharedServiceDefinition[] = [
       getDeliveryStatus: { inputSchema: object({ jobId: { type: 'string' } }, ['jobId']), outputSchema: resultSchema, execution: 'sync', idempotency: 'none' },
     },
   },
+  {
+    serviceKey: 'google.workspace', displayName: 'Google Workspace', kind: 'google', version: '1.0.0', lifecycle: 'active',
+    defaultConfig: { features: ['calendar', 'drive', 'forms'], maxPageSize: 100, requestTimeoutMs: 10000 },
+    propertySchema: object({
+      features: { type: 'array', items: { type: 'string', enum: ['maps', 'calendar', 'drive', 'forms', 'vision', 'ai'] } },
+      maxPageSize: { type: 'integer', minimum: 1, maximum: 1000 },
+      requestTimeoutMs: { type: 'integer', minimum: 1000, maximum: 60000 },
+      browserMapsKey: { type: 'string', maxLength: 500 },
+      geminiModel: { type: 'string', maxLength: 160 },
+    }, ['features']),
+    operations: {
+      mapsEmbedUrl: { inputSchema: object({ lat: { type: 'number', minimum: -90, maximum: 90 }, lng: { type: 'number', minimum: -180, maximum: 180 }, zoom: { type: 'integer', minimum: 1, maximum: 21 } }, ['lat', 'lng']), outputSchema: resultSchema, execution: 'sync', idempotency: 'none' },
+      calendarList: { inputSchema: object({ calendarId: { type: 'string' }, timeMin: { type: 'string' }, timeMax: { type: 'string' }, pageToken: { type: 'string' } }, ['calendarId']), outputSchema: resultSchema, execution: 'sync', idempotency: 'none' },
+      calendarCreate: { inputSchema: object({ calendarId: { type: 'string' }, title: { type: 'string' }, start: { type: 'string' }, end: { type: 'string' }, description: { type: 'string' } }, ['calendarId', 'title', 'start', 'end']), outputSchema: resultSchema, execution: 'sync', idempotency: 'required' },
+      driveList: { inputSchema: object({ folderId: { type: 'string' }, query: { type: 'string' }, pageToken: { type: 'string' } }), outputSchema: resultSchema, execution: 'sync', idempotency: 'none' },
+      formsGet: { inputSchema: object({ formId: { type: 'string' } }, ['formId']), outputSchema: resultSchema, execution: 'sync', idempotency: 'none' },
+      formsResponses: { inputSchema: object({ formId: { type: 'string' }, pageToken: { type: 'string' } }, ['formId']), outputSchema: resultSchema, execution: 'sync', idempotency: 'none' },
+      visionOcr: { inputSchema: object({ file: { type: 'string' } }, ['file']), outputSchema: resultSchema, execution: 'async', idempotency: 'supported' },
+      aiGenerate: { inputSchema: object({ prompt: { type: 'string', minLength: 1, maxLength: 20000 }, data: {}, outputSchema: { type: 'object', additionalProperties: true } }, ['prompt']), outputSchema: resultSchema, execution: 'async', idempotency: 'supported' },
+    },
+  },
+  {
+    serviceKey: 'media.local', displayName: 'Local Media', kind: 'media', version: '1.0.0', lifecycle: 'active',
+    defaultConfig: { rootNamespace: 'shared', outputPath: 'generated', maxInputBytes: 20971520, maxPixels: 24000000 },
+    propertySchema: object({
+      rootNamespace: { type: 'string', pattern: '^[a-zA-Z0-9][a-zA-Z0-9/_-]{0,199}$' },
+      outputPath: { type: 'string', pattern: '^[a-zA-Z0-9][a-zA-Z0-9/_-]{0,199}$' },
+      maxInputBytes: { type: 'integer', minimum: 1, maximum: 104857600 },
+      maxPixels: { type: 'integer', minimum: 1024, maximum: 100000000 },
+    }, ['rootNamespace', 'outputPath']),
+    operations: {
+      qrCode: { inputSchema: object({ value: { type: 'string', minLength: 1, maxLength: 4096 }, size: { type: 'integer', minimum: 64, maximum: 2048 }, format: { type: 'string', enum: ['svg', 'png'] } }, ['value']), outputSchema: resultSchema, execution: 'sync', idempotency: 'none' },
+      imageResize: { inputSchema: object({ file: { type: 'string' }, width: { type: 'integer', minimum: 1, maximum: 12000 }, height: { type: 'integer', minimum: 1, maximum: 12000 }, fit: { type: 'string', enum: ['cover', 'contain', 'inside', 'outside'] }, format: { type: 'string', enum: ['jpeg', 'png', 'webp'] }, quality: { type: 'integer', minimum: 1, maximum: 100 } }, ['file']), outputSchema: resultSchema, execution: 'sync', idempotency: 'supported' },
+    },
+  },
 ];
 
 export const SERVICE_CATALOG = Object.freeze(definitions);

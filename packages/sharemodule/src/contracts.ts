@@ -1,4 +1,4 @@
-export type SharedServiceKind = "auth" | "data" | "storage" | "notification";
+export type SharedServiceKind = "auth" | "data" | "storage" | "notification" | "google" | "media";
 export type SharedServiceBindingStatus = "draft" | "valid" | "invalid" | "published";
 
 export interface ServiceOperationDefinition {

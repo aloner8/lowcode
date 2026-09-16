@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileManager as ShareFileManager, Login as ShareLogin } from '@matchanu/sharemodule/react';
+import { FileManager as ShareFileManager, Login as ShareLogin, QRCode as ShareQRCode, GoogleMap as ShareGoogleMap, GoogleCalendar as ShareGoogleCalendar, GoogleForm as ShareGoogleForm } from '@matchanu/sharemodule/react';
 import { ComponentType } from '@/types';
 import {
   FieldInputComponent,
@@ -48,6 +48,10 @@ import {
 export const COMPONENT_REGISTRY: Record<ComponentType, React.FC<any>> = {
   ShareFileManager,
   ShareLogin,
+  ShareQRCode,
+  ShareGoogleMap,
+  ShareGoogleCalendar,
+  ShareGoogleForm,
   FieldInputComponent,
   FormComponent,
   TableDataComponent,
@@ -239,7 +243,11 @@ export const COMPONENT_PALETTE: ComponentPaletteItem[] = [
     },
   },
   { type: 'ShareFileManager', label: 'File Picker (Shared Module)', category: 'Media & Files', description: 'Choose a folder and receive one file or multiple files.', defaultProps: { currentPath: '/uploads', multiple: false, mode: 'compact' } },
-  { type: 'ShareLogin', label: 'Login (Shared Module)', category: 'Form Controls', description: 'Sign in using the app default Auth Module.', defaultProps: { afterLogin: '/' } },
+  { type: 'ShareLogin', label: 'Login (Shared Module)', category: 'Form Controls', description: 'Sign in using the app default Auth Module.', defaultProps: { afterLogin: '/', providers: ['local'] } },
+  { type: 'ShareQRCode', label: 'QR Code (Shared Module)', category: 'Media & Files', description: 'Generate a QR image locally without provider credentials.', defaultProps: { value: 'https://example.org', size: 256, alt: 'QR code' } },
+  { type: 'ShareGoogleMap', label: 'Google Map (Shared Module)', category: 'Media & Files', description: 'Map view using the app default Google connection.', defaultProps: { center: { lat: 13.7563, lng: 100.5018 }, zoom: 14, title: 'Map' } },
+  { type: 'ShareGoogleCalendar', label: 'Google Calendar (Shared Module)', category: 'Data Display', description: 'List events from an allowed Calendar alias.', defaultProps: { calendarId: 'primary' } },
+  { type: 'ShareGoogleForm', label: 'Google Form (Shared Module)', category: 'Form Controls', description: 'Open the responder URL for an allowed Google Form.', defaultProps: { formId: '', title: 'Google Form' } },
   {
     type: 'FileManagerComponent',
     label: 'File Manager',

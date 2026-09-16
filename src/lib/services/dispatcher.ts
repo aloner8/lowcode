@@ -9,6 +9,8 @@ import { executeAuthSessionService } from './authSessionService';
 import { executeCollectionService } from './collectionService';
 import { executeStorageObjectService } from './storageObjectService';
 import { executeEmailNotificationService } from './emailNotificationService';
+import { executeGoogleWorkspaceService } from './googleWorkspaceService';
+import { executeLocalMediaService } from './localMediaService';
 import type { ServiceExecutionContext } from './runtimeContext';
 
 export interface DispatchOptions { idempotencyKey?: string | null }
@@ -51,6 +53,8 @@ export async function dispatchService(ctx: ServiceExecutionContext, bindingId: s
     else if (serviceKey === 'data.collection') result = { data: await executeCollectionService(ctx, binding, operation, input) };
     else if (serviceKey === 'storage.object') result = { data: await executeStorageObjectService(ctx, binding, operation, input) };
     else if (serviceKey === 'notification.email') result = { data: await executeEmailNotificationService(ctx, binding, operation, input) };
+    else if (serviceKey === 'google.workspace') result = { data: await executeGoogleWorkspaceService(ctx, binding, operation, input) };
+    else if (serviceKey === 'media.local') result = { data: await executeLocalMediaService(ctx, binding, operation, input) };
     else throw new ServiceError('SERVICE_NOT_FOUND', `No handler is registered for '${serviceKey}'`, 501);
     if (options.idempotencyKey && idempotencyClaimed) await getCoreDb().query(`UPDATE public.service_idempotency_keys SET response_status=200,response_body=$6::jsonb WHERE platform_id=$1 AND app_scope=$2 AND binding_key=$3 AND operation=$4 AND idempotency_key=$5`, [ctx.scope.platformId, appScope, bindingId, operation, options.idempotencyKey, JSON.stringify(result)]);
     await audit(ctx, bindingId, serviceKey, version, operation, 'success', Math.round(performance.now() - started)); return result;

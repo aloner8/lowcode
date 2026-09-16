@@ -30,9 +30,9 @@ describe('shared service catalog', () => {
       .toContain("SMTP secret reference 'smtpPassword' must use the LOWCODE_CONNECTION_ namespace");
   });
 
-  it('registers the four initial capabilities', () => {
+  it('registers the initial and P8 capabilities', () => {
     expect(listServiceDefinitions().map((item) => item.serviceKey)).toEqual([
-      'auth.session', 'data.collection', 'storage.object', 'notification.email',
+      'auth.session', 'data.collection', 'storage.object', 'notification.email', 'google.workspace', 'media.local',
     ]);
   });
 

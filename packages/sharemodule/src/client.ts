@@ -61,6 +61,24 @@ export function createModules(options: ModuleClientOptions = {}) {
       preview: (input: Omit<MailInput, 'attachments'>, request?: RequestOptions) => call<{ subject: string; html: string; to: string[]; cc: string[] }>('mail', 'preview', { to: input.to, cc: input.cc ?? [], templateId: input.template, variables: input.data ?? {} }, request),
       status: (jobId: string, request?: RequestOptions) => call<{ jobId: string; status: string; attempts: number }>('mail', 'status', { jobId }, request),
     },
+    google: {
+      maps: { embedUrl: (input: { lat: number; lng: number; zoom?: number }, request?: RequestOptions) => call<{ url: string }>('google', 'mapsEmbedUrl', input, request) },
+      calendar: {
+        list: (input: { calendarId: string; timeMin?: string; timeMax?: string; pageToken?: string }, request?: RequestOptions) => call<{ events: unknown[]; nextPageToken?: string }>('google', 'calendarList', input, request),
+        createEvent: (input: { calendarId: string; title: string; start: string; end: string; description?: string }, request?: RequestOptions) => call<{ event: unknown }>('google', 'calendarCreate', input, request, true),
+      },
+      drive: { list: (input: { folderId?: string; query?: string; pageToken?: string }, request?: RequestOptions) => call<{ files: unknown[]; nextPageToken?: string }>('google', 'driveList', input, request) },
+      forms: {
+        get: (formId: string, request?: RequestOptions) => call<{ form: unknown }>('google', 'formsGet', { formId }, request),
+        responses: (input: { formId: string; pageToken?: string }, request?: RequestOptions) => call<{ responses: unknown[]; nextPageToken?: string }>('google', 'formsResponses', input, request),
+      },
+      vision: { ocr: (file: string, request?: RequestOptions) => call<{ text: string }>('google', 'visionOcr', { file }, request) },
+      ai: { generate: (input: { prompt: string; data?: unknown; outputSchema?: Record<string, unknown> }, request?: RequestOptions) => call<{ text?: string; value?: unknown }>('google', 'aiGenerate', input, request) },
+    },
+    media: {
+      qrCode: (input: { value: string; size?: number; format?: 'svg' | 'png' }, request?: RequestOptions) => call<{ mimeType: string; dataUrl: string }>('media', 'qrCode', input, request),
+      image: { resize: (input: { file: string; width?: number; height?: number; fit?: 'cover' | 'contain' | 'inside' | 'outside'; format?: 'jpeg' | 'png' | 'webp'; quality?: number }, request?: RequestOptions) => call<{ file: unknown }>('media', 'imageResize', input, request, true) },
+    },
   };
 }
 export type Modules = ReturnType<typeof createModules>;

@@ -5,6 +5,8 @@ export const MODULE_CATALOG = {
   auth: { serviceKey: 'auth.session', operations: { register: 'register', login: 'login', directoryLogin: 'directoryLogin', providers: 'listProviders', startExternalLogin: 'startExternalLogin', completeExternalLogin: 'completeExternalLogin', logout: 'logout', me: 'me', refresh: 'refresh', revokeSessions: 'revokeSessions', changePassword: 'changePassword' } },
   files: { serviceKey: 'storage.object', operations: { list: 'list', upload: 'upload', metadata: 'getMetadata', delete: 'delete' } },
   mail: { serviceKey: 'notification.email', operations: { send: 'sendTemplate', preview: 'previewTemplate', status: 'getDeliveryStatus' } },
+  google: { serviceKey: 'google.workspace', operations: { mapsEmbedUrl: 'mapsEmbedUrl', calendarList: 'calendarList', calendarCreate: 'calendarCreate', driveList: 'driveList', formsGet: 'formsGet', formsResponses: 'formsResponses', visionOcr: 'visionOcr', aiGenerate: 'aiGenerate' } },
+  media: { serviceKey: 'media.local', operations: { qrCode: 'qrCode', imageResize: 'imageResize' } },
 } as const;
 
 export type ModuleName = keyof typeof MODULE_CATALOG;

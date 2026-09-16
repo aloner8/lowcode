@@ -50,6 +50,14 @@ export async function dispatchModule(ctx: ServiceExecutionContext, module: strin
     if (module === 'files' && (operation === 'list' || operation === 'upload') && !('path' in input)) {
       dispatchedInput = { ...input, path: setting.config.workingPath };
     }
+    if (module === 'google') {
+      const feature = operation.startsWith('maps') ? 'maps' : operation.startsWith('calendar') ? 'calendar' : operation.startsWith('drive') ? 'drive' : operation.startsWith('forms') ? 'forms' : operation.startsWith('vision') ? 'vision' : operation.startsWith('ai') ? 'ai' : null;
+      if (feature && !(Array.isArray(setting.config.features) && setting.config.features.includes(feature))) throw new ServiceError('OPERATION_NOT_ALLOWED', `Google ${feature} is disabled in this App revision`, 403);
+    }
+    if (module === 'media') {
+      const feature = operation === 'qrCode' ? 'qr' : operation === 'imageResize' ? 'image' : null;
+      if (feature && !(Array.isArray(setting.config.features) && setting.config.features.includes(feature))) throw new ServiceError('OPERATION_NOT_ALLOWED', `Media ${feature} is disabled in this App revision`, 403);
+    }
   }
   const bindings = (Array.isArray(ctx.snapshot.services) ? ctx.snapshot.services as StudioServiceDefinition[] : []).map(normalizeServiceBinding);
   const defaultId = ctx.snapshot.moduleDefaults?.[module];

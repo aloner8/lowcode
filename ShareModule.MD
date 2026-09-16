@@ -433,11 +433,20 @@ Developer ทำเพียงเลือกโมดูล กำหนดข
 - Studio เลือก provider/registration/after-login ได้โดยไม่เห็น credential; SecretRef provider อยู่ server เท่านั้น
 - local HTTP OAuth integration, TLS/filter guard, full tests และ build ผ่าน; proof กับ provider tenant และ directory จริงยัง deferred เพราะไม่มี protected test infrastructure
 
+### P8 Google/Media checkpoint — 16 กันยายน 2026
+
+- ShareModule `0.4.0` เพิ่ม Maps embed, Calendar, Drive, Forms, Vision และ Gemini adapters ผ่าน endpoint คงที่ ไม่เปิด generic proxy
+- token/API key ฝั่ง server เก็บเป็น SecretRef; browser Maps key แยกต่างหากและต้องจำกัด web origin/API ที่ Google Cloud
+- Gemini structured output จำกัด schema depth/keywords และ validate ผลซ้ำก่อนคืน App
+- local Media สร้าง QR จริงและ resize ด้วย Sharp จาก tenant FileRef ภายใน namespace พร้อม byte/pixel bounds และ content-addressed output
+- Studio palette/property schema มี QR, Map, Calendar และ Form; Module Setting ปิด/เปิด feature ราย App revision ได้
+- local QR/resize integration ผ่าน; proof กับ Google test account/Cloud project จริงยัง deferred และห้ามอ้างว่า provider ภายนอกผ่าน
+
 - ยังไม่ครบระยะ Foundation: หน้า Connections, การสร้าง default binding/schema จาก module config และ config revision ยังต้องทำ
 - File Manager ยังใช้ API/สิทธิ์ผู้ดูแล site เดิม; ยังไม่เปิดให้ tenant end-user ใช้ด้วย tenant session และยังไม่ใช้ immutable FileRef ID หรือ path policy ใหม่ครบทุกแบบ
 - Auth provider implementation ลงแล้ว; external provider/directory acceptance ด้วยบัญชีจริงยังต้องทำ
 - Mail SMTP/UI implementation ลงแล้ว; external SMTP acceptance และ template collection adapter ภายนอก registry ยังต้องทำ
-- Google/Media adapters ยังไม่ได้ implement; GitHub Release/GHCR publishing และ migration/rollback workflow ยังต้องทำ
+- Google/Media adapters ลงแล้ว; external Google acceptance ยัง deferred ส่วน GitHub Release/GHCR publishing และ migration/rollback workflow ยังต้องทำ
 - ยังไม่ได้ deploy แทน container ที่ใช้งานอยู่หรือเผยแพร่ package ขึ้น registry
 
 ชุดแรกนี้เป็นการวางฐานและย้ายการใช้งานจริงเข้า library โดยยังไม่ถือว่าโมดูลทั้งสี่กลุ่มเสร็จครบตาม Definition of Done

@@ -5,10 +5,12 @@ describe("Module Setting policy", () => {
   it("provides publishable defaults for local Auth and Files", () => {
     expect(validateModuleSetting({ moduleKey: "auth", enabled: true, config: createDefaultModuleConfig("auth") }).valid).toBe(true);
     expect(validateModuleSetting({ moduleKey: "files", enabled: true, config: createDefaultModuleConfig("files") }).valid).toBe(true);
+    expect(validateModuleSetting({ moduleKey: "google", enabled: true, config: createDefaultModuleConfig("google") }).valid).toBe(true);
+    expect(validateModuleSetting({ moduleKey: "media", enabled: true, config: createDefaultModuleConfig("media") }).valid).toBe(true);
   });
 
   it("accepts social Auth but rejects unknown providers and external redirects", () => {
-    expect(validateModuleSetting({ moduleKey: "google", enabled: true, config: {} }).issues)
+    expect(validateModuleSetting({ moduleKey: "payments", enabled: true, config: {} }).issues)
       .toContainEqual(expect.objectContaining({ code: "unsupported_module" }));
     expect(validateModuleSetting({
       moduleKey: "auth",

@@ -95,3 +95,39 @@ export function Login({ afterLogin = '/', providers = ['local'], runtimeSlug, on
     {!providers.includes('local') && providers.length === 0 && <p role="alert">No login provider is enabled.</p>}
   </div>;
 }
+
+export function QRCode({ value, size = 256, alt = 'QR code' }: { value: string; size?: number; alt?: string }) {
+  const modules = useModules();
+  const [dataUrl, setDataUrl] = useState('');
+  const [error, setError] = useState('');
+  useEffect(() => { let active = true; void modules.media.qrCode({ value, size, format: 'svg' }).then((result) => { if (active) { setDataUrl(result.dataUrl); setError(''); } }).catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'Unable to generate QR code'); }); return () => { active = false; }; }, [modules, size, value]);
+  // Data URLs returned by the tenant-scoped media service are not compatible with next/image.
+  // eslint-disable-next-line @next/next/no-img-element
+  return error ? <p role="alert">{error}</p> : dataUrl ? <img src={dataUrl} width={size} height={size} alt={alt}/> : <span aria-busy="true">Generating QR…</span>;
+}
+
+export function GoogleMap({ center, zoom = 14, title = 'Google Map' }: { center: { lat: number; lng: number }; zoom?: number; title?: string }) {
+  const modules = useModules();
+  const { lat, lng } = center;
+  const [url, setUrl] = useState('');
+  const [error, setError] = useState('');
+  useEffect(() => { let active = true; void modules.google.maps.embedUrl({ lat, lng, zoom }).then((result) => { if (active) { setUrl(result.url); setError(''); } }).catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'Unable to load map'); }); return () => { active = false; }; }, [lat, lng, modules, zoom]);
+  return error ? <p role="alert">{error}</p> : url ? <iframe title={title} src={url} loading="lazy" referrerPolicy="no-referrer-when-downgrade" style={{ border: 0, width: '100%', minHeight: 320 }}/> : <span aria-busy="true">Loading map…</span>;
+}
+
+export function GoogleCalendar({ calendarId, timeMin, timeMax }: { calendarId: string; timeMin?: string; timeMax?: string }) {
+  const modules = useModules();
+  const [events, setEvents] = useState<Array<Record<string, unknown>>>([]);
+  const [error, setError] = useState('');
+  useEffect(() => { let active = true; void modules.google.calendar.list({ calendarId, timeMin, timeMax }).then((result) => { if (active) setEvents(result.events as Array<Record<string, unknown>>); }).catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'Unable to load calendar'); }); return () => { active = false; }; }, [calendarId, modules, timeMax, timeMin]);
+  if (error) return <p role="alert">{error}</p>;
+  return <ul aria-label="Google Calendar events">{events.map((event, index) => <li key={String(event.id || index)}>{String(event.summary || event.id || 'Untitled event')}</li>)}</ul>;
+}
+
+export function GoogleForm({ formId, title = 'Google Form' }: { formId: string; title?: string }) {
+  const modules = useModules();
+  const [url, setUrl] = useState('');
+  const [error, setError] = useState('');
+  useEffect(() => { let active = true; void modules.google.forms.get(formId).then((result) => { const form = result.form as Record<string, unknown>; if (active) setUrl(String(form.responderUri || '')); }).catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'Unable to load form'); }); return () => { active = false; }; }, [formId, modules]);
+  return error ? <p role="alert">{error}</p> : url ? <iframe title={title} src={url} style={{ border: 0, width: '100%', minHeight: 640 }}/> : <span aria-busy="true">Loading form…</span>;
+}

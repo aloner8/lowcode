@@ -1,6 +1,6 @@
 import type { JsonValue } from "@/lib/template/contracts";
 
-export type SupportedModuleKey = "auth" | "files";
+export type SupportedModuleKey = "auth" | "files" | "google" | "media";
 
 export interface ModuleSettingDefinition {
   key: SupportedModuleKey;
@@ -26,6 +26,18 @@ export const MODULE_SETTING_CATALOG: readonly ModuleSettingDefinition[] = [
     label: "Local Files",
     description: "Tenant-scoped file storage with a safe default working folder.",
     defaultConfig: { workingPath: "/documents" },
+  },
+  {
+    key: "google",
+    label: "Google Workspace",
+    description: "Calendar, Drive, Forms, Maps, Vision and AI through a Platform-controlled binding.",
+    defaultConfig: { features: ["calendar", "drive", "forms"] },
+  },
+  {
+    key: "media",
+    label: "Local Media",
+    description: "QR generation and tenant-scoped image processing without external credentials.",
+    defaultConfig: { features: ["qr", "image"] },
   },
 ] as const;
 
@@ -74,7 +86,7 @@ export function validateModuleSetting(
     if (typeof config.afterLogin !== "string" || !/^\/(?!\/)/.test(config.afterLogin) || config.afterLogin.includes("\\")) {
       issue("invalid_after_login", "config.afterLogin", "afterLogin must be a local absolute path");
     }
-  } else {
+  } else if (definition.key === "files") {
     unexpectedKeys(config, ["workingPath"]).forEach((key) =>
       issue("unsupported_module_config", `config.${key}`, `Files config '${key}' is not supported`),
     );
@@ -87,6 +99,13 @@ export function validateModuleSetting(
       segments.some((segment) => segment === "." || segment === "..")
     ) {
       issue("invalid_files_working_path", "config.workingPath", "workingPath must be a safe tenant-relative absolute path");
+    }
+  } else {
+    unexpectedKeys(config, ["features"]).forEach((key) => issue("unsupported_module_config", `config.${key}`, `${definition.label} config '${key}' is not supported`));
+    const allowed = definition.key === "google" ? new Set(["maps", "calendar", "drive", "forms", "vision", "ai"]) : new Set(["qr", "image"]);
+    const features = Array.isArray(config.features) ? config.features : [];
+    if (!features.length || features.some((feature) => typeof feature !== "string" || !allowed.has(feature)) || new Set(features).size !== features.length) {
+      issue("unsupported_module_feature", "config.features", `${definition.label} features must be a non-empty unique supported selection`);
     }
   }
   return { valid: issues.length === 0, issues };
